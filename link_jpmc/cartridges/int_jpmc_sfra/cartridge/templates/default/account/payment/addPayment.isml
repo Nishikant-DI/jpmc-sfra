@@ -1,0 +1,38 @@
+<isdecorate template="common/layout/page">
+    <isscript>
+        var assets = require('*/cartridge/scripts/assets.js');
+        assets.addJs('/js/paymentInstruments.js');
+        assets.addCss('/css/account/payment.css');
+    </isscript>
+    <div class="hero slant-down account-image">
+        <h1 class="page-title">${Resource.msg('page.heading.payments','payment',null)}</h1>
+    </div>
+    <div class="container">
+        <isinclude template="components/breadcrumbs/pageBreadcrumbs"/>
+        <div class="row justify-content-center">
+            <div class="col-sm-8 col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <isif condition="${pdict.UUID}">
+                            <h2>${Resource.msg('label.payment.editpayment','payment',null)}</h2>
+                        <iselse>
+                            <h2>${Resource.msg('label.payment.addnewpayment','payment',null)}</h2>
+                        </isif>
+                    </div>
+                    <div class="card-body">
+                        <isset name="jpmcGetKeyUrl" value="${dw.system.Site.current.getCustomPreferenceValue('JPMCGetKeyUrl') || ''}" scope="page" />
+                        <isset name="jpmcEncryptionUrl" value="${dw.system.Site.current.getCustomPreferenceValue('JPMCEncryptionUrl') || ''}" scope="page" />
+                        <isif condition="${jpmcGetKeyUrl}">
+                            <script src="${jpmcGetKeyUrl}"></script>
+                        </isif>
+                        <isif condition="${jpmcEncryptionUrl}">
+                            <script src="${jpmcEncryptionUrl}"></script>
+                        </isif>
+
+                        <isinclude template="account/payment/paymentForm"/>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</isdecorate>

@@ -1,0 +1,41 @@
+{
+  "name": "int_jpmc",
+  "version": "26.1.0",
+  "description": "JPMC SFRA Payment Integration",
+  "scripts": {
+    "build": "sgmf-scripts --compile js && sgmf-scripts --compile css",
+    "lint": "sgmf-scripts --lint js",
+    "watch": "sgmf-scripts --watch",
+    "upload": "sgmf-scripts --upload",
+    "uploadCartridge": "sgmf-scripts --uploadCartridge int_jpmc_sfra",
+    "test": "sgmf-scripts --test test/unit/**/*.js",
+    "cover": "sgmf-scripts --cover 'test/unit'",
+    "test:watch": "sgmf-scripts --test test/unit/**/*.js --watch"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.6.3",
+    "@babel/preset-env": "^7.6.3",
+    "babel-loader": "^8.0.6",
+    "chai": "^3.5.0",
+    "css-loader": "^6.8.1",
+    "eslint": "^8.57.1",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "mini-css-extract-plugin": "^2.7.6",
+    "mocha": "^10.0.0",
+    "nyc": "^15.1.0",
+    "proxyquire": "1.7.4",
+    "sass": "^1.69.5",
+    "sass-loader": "^13.3.2",
+    "sgmf-scripts": "^3.0.0",
+    "sinon": "^17.0.1"
+  },
+  "paths": {
+    "base": "../storefront-reference-architecture-master/cartridges/app_storefront_base/"
+  },
+  "packageName": "int_jpmc_sfra",
+  "dependencies": {
+    "@kount/kount-web-client-sdk": "^2.2.3"
+  }
+}

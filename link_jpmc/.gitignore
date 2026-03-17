@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+npm-debug.log
+
+# Build & Distribution
+cartridges/*/cartridge/static/
+cartridges.zip
+coverage/
+
+# IDE & Editor
+.idea/
+.vscode/
+.history/
+*.iml
+
+# OS
+.DS_Store
+
+# Environment & Configuration
+dw.json
+test/appium/webdriver/config.json
+test/integration/config.json
+package-lock.json
+
+# Data & Reports
+sitegenesisdata/
+mobilefirstdata/
+storefrontdata/
+demo_data_sfra/
+demo_data_sfra.zip
+test/acceptance/report

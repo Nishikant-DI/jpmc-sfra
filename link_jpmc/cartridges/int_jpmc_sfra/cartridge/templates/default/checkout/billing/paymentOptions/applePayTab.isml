@@ -1,0 +1,5 @@
+<li class="nav-item apple-pay-tab-item" data-method-id="${paymentOption.ID}">
+    <a class="nav-link apple-pay-tab" data-toggle="tab" href="#apple-pay-content" role="tab">
+        <span class="apple-pay-tab-label">${Resource.msg('label.payment.applepay', 'checkout', null)}</span>
+    </a>
+</li>

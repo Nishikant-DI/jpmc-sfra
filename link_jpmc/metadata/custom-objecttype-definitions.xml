@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xmlns="http://www.demandware.com/xml/impex/metadata/2006-10-31">
+    <custom-type type-id="JPMCAccessToken">
+        <display-name xml:lang="x-default">JPMC Access Token</display-name>
+        <description xml:lang="x-default">Stores JPMC OAuth2 access tokens with expiration metadata</description>
+        <staging-mode>no-staging</staging-mode>
+        <storage-scope>site</storage-scope>
+        <key-definition attribute-id="tokenKey">
+            <type>string</type>
+            <min-length>0</min-length>
+        </key-definition>
+        <attribute-definitions>
+            <attribute-definition attribute-id="accessToken">
+                <display-name xml:lang="x-default">Access Token</display-name>
+                <description xml:lang="x-default">OAuth2 access token from JPMC</description>
+                <type>password</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="expiresAt">
+                <display-name xml:lang="x-default">Expires At</display-name>
+                <description xml:lang="x-default">Timestamp when token expires</description>
+                <type>string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="expiresIn">
+                <display-name xml:lang="x-default">Expires In (Seconds)</display-name>
+                <description xml:lang="x-default">Token validity duration in seconds</description>
+                <type>string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="issuedAt">
+                <display-name xml:lang="x-default">Issued At</display-name>
+                <description xml:lang="x-default">Timestamp when token was created</description>
+                <type>string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="type">
+                <display-name xml:lang="x-default">Token Type</display-name>
+                <description xml:lang="x-default">Type identifier for the token (always jpmc_access_token)</description>
+                <type>string</type>
+                <localizable-flag>false</localizable-flag>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+        </attribute-definitions>
+        <group-definitions>
+            <attribute-group group-id="JPMCAccessToken">
+                <display-name xml:lang="x-default">JPMCAccessToken</display-name>
+                <attribute attribute-id="type"/>
+                <attribute attribute-id="expiresAt"/>
+                <attribute attribute-id="issuedAt"/>
+                <attribute attribute-id="expiresIn"/>
+                <attribute attribute-id="creationDate" system="true"/>
+                <attribute attribute-id="lastModified" system="true"/>
+                <attribute attribute-id="tokenKey"/>
+                <attribute attribute-id="accessToken"/>
+            </attribute-group>
+        </group-definitions>
+    </custom-type>
+
+    </metadata>

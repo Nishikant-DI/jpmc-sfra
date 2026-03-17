@@ -1,0 +1,588 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata xmlns="http://www.demandware.com/xml/impex/metadata/2006-10-31">
+    <type-extension type-id="SitePreferences">
+        <custom-attribute-definitions>
+            <attribute-definition attribute-id="JPMCClientID">
+                <display-name xml:lang="x-default">JPMC Client ID</display-name>
+                <description xml:lang="x-default">OAuth2 Client ID from J.P. Morgan</description>
+                <type>password</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCTokenURI">
+                <display-name xml:lang="x-default">JPMC Token URI</display-name>
+                <description xml:lang="x-default">OAuth2 token endpoint URL from J.P. Morgan</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCResourceID">
+                <display-name xml:lang="x-default">JPMC Resource ID</display-name>
+                <description xml:lang="x-default">OAuth2 resource ID from J.P. Morgan</description>
+                <type>password</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCAudience">
+                <display-name xml:lang="x-default">JPMC Audience</display-name>
+                <description xml:lang="x-default">JWT audience claim (typically same as token URI)</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCExpiresIn">
+                <display-name xml:lang="x-default">JPMC Token Expiration</display-name>
+                <description xml:lang="x-default">JWT token expiration time (e.g., 8h)</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCGetKeyUrl">
+                <display-name xml:lang="x-default">JPMC PIE Get Key URL</display-name>
+                <description xml:lang="x-default">URL for JPMC Page Integrated Encryption (PIE) getkey.js script. Example: https://safetechpageencryptionvar.chasepaymentech.com/pie/v1/YOUR_PIE_ID/getkey.js</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCEncryptionUrl">
+                <display-name xml:lang="x-default">JPMC PIE Encryption URL</display-name>
+                <description xml:lang="x-default">URL for JPMC Page Integrated Encryption (PIE) encryption.js script. Example: https://safetechpageencryptionvar.chasepaymentech.com/pie/v1/encryption.js</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMC_MerchantCode">
+                <display-name xml:lang="x-default">JPMC Merchant Id</display-name>
+                <description xml:lang="x-default">Merchant ID. Example: YOUR_merchantId</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCMerchantSoftwareCompany">
+                <display-name xml:lang="x-default">JPMC Merchant Software Company</display-name>
+                <description xml:lang="x-default">Company name for merchant software identification. Default: Salesforce Commerce Cloud</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <default-value>Salesforce Commerce Cloud</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCMerchantSoftwareProduct">
+                <display-name xml:lang="x-default">JPMC Merchant Software Product</display-name>
+                <description xml:lang="x-default">Product name for merchant software identification. Default: SFCC</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <default-value>SFCC</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCMerchantSoftwareVersion">
+                <display-name xml:lang="x-default">JPMC Merchant Software Version</display-name>
+                <description xml:lang="x-default">Software version for merchant software identification. Default: 1.0.0</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <default-value>1.0.0</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCPlatformId">
+                <display-name xml:lang="x-default">JPMC Platform ID</display-name>
+                <description xml:lang="x-default">Optional platform identifier for JPMC APIs</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCTokenizationType">
+                <display-name xml:lang="x-default">JPMC Tokenization Type</display-name>
+                <description xml:lang="x-default">Default tokenization type for payment transactions. Default: SAFETECH_TOKEN</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">Safetech Token</display>
+                        <value>SAFETECH_TOKEN</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Network Token</display>
+                        <value>NETWORK_TOKEN</value>
+                    </value-definition>
+                </value-definitions>
+                <default-value>SAFETECH_TOKEN</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCCaptureMethod">
+                <display-name xml:lang="x-default">JPMC Capture Method</display-name>
+                <description xml:lang="x-default">Payment capture method: MANUAL (auth only), DELAYED (delayed capture), NOW (immediate sale). Default: MANUAL</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">Manual (Authorization Only)</display>
+                        <value>MANUAL</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Delayed Capture</display>
+                        <value>DELAYED</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Immediate Sale (NOW)</display>
+                        <value>NOW</value>
+                    </value-definition>
+                </value-definitions>
+                <default-value>MANUAL</default-value>
+            </attribute-definition>
+
+
+            <attribute-definition attribute-id="JPMCEnableFraudCheck">
+                <display-name xml:lang="x-default">Enable JPMC Fraud Check (Handle)</display-name>
+                <description xml:lang="x-default">Enable fraud check validation during payment verification (basket stage, before payment instrument is verified). Transactions declined by fraud rules (fraudRuleAction = "D") will be blocked. Default: false</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <default-value>false</default-value>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="JPMCEnableFraudCheckAtAuth">
+                <display-name xml:lang="x-default">Enable JPMC Fraud Check (Authorize)</display-name>
+                <description xml:lang="x-default">Enable fraud check validation before payment authorization (order stage, before payment is authorized). Transactions declined by fraud rules (fraudRuleAction = "D") will be blocked and order data will be stored. Default: false</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <default-value>false</default-value>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="JPMCEnableAVS">
+                <display-name xml:lang="x-default">Enable Address Verification Service (AVS)</display-name>
+                <description xml:lang="x-default">Enable Address Verification Service to include billing address in Verify Payment and Authorization API payloads. When enabled, billing address is sent to JPMC for address verification checks. Note: Billing address is always included in Fraud Check payloads regardless of this setting. Default: true</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <default-value>true</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCGooglePayEnvironment">
+                <display-name xml:lang="x-default">JPMC Google Pay Environment</display-name>
+                <description xml:lang="x-default">Google Pay environment: TEST for development/sandbox, PRODUCTION for live. Default: TEST</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">Test</display>
+                        <value>TEST</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Production</display>
+                        <value>PRODUCTION</value>
+                    </value-definition>
+                </value-definitions>
+                <default-value>TEST</default-value>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="JPMCGooglePayGatewayMerchantId">
+                <display-name xml:lang="x-default">JPMC Google Pay Gateway Merchant ID</display-name>
+                <description xml:lang="x-default">Gateway merchant ID provided by Chase for Google Pay tokenization</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="JPMCGooglePayMerchantId">
+                <display-name xml:lang="x-default">JPMC Google Pay Merchant ID</display-name>
+                <description xml:lang="x-default">Google Pay merchant ID from Google Pay Business Console (required for PRODUCTION environment)</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="JPMCGooglePayMerchantName">
+                <display-name xml:lang="x-default">JPMC Google Pay Merchant Name</display-name>
+                <description xml:lang="x-default">Merchant name displayed to the shopper in the Google Pay payment sheet</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="JPMCGooglePayAllowedCardNetworks">
+                <display-name xml:lang="x-default">JPMC Google Pay Allowed Card Networks</display-name>
+                <description xml:lang="x-default">Comma-separated list of allowed card networks for Google Pay. Example: VISA,MASTERCARD,AMEX,DISCOVER</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="JPMCGooglePayGateway">
+                <display-name xml:lang="x-default">JPMC Google Pay Gateway</display-name>
+                <description xml:lang="x-default">Payment gateway identifier for Google Pay tokenization (e.g. chase)</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="JPMCGooglePayAllowedAuthMethods">
+                <display-name xml:lang="x-default">JPMC Google Pay Allowed Auth Methods</display-name>
+                <description xml:lang="x-default">Comma-separated list of allowed authentication methods for Google Pay. Example: PAN_ONLY,CRYPTOGRAM_3DS</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="jpmc_kid">
+                <display-name xml:lang="x-default">JPMC Key ID (kid)</display-name>
+                <description xml:lang="x-default">SHA-1 hex thumbprint (uppercase, 40 characters) for JWT kid claim. Generate via BM &gt; Merchant Tools &gt; JPMC Tools &gt; Certificate Thumbprint Generator.</description>
+                <type>password</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCCertAlias">
+                <display-name xml:lang="x-default">JPMC Certificate Alias</display-name>
+                <description xml:lang="x-default">Alias of the X.509 certificate in BM Certificate Manager (Administration > Operations > Private Keys and Certificates)</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCPrivateKeyAlias">
+                <display-name xml:lang="x-default">JPMC Private Key Alias</display-name>
+                <description xml:lang="x-default">Alias of the private key in BM Certificate Manager (Administration > Operations > Private Keys and Certificates)</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="jpmcKountClientId">
+                <display-name xml:lang="x-default">Kount Client ID</display-name>
+                <description xml:lang="x-default">Kount Web Client SDK Client ID (6-digit merchant ID). Required when fraud check is enabled. Provided by Kount during onboarding. Example: 300002</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="jpmcKountEnvironment">
+                <display-name xml:lang="x-default">Kount Environment</display-name>
+                <description xml:lang="x-default">Kount environment: TEST for sandbox/development, PROD for production. Default: TEST</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">Test</display>
+                        <value>TEST</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Production</display>
+                        <value>PROD</value>
+                    </value-definition>
+                </value-definitions>
+                <default-value>TEST</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCMerchantPreferredRouting">
+                <display-name xml:lang="x-default">JPMC Merchant Preferred Routing</display-name>
+                <description xml:lang="x-default">Card payment routing model: None (Acquirer preferred routing, no routing fields sent), PINLESS (Send PINLESS routing with preferred network list), CREDIT (Send CREDIT routing). Default: None</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">None (Acquirer Preferred)</display>
+                        <value>None</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">PINLESS</display>
+                        <value>PINLESS</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">CREDIT</display>
+                        <value>CREDIT</value>
+                    </value-definition>
+                </value-definitions>
+                <default-value>None</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCPreferredPaymentNetworkNameList">
+                <display-name xml:lang="x-default">JPMC Preferred Payment Network Name List</display-name>
+                <description xml:lang="x-default">Preferred payment networks for PINLESS routing. Used only when Merchant Preferred Routing is set to PINLESS. Select one or more networks.</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <select-multiple-flag>true</select-multiple-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">STAR PINLESS</display>
+                        <value>STAR_PINLESS</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">PULSE PINLESS</display>
+                        <value>PULSE_PINLESS</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">NYCE PINLESS</display>
+                        <value>NYCE_PINLESS</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">ACCEL PINLESS</display>
+                        <value>ACCEL_PINLESS</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">EFTPOS PINLESS</display>
+                        <value>EFTPOS_PINLESS</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">MAESTRO PINLESS</display>
+                        <value>MAESTRO_PINLESS</value>
+                    </value-definition>
+                </value-definitions>
+                <default-value></default-value>
+            </attribute-definition>
+        </custom-attribute-definitions>
+        <group-definitions>
+            <attribute-group group-id="JPMC_Payment">
+                <display-name xml:lang="x-default">JPMC Payment Configuration</display-name>
+                <attribute attribute-id="JPMCClientID"/>
+                <attribute attribute-id="JPMC_MerchantCode"/>
+                <attribute attribute-id="JPMCTokenizationType"/>
+                <attribute attribute-id="JPMCCaptureMethod"/>
+                <attribute attribute-id="JPMCEnableFraudCheck"/>
+                <attribute attribute-id="JPMCEnableFraudCheckAtAuth"/>
+                <attribute attribute-id="JPMCEnableAVS"/>
+                <attribute attribute-id="JPMCTokenURI"/>
+                <attribute attribute-id="JPMCResourceID"/>
+                <attribute attribute-id="JPMCAudience"/>
+                <attribute attribute-id="JPMCExpiresIn"/>
+                <attribute attribute-id="JPMCGetKeyUrl"/>
+                <attribute attribute-id="JPMCEncryptionUrl"/>
+                <attribute attribute-id="JPMCMerchantSoftwareCompany"/>
+                <attribute attribute-id="JPMCMerchantSoftwareProduct"/>
+                <attribute attribute-id="JPMCMerchantSoftwareVersion"/>
+                <attribute attribute-id="JPMCPlatformId"/>
+                <attribute attribute-id="JPMCGooglePayEnvironment"/>
+                <attribute attribute-id="JPMCGooglePayGatewayMerchantId"/>
+                <attribute attribute-id="JPMCGooglePayMerchantId"/>
+                <attribute attribute-id="JPMCGooglePayMerchantName"/>
+                <attribute attribute-id="JPMCGooglePayAllowedCardNetworks"/>
+                <attribute attribute-id="JPMCGooglePayGateway"/>
+                <attribute attribute-id="JPMCGooglePayAllowedAuthMethods"/>
+                <attribute attribute-id="jpmcKountClientId"/>
+                <attribute attribute-id="jpmcKountEnvironment"/>
+                <attribute attribute-id="JPMCMerchantPreferredRouting"/>
+                <attribute attribute-id="JPMCPreferredPaymentNetworkNameList"/>
+            </attribute-group>
+            <attribute-group group-id="JPMC_Certificate">
+                <display-name xml:lang="x-default">JPMC Certificate &amp; JWT Settings</display-name>
+                <attribute attribute-id="JPMCCertAlias"/>
+                <attribute attribute-id="JPMCPrivateKeyAlias"/>
+                <attribute attribute-id="jpmc_kid"/>
+            </attribute-group>
+        </group-definitions>
+    </type-extension>
+    <type-extension type-id="OrderPaymentInstrument">
+        <custom-attribute-definitions>
+            <attribute-definition attribute-id="jpmcTransactionId">
+                <display-name xml:lang="x-default">JPMC Transaction ID</display-name>
+                <description xml:lang="x-default">Authorization transaction ID returned from JPMC payment service</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="jpmcGooglePayToken">
+                <display-name xml:lang="x-default">JPMC Google Pay Token (Temporary)</display-name>
+                <description xml:lang="x-default">Temporary storage for Google Pay encrypted payment bundle. Cleared after authorization for security.</description>
+                <type>text</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="jpmcWalletProvider">
+                <display-name xml:lang="x-default">JPMC Wallet Provider</display-name>
+                <description xml:lang="x-default">Wallet provider used for payment (e.g., GOOGLE_PAY, APPLE_PAY)</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="kountSessionId">
+                <display-name xml:lang="x-default">Kount Session ID</display-name>
+                <description xml:lang="x-default">Kount device fingerprinting session ID for fraud detection. Captured from checkout form and passed to JPMC fraud check API.</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <field-length>255</field-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="jpmcFraudRuleAction">
+                <display-name xml:lang="x-default">JPMC Fraud Rule Action</display-name>
+                <description xml:lang="x-default">Fraud rule action from verify stage (A=Accept, D=Decline, E=Manager Review, R=Review). Used to determine capture method override when flagged for review.</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <field-length>1</field-length>
+            </attribute-definition>
+        </custom-attribute-definitions>
+    </type-extension>
+    <type-extension type-id="Order">
+        <custom-attribute-definitions>
+            <attribute-definition attribute-id="jpmcFraudTransactionId">
+                <display-name xml:lang="x-default">JPMC Fraud Transaction ID</display-name>
+                <description xml:lang="x-default">Transaction ID returned from JPMC fraud check service</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <field-length>255</field-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="jpmcFraudRiskElement">
+                <display-name xml:lang="x-default">JPMC Fraud Risk Element</display-name>
+                <description xml:lang="x-default">Risk element from fraud check</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <field-length>50</field-length>
+            </attribute-definition>
+            <attribute-definition attribute-id="jpmcFraudRiskDecision">
+                <display-name xml:lang="x-default">JPMC Fraud Risk Decision</display-name>
+                <description xml:lang="x-default">Fraud risk decision from JPMC fraud</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="jpmcFraudCheckDate">
+                <display-name xml:lang="x-default">JPMC Fraud Check Date</display-name>
+                <description xml:lang="x-default">Date and time when fraud check was performed</description>
+                <type>datetime</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="jpmcFraudResponse">
+                <display-name xml:lang="x-default">JPMC Fraud Response</display-name>
+                <description xml:lang="x-default">Complete JSON response from JPMC fraud check API for debugging and audit purposes</description>
+                <type>text</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="kountSessionId">
+                <display-name xml:lang="x-default">Kount Session ID</display-name>
+                <description xml:lang="x-default">Kount device fingerprinting session ID for fraud detection. Stored from payment instrument for order-level tracking and reporting.</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <field-length>255</field-length>
+            </attribute-definition>
+        </custom-attribute-definitions>
+        <group-definitions>
+            <attribute-group group-id="JPMCFraudCheck">
+                <display-name xml:lang="x-default">JPMC Fraud Check</display-name>
+                <attribute attribute-id="jpmcFraudTransactionId"/>
+                <attribute attribute-id="jpmcFraudRiskElement"/>
+                <attribute attribute-id="jpmcFraudRiskDecision"/>
+                <attribute attribute-id="jpmcFraudCheckDate"/>
+                <attribute attribute-id="jpmcFraudResponse"/>
+                <attribute attribute-id="kountSessionId"/>
+            </attribute-group>
+        </group-definitions>
+    </type-extension>
+
+    <type-extension type-id="PaymentTransaction">
+        <custom-attribute-definitions>
+            <attribute-definition attribute-id="jpmcAuthorizationId">
+                <display-name xml:lang="x-default">JPMC Authorization ID</display-name>
+                <description xml:lang="x-default">Copy of authorization transaction ID for CSC convenience (source: OrderPaymentInstrument.jpmcTransactionId)</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="jpmcCaptureHistory">
+                <display-name xml:lang="x-default">JPMC Capture History</display-name>
+                <description xml:lang="x-default">JSON array of all capture transactions with details (transactionId, amount, timestamp, status, userId, notes)</description>
+                <type>text</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="jpmcRefundHistory">
+                <display-name xml:lang="x-default">JPMC Refund History</display-name>
+                <description xml:lang="x-default">JSON array of all refund transactions with details (transactionId, amount, timestamp, status, userId, notes)</description>
+                <type>text</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="jpmcCapturedAmount">
+                <display-name xml:lang="x-default">JPMC Captured Amount</display-name>
+                <description xml:lang="x-default">Total amount captured in dollars (aggregate of all captures)</description>
+                <type>double</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+
+
+            <attribute-definition attribute-id="jpmcRefundedAmount">
+                <display-name xml:lang="x-default">JPMC Refunded Amount</display-name>
+                <description xml:lang="x-default">Total amount refunded in dollars (aggregate of all refunds)</description>
+                <type>double</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+
+
+            <attribute-definition attribute-id="jpmcRemainingAuthAmount">
+                <display-name xml:lang="x-default">JPMC Available for Capture</display-name>
+                <description xml:lang="x-default">Authorized amount still available for capture (in dollars)</description>
+                <type>double</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="jpmcRemainingRefundableAmount">
+                <display-name xml:lang="x-default">JPMC Available for Refund</display-name>
+                <description xml:lang="x-default">Captured amount still available for refund (in dollars)</description>
+                <type>double</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="jpmcPaymentStatus">
+                <display-name xml:lang="x-default">JPMC Payment Status</display-name>
+                <description xml:lang="x-default">Current payment status: A=Authorized, AC=Auth&amp;Capture, C=Captured, PC=PartialCaptured, RF=Refunded, PRF=PartialRefunded</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="jpmcCaptureMethod">
+                <display-name xml:lang="x-default">JPMC Capture Method</display-name>
+                <description xml:lang="x-default">Capture method used during authorization: MANUAL (auth only, capture via BM), NOW (immediate sale), DELAYED (delayed capture)</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="jpmcAuthTimestamp">
+                <display-name xml:lang="x-default">JPMC Authorization Timestamp</display-name>
+                <description xml:lang="x-default">Server timestamp (ISO-8601) when authorization was created. Used to compute DELAYED capture window (120 min).</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <min-length>0</min-length>
+            </attribute-definition>
+
+            <attribute-definition attribute-id="jpmcVoidHistory">
+                <display-name xml:lang="x-default">JPMC Void History</display-name>
+                <description xml:lang="x-default">JSON array of all void transactions with details (amount, timestamp, status, userId, type)</description>
+                <type>text</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+            </attribute-definition>
+
+        </custom-attribute-definitions>
+
+        <group-definitions>
+            <attribute-group group-id="JPMCPayment">
+                <display-name xml:lang="x-default">JPMC Payment</display-name>
+                <attribute attribute-id="jpmcAuthorizationId"/>
+                <attribute attribute-id="jpmcPaymentStatus"/>
+                <attribute attribute-id="jpmcCapturedAmount"/>
+                <attribute attribute-id="jpmcRefundedAmount"/>
+                <attribute attribute-id="jpmcRemainingAuthAmount"/>
+                <attribute attribute-id="jpmcRemainingRefundableAmount"/>
+                <attribute attribute-id="jpmcCaptureHistory"/>
+                <attribute attribute-id="jpmcRefundHistory"/>
+                <attribute attribute-id="jpmcVoidHistory"/>
+                <attribute attribute-id="jpmcCaptureMethod"/>
+                <attribute attribute-id="jpmcAuthTimestamp"/>
+            </attribute-group>
+        </group-definitions>
+    </type-extension>
+</metadata>

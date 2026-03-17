@@ -1,0 +1,10 @@
+<isloop items="${pdict.order.billing.payment.applicablePaymentMethods}" var="paymentOption">
+    <isif condition="${paymentOption.ID === 'CREDIT_CARD'}">
+        <isinclude template="checkout/billing/paymentOptions/creditCardTab" />
+    <iselseif condition="${paymentOption.ID === 'DW_APPLE_PAY'}"/>
+        <isinclude template="checkout/billing/paymentOptions/applePayTab" />
+    </isif>
+    <isif condition="${paymentOption.ID === 'JPMC_GOOGLE_PAY'}">
+        <isinclude template="checkout/billing/paymentOptions/googlePayTab" />
+    </isif>
+</isloop>

@@ -1,0 +1,9 @@
+{
+    "caches": [
+        {
+            "id": "jpmc_access_token_cache",
+            "expireAfterSeconds": 3600,
+            "description": "Cache for JPMC OAuth2 access tokens with 1-hour TTL"
+        }
+    ]
+}

@@ -1,0 +1,11 @@
+
+<div class="mb-sm-3">
+    <a href="${URLUtils.https('Checkout-Begin')}"
+        class="btn btn-primary btn-block checkout-btn<isif condition="${pdict.valid.error}"> disabled</isif>" role="button">
+        <isprint value="${Resource.msg('button.checkout', 'cart', null)}" encoding="htmlcontent"/>
+    </a>
+</div>
+
+<div class="mb-sm-3 apple-pay-cart-container">
+    <isapplepay class="btn btn-block apple-pay-cart-btn"></isapplepay>
+</div>
