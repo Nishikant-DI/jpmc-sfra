@@ -10,8 +10,8 @@ This cartridge enables seamless integration of JPMorgan Chase payment services w
 
 ### Payment Methods
 - **Credit Card Payments**: Full credit card processing with enhanced security
-- **Google Pay**: Digital wallet integration for Android users
-- **Apple Pay**: Digital wallet integration for iOS and Safari users
+- **Google Pay**: Digital wallet integration for Web
+- **Apple Pay**: Digital wallet integration for Web (safari)
 
 ### Credit Card Features
 - **Page Encryption**: Client-side encryption for enhanced security
@@ -54,6 +54,7 @@ This cartridge enables seamless integration of JPMorgan Chase payment services w
 
 - `int_jpmc_core` - Core payment functionality and API integration
 - `int_jpmc_sfra` - SFRA-specific templates and controllers
+- `bm_jpmc` - SFRA-specific templates + controllers + Integartions from BM users(Admin and CSC)
 
 ## Configuration
 
@@ -61,7 +62,7 @@ Configure the payment settings in Business Manager:
 1. Navigate to Merchant Tools > Site Preferences > Custom Preferences
 2. Configure JPMorgan Chase payment credentials
 3. Enable desired payment methods
-4. Set up fraud prevention rules
+4. Configure the Services
 
 ## Support
 
