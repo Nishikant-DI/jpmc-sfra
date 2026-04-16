@@ -23,31 +23,21 @@ function convertToCents(dollarAmount) {
 /**
  * Builds merchant object with software details from configuration.
  * @returns {Object}
- * @private
  */
 function buildMerchantObject() {
-    var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
-    var config = JPMCConfig.getConfig();
-    return {
-        merchantSoftware: buildMerchantSoftwareDefaults(config)
-    };
-}
-
-/**
- * Builds merchant software object from JPMCConfig site preferences.
- * @param {Object} config
- * @returns {Object}
- * @private
- */
-function buildMerchantSoftwareDefaults(config) {
+    var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var softwareCompany = constants.DEFAULT_COMPANY_NAME;
+    var softwareProduct = constants.DEFAULT_PRODUCT_NAME;
+    var softwareVersion = constants.DEFAULT_VERSION;
 
     return {
-        companyName: config.merchantSoftware.companyName,
-        productName: config.merchantSoftware.productName,
-        version: config.merchantSoftware.version
+        merchantSoftware: {
+            companyName: softwareCompany,
+            productName: softwareProduct,
+            version: softwareVersion
+        }
     };
 }
-
 /**
  * Formats phone number for JPMC API (digits only, max 12 chars)
  * 
@@ -102,7 +92,6 @@ function toAlpha3CountryCode(alpha2) {
 
 /**
  * Builds fraudCheckShoppingCart string from basket or order line items.
- * Format: T=type&I=itemId&D=description&Q=quantity&P=price&| (max 999 chars)
  * @param {dw.order.Basket|dw.order.Order} basketOrOrder
  * @returns {String}
  * @private
@@ -181,11 +170,6 @@ function buildCapturePayload(params) {
         amount: convertToCents(params.amount),
         currency: params.order.getCurrencyCode()
     };
-
-    // JPMC constraint: multiCaptureRecordCount >= multiCaptureSequenceNumber.
-    // Because the total number of captures is unknown upfront, we set recordCount
-    // to sequenceNumber when this is the final capture, or to 99 otherwise
-    // (the maximum allowed placeholder). The isFinalCapture flag is the real signal.
     if (params.multiCapture) {
         var seqNum = params.multiCapture.sequenceNumber || 1;
         var isFinal = params.multiCapture.isFinal || false;
@@ -204,16 +188,11 @@ function buildCapturePayload(params) {
 
 /**
  * Builds refund request payload per JPMC API specification
- * 
- * FULL REFUND: Only transactionReferenceId is required
- * PARTIAL REFUND: Requires amount, currency, and transactionReferenceId
- * 
  * @param {Object} params
  * @param {String} params.transactionReferenceId
  * @param {Number} [params.amount]
  * @param {String} [params.currency]
  * @param {String} [params.reason]
- * @param {dw.order.PaymentInstrument} [params.paymentInstrument]
  * @returns {Object}
  */
 function buildRefundPayload(params) {
@@ -229,24 +208,6 @@ function buildRefundPayload(params) {
         },
         merchant: buildMerchantObject()
     };
-
-    if (params.paymentInstrument) {
-        var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
-        var merchantPreferredRouting = JPMCConfig.getMerchantPreferredRouting();
-        
-        if (merchantPreferredRouting) {
-            if (!payload.paymentMethodType.card) {
-                payload.paymentMethodType.card = {};
-            }
-            payload.paymentMethodType.card.merchantPreferredRouting = merchantPreferredRouting;
-            if (merchantPreferredRouting === 'PINLESS') {
-                var preferredNetworkList = JPMCConfig.getPreferredPaymentNetworkNameList();
-                if (preferredNetworkList && preferredNetworkList.length > 0) {
-                    payload.paymentMethodType.card.preferredPaymentNetworkNameList = preferredNetworkList;
-                }
-            }
-        }
-    }
 
     if (params.amount !== undefined && params.amount !== null && params.currency) {
         payload.amount = convertToCents(params.amount);
@@ -368,7 +329,7 @@ function buildFraudCheckForCardSavePayload(params) {
     var Site = require('dw/system/Site');
     var currency = params.currency || Site.getCurrent().getDefaultCurrency();
     var payload = {
-        amount: 0, // No transaction amount for card save
+        amount: 0,
         currency: currency,
         accountHolder: {
             deviceIPAddress: params.deviceIPAddress || jpmcConstants.FALLBACK_IP_ADDRESS
@@ -405,16 +366,15 @@ function buildFraudCheckForCardSavePayload(params) {
 
 /**
  * Builds accountHolder object for fraud check and payment authorization
- * 
+ *
  * @param {dw.order.Basket|dw.order.Order} basketOrOrder
  * @param {String} [ipAddress]
- * @param {String} [ipAddressFieldName='deviceIPAddress'] - Field name to use in accountHolder object:
- *                                                            - 'deviceIPAddress' → Fraud check context (billing address always included)
- *                                                            - 'IPAddress' → Verify/Auth context (billing address controlled by AVS flag)
+ * @param {String} [ipAddressFieldName='deviceIPAddress']
+ * @param {Object} [resolvedConfig]
  * @returns {Object}
  * @private
  */
-function buildAccountHolderObject(basketOrOrder, ipAddress, ipAddressFieldName) {
+function buildAccountHolderObject(basketOrOrder, ipAddress, ipAddressFieldName, resolvedConfig) {
     var accountHolder = {};
     var billingAddress = basketOrOrder.getBillingAddress();
     var customerEmail = basketOrOrder.getCustomerEmail();
@@ -424,12 +384,14 @@ function buildAccountHolderObject(basketOrOrder, ipAddress, ipAddressFieldName) 
 
     var shouldIncludeBillingAddress;
     if (ipAddressFieldName === 'deviceIPAddress') {
-        // Fraud check context: billing address always required for fraud detection
         shouldIncludeBillingAddress = true;
     } else {
-        // Verify/Auth context: include billing address only when AVS is enabled
-        var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
-        shouldIncludeBillingAddress = JPMCConfig.isAVSEnabled();
+        if (resolvedConfig) {
+            shouldIncludeBillingAddress = resolvedConfig.enableAVS !== false;
+        } else {
+            var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
+            shouldIncludeBillingAddress = JPMCConfig.isAVSEnabled();
+        }
     }
 
     if (billingAddress) {
@@ -529,9 +491,6 @@ function buildPaymentMethodTypeObject(paymentInstrument, options) {
                 year: paymentInstrument.getCreditCardExpirationYear()
             };
         }
-
-        // CVV and encrypted card data are stored in session.privacy (memory-only, never persisted to DB).
-        // Fallback to paymentInstrument.custom is retained for test/headless flows only.
         if (accountNumberType === 'SAFETECH_PAGE_ENCRYPTION') {
             var sessionCvv = session.privacy.jpmcCvv || null;
             var sessionEncryptedCvv = session.privacy.jpmcEncryptedCvv || null;
@@ -736,7 +695,6 @@ function buildVerificationAuthenticationObject(auth) {
  * @private
  */
 function buildVerificationAccountHolderObject(billingAddress, params) {
-    var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
     var accountHolder = {};
     if (billingAddress.getFirstName() || billingAddress.getLastName()) {
         accountHolder.fullName = (billingAddress.getFirstName() + ' ' + billingAddress.getLastName()).trim();
@@ -744,7 +702,14 @@ function buildVerificationAccountHolderObject(billingAddress, params) {
     if (params.email) {
         accountHolder.email = params.email;
     }
-    if (JPMCConfig.isAVSEnabled()) {
+    var avsEnabled;
+    if (params.resolvedConfig) {
+        avsEnabled = params.resolvedConfig.enableAVS !== false;
+    } else {
+        var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
+        avsEnabled = JPMCConfig.isAVSEnabled();
+    }
+    if (avsEnabled) {
         accountHolder.billingAddress = buildAddressObject(billingAddress);
     }
     var phone = billingAddress.getPhone();
@@ -786,7 +751,7 @@ function buildCreatePaymentPayload(params) {
     var totalAmount = basket.getTotalGrossPrice();
     
     var payload = {
-        captureMethod: params.captureMethod || 'NOW', // NOW (sale), DELAYED, MANUAL (auth only)
+        captureMethod: params.captureMethod || 'NOW',
         amount: convertToCents(totalAmount.getValue()),
         currency: basket.getCurrencyCode(),
         isAmountFinal: (params.isAmountFinal !== undefined) ? params.isAmountFinal : true,
@@ -795,7 +760,7 @@ function buildCreatePaymentPayload(params) {
         merchantOrderNumber: basket.getOrderNo ? basket.getOrderNo() : ('BASKET-' + basket.getUUID()),
         merchant: buildMerchantObject()
     };
-    payload.accountHolder = buildAccountHolderObject(basket, params.IPAddress, 'IPAddress');
+    payload.accountHolder = buildAccountHolderObject(basket, params.IPAddress, 'IPAddress', params.resolvedConfig);
     if (params.merchantCategoryCode) {
         payload.merchantCategoryCode = params.merchantCategoryCode;
     }
@@ -803,7 +768,8 @@ function buildCreatePaymentPayload(params) {
     payload.paymentMethodType = buildCreatePaymentMethodTypeObject(paymentInstrument, {
         accountNumberType: params.accountNumberType,
         walletProvider: params.walletProvider,
-        authentication: params.authentication
+        authentication: params.authentication,
+        resolvedConfig: params.resolvedConfig
     });
     if (params.recurring) {
         payload.recurring = {
@@ -854,20 +820,6 @@ function buildCreatePaymentMethodTypeObject(paymentInstrument, options) {
 
         if (options.authentication) {
             paymentMethodType.card.authentication = options.authentication;
-        }
-        if (!options.walletProvider) {
-            var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
-            var merchantPreferredRouting = JPMCConfig.getMerchantPreferredRouting();
-            
-            if (merchantPreferredRouting) {
-                paymentMethodType.card.merchantPreferredRouting = merchantPreferredRouting;
-                if (merchantPreferredRouting === 'PINLESS') {
-                    var preferredNetworkList = JPMCConfig.getPreferredPaymentNetworkNameList();
-                    if (preferredNetworkList && preferredNetworkList.length > 0) {
-                        paymentMethodType.card.preferredPaymentNetworkNameList = preferredNetworkList;
-                    }
-                }
-            }
         }
     }
 

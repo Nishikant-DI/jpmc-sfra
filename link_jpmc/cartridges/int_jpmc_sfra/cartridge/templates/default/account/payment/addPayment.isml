@@ -20,13 +20,11 @@
                         </isif>
                     </div>
                     <div class="card-body">
-                        <isset name="jpmcGetKeyUrl" value="${dw.system.Site.current.getCustomPreferenceValue('JPMCGetKeyUrl') || ''}" scope="page" />
-                        <isset name="jpmcEncryptionUrl" value="${dw.system.Site.current.getCustomPreferenceValue('JPMCEncryptionUrl') || ''}" scope="page" />
-                        <isif condition="${jpmcGetKeyUrl}">
-                            <script src="${jpmcGetKeyUrl}"></script>
+                        <isif condition="${pdict.jpmcPieGetKeyUrl}">
+                            <script src="<isprint value="${pdict.jpmcPieGetKeyUrl}" encoding="htmldoublequote"/>"></script>
                         </isif>
-                        <isif condition="${jpmcEncryptionUrl}">
-                            <script src="${jpmcEncryptionUrl}"></script>
+                        <isif condition="${pdict.jpmcPieEncryptionUrl}">
+                            <script src="<isprint value="${pdict.jpmcPieEncryptionUrl}" encoding="htmldoublequote"/>"></script>
                         </isif>
 
                         <isinclude template="account/payment/paymentForm"/>

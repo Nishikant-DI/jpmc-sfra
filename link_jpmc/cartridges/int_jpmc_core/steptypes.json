@@ -1,0 +1,30 @@
+{
+    "step-types": {
+        "script-module-step": [
+            {
+                "@type-id": "custom.JPMCMerchantCacheWarmup",
+                "@supports-parallel-execution": false,
+                "@supports-site-context": true,
+                "@supports-organization-context": false,
+                "description": "Pre-warms the JPMC merchant configuration cache for all allowed locales on the current site.",
+                "module": "int_jpmc_core/cartridge/scripts/jobs/JPMCMerchantCacheWarmup.js",
+                "function": "execute",
+                "transactional": false,
+                "timeout-in-seconds": 60,
+                "parameters": {},
+                "status-codes": {
+                    "status": [
+                        {
+                            "@code": "OK",
+                            "description": "Cache warmed successfully for all locales"
+                        },
+                        {
+                            "@code": "ERROR",
+                            "description": "One or more cache warmup entries failed"
+                        }
+                    ]
+                }
+            }
+        ]
+    }
+}

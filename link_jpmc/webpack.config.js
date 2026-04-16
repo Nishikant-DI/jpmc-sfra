@@ -1,84 +1,87 @@
 'use strict';
 
 var path = require('path');
+var shell = require('shelljs');
 var MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
-// sgmf-scripts auto-discovers int_jpmc_sfra JS via packageName
-var jsFiles = require('sgmf-scripts').createJsPath();
+var packageJson = require('./package.json');
+var basePath = path.resolve(__dirname, packageJson.paths.base);
+var CARTRIDGES = ['int_jpmc_sfra', 'bm_jpmc'];
+var outputBase = path.resolve(__dirname, 'cartridges/int_jpmc_sfra/cartridge/static');
 
-// Paths
-var bmStaticRel = path.relative(
-    path.resolve('./cartridges/int_jpmc_sfra/cartridge/static'),
-    path.resolve('./cartridges/bm_jpmc/cartridge/static')
-);
+var createJsEntries = function (cartridgeName) {
+    var clientBase = path.resolve(__dirname, 'cartridges/' + cartridgeName + '/cartridge/client');
+    var staticBase = path.resolve(__dirname, 'cartridges/' + cartridgeName + '/cartridge/static');
+    var result = {};
+    shell.ls(path.join(clientBase, '**/js/**/*.js')).forEach(function (filePath) {
+        var key = path.relative(clientBase, filePath).slice(0, -3);
+        result[path.relative(outputBase, path.join(staticBase, key))] = filePath;
+    });
+    return result;
+};
 
-// Add bm_jpmc JS — use relative path prefix so webpack writes to the correct cartridge static dir
-// Use path.posix.join to ensure forward-slash separators in entry keys regardless of OS
-jsFiles[path.posix.join(bmStaticRel.split(path.sep).join('/'), 'default/js/cscOrder')] = path.resolve(
-    './cartridges/bm_jpmc/cartridge/client/default/js/cscOrder.js'
-);
+var createScssEntries = function (cartridgeName) {
+    var clientBase = path.resolve(__dirname, 'cartridges/' + cartridgeName + '/cartridge/client');
+    var staticBase = path.resolve(__dirname, 'cartridges/' + cartridgeName + '/cartridge/static');
+    var result = {};
+    shell.ls(path.join(clientBase, '**/scss/*.scss')).forEach(function (filePath) {
+        if (path.basename(filePath).charAt(0) === '_') { return; }
+        var key = path.relative(clientBase, filePath)
+            .slice(0, -5)
+            .replace(path.sep + 'scss' + path.sep, path.sep + 'css' + path.sep);
+        result[path.relative(outputBase, path.join(staticBase, key))] = filePath;
+    });
+    return result;
+};
+
+var jsEntries   = CARTRIDGES.reduce(function (acc, name) { return Object.assign(acc, createJsEntries(name)); }, {});
+var scssEntries = CARTRIDGES.reduce(function (acc, name) { return Object.assign(acc, createScssEntries(name)); }, {});
+
+var baseAlias = function (type) {
+    return { resolve: { alias: { base: path.join(basePath, 'cartridge/client/default/' + type) } } };
+};
 
 module.exports = [
-    // ── JS (all cartridges) ──
-    // sgmf-scripts --compile js picks this config by name
-    {
-        mode: 'production',
+    Object.assign({
         name: 'js',
-        entry: jsFiles,
+        mode: 'production',
+        devtool: false,
+        entry: jsEntries,
         output: {
-            path: path.resolve('./cartridges/int_jpmc_sfra/cartridge/static'),
+            path: outputBase,
             filename: '[name].js'
         },
         module: {
-            rules: [
-                {
-                    test: /\.js$/,
-                    exclude: /node_modules/,
-                    use: {
-                        loader: 'babel-loader',
-                        options: {
-                            presets: ['@babel/env'],
-                            cacheDirectory: true
-                        }
-                    }
+            rules: [{
+                test: /\.js$/,
+                exclude: /node_modules/,
+                use: {
+                    loader: 'babel-loader',
+                    options: { presets: ['@babel/env'], cacheDirectory: true }
                 }
-            ]
-        },
-        resolve: {
-            alias: {
-                base: path.resolve(__dirname, '../storefront-reference-architecture-master/cartridges/app_storefront_base/cartridge/client/default/js')
-            }
+            }]
         }
-    },
-    // ── CSS / SCSS (all cartridges) ──
-    // sgmf-scripts --compile css picks this config by name 'scss'
-    {
-        mode: 'production',
+    }, baseAlias('js')),
+
+    Object.assign({
         name: 'scss',
-        entry: {
-            'default/css/cscOrder': path.resolve(
-                './cartridges/bm_jpmc/cartridge/client/default/scss/cscOrder.scss'
-            )
-        },
+        mode: 'production',
+        entry: scssEntries,
         output: {
-            path: path.resolve('./cartridges/bm_jpmc/cartridge/static')
+            path: outputBase
         },
         plugins: [
-            new MiniCssExtractPlugin({
-                filename: '[name].css'
-            })
+            new MiniCssExtractPlugin({ filename: '[name].css' })
         ],
         module: {
-            rules: [
-                {
-                    test: /\.scss$/,
-                    use: [
-                        MiniCssExtractPlugin.loader,
-                        { loader: 'css-loader', options: { url: false } },
-                        { loader: 'sass-loader', options: { api: 'modern' } }
-                    ]
-                }
-            ]
+            rules: [{
+                test: /\.scss$/,
+                use: [
+                    MiniCssExtractPlugin.loader,
+                    { loader: 'css-loader', options: { url: false } },
+                    { loader: 'sass-loader', options: { api: 'legacy' } }
+                ]
+            }]
         }
-    }
+    }, baseAlias('scss'))
 ];

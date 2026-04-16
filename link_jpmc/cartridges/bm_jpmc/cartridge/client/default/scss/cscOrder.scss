@@ -1,288 +1,296 @@
-// ── Design tokens ────────────────────────────
-$color-primary:   #0070d2;
-$color-primary-dark: #005fb2;
-$color-danger:    #c23934;
-$color-danger-dark: #a52d29;
-$color-muted:     #6c757d;
-$color-text:      #333;
-$color-heading:   #222;
-$color-border:    #d8dde6;
-$color-bg-light:  #f4f6f9;
-$color-bg-form:   #fafbfc;
+@import 'bm-common';
 
-// BM-standard system font stack (matches Salesforce Lightning / BM chrome)
-$font-family:     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-$font-size-base:  13px;
-$font-size-sm:    12px;
-$line-height:     1.5;
+// ============================================
+// CSC Order Management Styles
+// ============================================
+// Components for payment capture, refund, void operations
+// Namespace: .csc-* to prevent BM frame bleed
 
-// ── Page container ───────────────────────────
 .csc-order {
-    padding: 0.75rem 1rem;
-    font-family: $font-family;
-    font-size: $font-size-base;
-    line-height: $line-height;
-    color: $color-text;
-    max-width: 960px;
+    @include jpmc-shared-components;
+
+    padding: 0;
+    max-width: 100%;
     box-sizing: border-box;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-
-    // ── Typography ───────────────────────────
-    h1 {
-        font-size: 18px;
-        font-weight: 700;
-        margin: 0 0 0.75rem;
-        color: $color-heading;
-    }
-
-    h2 {
-        font-size: 14px;
-        font-weight: 700;
-        margin: 1.25rem 0 0.5rem;
-        color: $color-text;
-        border-bottom: 2px solid $color-primary;
-        padding-bottom: 0.25rem;
-    }
-
-    h3 {
-        font-size: $font-size-base;
-        font-weight: 700;
-        margin: 0 0 0.375rem;
-        color: $color-text;
-    }
-
-    // ── Tables ───────────────────────────────
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 0.75rem;
-        table-layout: auto;
-    }
-
-    th,
-    td {
-        border: 1px solid $color-border;
-        padding: 5px 8px;
-        text-align: left;
-        vertical-align: top;
-        font-size: $font-size-base;
-    }
-
-    th {
-        background-color: $color-bg-light;
-        font-weight: 600;
-        white-space: nowrap;
-        color: $color-text;
-    }
 }
 
-// ── Banners ──────────────────────────────────
-.csc-banner {
-    padding: 8px 12px;
-    margin-bottom: 0.75rem;
+// Typography
+.csc-order h1 {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 20px;
+    color: $text;
+}
+
+.csc-order h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 25px 0 15px;
+    color: #003d82;
+    border-bottom: 2px solid $border-accent;
+    padding-bottom: 10px;
+}
+
+.csc-order h3 {
+    font-size: 13px;
+    font-weight: 600;
+    margin: 0 0 10px;
+    color: $text;
+}
+
+// Tables
+.csc-order table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+    table-layout: auto;
+    border: 1px solid $border;
     border-radius: 3px;
-    font-size: $font-size-base;
-    line-height: $line-height;
-
-    &-error {
-        background-color: #fdecea;
-        border: 1px solid #f5c6cb;
-        color: #721c24;
-    }
-
-    &-success {
-        background-color: #d4edda;
-        border: 1px solid #c3e6cb;
-        color: #155724;
-    }
-
-    &-info {
-        background-color: #d1ecf1;
-        border: 1px solid #bee5eb;
-        color: #0c5460;
-    }
-
-    &-warn {
-        background-color: #fff3cd;
-        border: 1px solid #ffeeba;
-        color: #856404;
-    }
-
-    &-compact {
-        padding: 6px 10px;
-        margin: 0 0 0.5rem;
-        font-size: $font-size-sm;
-    }
+    overflow: hidden;
 }
 
-// ── Badges ───────────────────────────────────
+.csc-order th,
+.csc-order td {
+    border: 1px solid $border;
+    padding: 10px 12px;
+    text-align: left;
+    vertical-align: middle;
+    font-size: 13px;
+}
+
+.csc-order th {
+    background-color: $secondary;
+    font-weight: 600;
+    color: $text;
+}
+
+// Alert Banners
+.csc-banner {
+    padding: 12px 15px;
+    margin-bottom: 15px;
+    border-radius: 3px;
+    font-size: 13px;
+    line-height: 1.5;
+    border-left: 4px solid $border-accent;
+}
+
+.csc-banner--error {
+    background-color: #fee;
+    border-color: $error;
+    color: $error;
+}
+
+.csc-banner--success {
+    background-color: #efe;
+    border-color: $success;
+    color: #0a0;
+}
+
+.csc-banner--info {
+    background-color: #eef;
+    border-color: $primary;
+    color: $primary;
+}
+
+.csc-banner--warn {
+    background-color: #fef5e6;
+    border-color: #ffc107;
+    color: #b8a000;
+}
+
+.csc-banner--compact {
+    padding: 8px 10px;
+    margin: 0 0 10px;
+    font-size: 12px;
+}
+
+// Badges
 .csc-badge {
     display: inline-block;
-    padding: 2px 6px;
+    padding: 4px 8px;
     border-radius: 3px;
-    font-size: $font-size-sm;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
-
-    &-manual {
-        background-color: #d1ecf1;
-        color: #0c5460;
-        border: 1px solid #bee5eb;
-    }
-
-    &-delayed {
-        background-color: #fff3cd;
-        color: #856404;
-        border: 1px solid #ffeeba;
-    }
-
-    &-now {
-        background-color: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-    }
+    letter-spacing: 0.5px;
+    border: 1px solid;
 }
 
-// ── Summary table ────────────────────────────
-.csc-summary-table {
-    .csc-label {
-        font-weight: 600;
-        white-space: nowrap;
-        width: 15%;
-        background-color: $color-bg-light;
-    }
+.csc-badge--manual {
+    background-color: #eef;
+    color: $primary;
+    border-color: $primary;
+}
 
-    td {
-        width: 35%;
-    }
+.csc-badge--delayed {
+    background-color: #fef5e6;
+    color: #b8a000;
+    border-color: #ffc107;
+}
+
+.csc-badge--now {
+    background-color: #efe;
+    color: #0a0;
+    border-color: $success;
+}
+
+// Table utilities
+.csc-summary-table .csc-label {
+    font-weight: 600;
+    white-space: nowrap;
+    width: 20%;
+    background-color: $secondary;
 }
 
 .csc-status {
     font-weight: 700;
-    color: $color-primary;
+    color: $primary;
 }
 
-// ── Amounts table ────────────────────────────
-.csc-amounts-table {
-    td,
-    th {
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-    }
+.csc-amounts-table td,
+.csc-amounts-table th {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
 }
 
-// ── History tables ───────────────────────────
 .csc-history-table {
-    font-size: $font-size-sm;
-
-    td:nth-child(3) {
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-    }
+    font-size: 12px;
 }
 
-// ── Action forms ─────────────────────────────
+.csc-history-table td:nth-child(3) {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+// Action Forms & Controls
 .csc-actions {
     display: flex;
-    gap: 1rem;
+    gap: 15px;
     flex-wrap: wrap;
+    margin: 20px 0;
 }
 
 .csc-action-form {
     flex: 1;
     min-width: 280px;
     max-width: 100%;
-    border: 1px solid $color-border;
+    border: 1px solid $border;
     border-radius: 3px;
-    padding: 10px 12px;
-    background-color: $color-bg-form;
+    padding: 12px 15px;
+    background-color: $bg-light;
     box-sizing: border-box;
-    overflow: hidden;
 }
 
+.csc-action-form--disabled {
+    opacity: 0.6;
+    background-color: #f8f8f8;
+    cursor: not-allowed;
+}
+
+.csc-action-form__disabled-reason {
+    color: $text-light;
+    font-size: 12px;
+    font-style: italic;
+    margin: 4px 0 0;
+}
+
+// Form Elements
 .csc-form-row {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 8px;
+    margin-bottom: 10px;
+
+    &:last-child {
+        margin-bottom: 0;
+    }
 
     label {
         white-space: nowrap;
+        font-size: 13px;
+        font-weight: 500;
+        color: $text;
     }
 }
 
 .csc-checkbox-label {
     display: inline-flex;
     align-items: flex-start;
-    gap: 0.25rem;
+    gap: 6px;
     font-weight: 400;
     cursor: pointer;
     user-select: none;
     white-space: normal;
     line-height: 1.4;
-    font-size: $font-size-sm;
+    font-size: 12px;
+    color: $text;
 
-    input[type="checkbox"] {
+    input[type='checkbox'] {
         margin-top: 2px;
         flex-shrink: 0;
+        cursor: pointer;
     }
 }
 
+.csc-checkbox-label--sm {
+    font-size: 11px;
+    margin-top: 2px;
+    white-space: nowrap;
+}
+
+// Input Fields
 .jpmc-input {
-    border: 1px solid #ccc;
-    padding: 4px 6px;
-    border-radius: 2px;
-    min-width: 8rem;
-    font-family: $font-family;
-    font-size: $font-size-base;
-    transition: border-color 0.15s;
+    border: 1px solid $border;
+    padding: 6px 8px;
+    border-radius: 3px;
+    min-width: 100px;
+    font-family: inherit;
+    font-size: 13px;
+    color: $text;
+    background-color: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
 
     &:focus {
-        border-color: $color-primary;
+        border-color: $primary;
+        box-shadow: 0 0 0 2px rgba(0, 112, 210, 0.1);
         outline: none;
     }
 
     &:disabled {
-        background-color: #f0f0f0;
+        background-color: $bg-light;
+        color: $text-light;
         cursor: not-allowed;
+    }
+
+    &[readonly] {
+        background-color: $bg-light;
+        color: $text-light;
     }
 }
 
-// ── Buttons ──────────────────────────────────
+.jpmc-input--sm {
+    min-width: 80px;
+    width: auto;
+    padding: 4px 6px;
+    font-size: 12px;
+}
+
+// Buttons
 .csc-btn {
-    font-family: $font-family;
-    font-size: $font-size-sm;
+    font-family: inherit;
+    font-size: 12px;
     font-weight: 600;
-    padding: 4px 12px;
+    padding: 6px 12px;
     border-radius: 3px;
+    border: none;
     cursor: pointer;
-    transition: background-color 0.15s, border-color 0.15s;
+    transition: all 0.15s;
     white-space: nowrap;
 
-    &-capture {
-        background-color: $color-primary;
-        border: 1px solid $color-primary;
-        color: #fff;
-
-        &:hover { background-color: $color-primary-dark; }
-    }
-
-    &-refund {
-        background-color: $color-danger;
-        border: 1px solid $color-danger;
-        color: #fff;
-
-        &:hover { background-color: $color-danger-dark; }
-    }
-
-    &-void {
-        background-color: #6c757d;
-        border: 1px solid #6c757d;
-        color: #fff;
-
-        &:hover { background-color: #565e64; }
+    &:focus {
+        outline: 2px solid $primary;
+        outline-offset: 2px;
     }
 
     &:disabled {
@@ -291,102 +299,118 @@ $line-height:     1.5;
     }
 }
 
-// ── Inline errors ────────────────────────────
-.csc-inline-error {
-    display: block;
-    color: $color-danger;
-    font-weight: 600;
-    font-size: $font-size-sm;
-    margin-top: 0.25rem;
-}
+.csc-btn--capture {
+    background-color: $primary;
+    color: #fff;
 
-// ── Void info label ──────────────────────────
-.csc-void-info {
-    font-size: $font-size-base;
-    color: $color-text;
-}
-
-// ── Disabled action card ─────────────────────
-.csc-action-disabled {
-    opacity: 0.7;
-    background-color: #f0f0f0;
-
-    .csc-disabled-reason {
-        color: $color-muted;
-        font-size: $font-size-sm;
-        font-style: italic;
-        margin: 0.25rem 0 0;
+    &:hover:not(:disabled) {
+        background-color: #005cb8;
     }
 }
 
-// ── Multi-capture info ───────────────────────
-.csc-multi-capture-info {
-    font-size: $font-size-sm;
-    color: $color-muted;
-    margin-top: 0.375rem;
+.csc-btn--refund {
+    background-color: $error;
+    color: #fff;
+
+    &:hover:not(:disabled) {
+        background-color: #a00;
+    }
 }
 
-// ── Capture options row ──────────────────────
+.csc-btn--void {
+    background-color: #6c757d;
+    color: #fff;
+
+    &:hover:not(:disabled) {
+        background-color: #565e64;
+    }
+}
+
+.csc-btn--sm {
+    padding: 4px 8px;
+    font-size: 11px;
+}
+
+// Messages & Info
+.csc-inline-error {
+    display: block;
+    color: $error;
+    font-weight: 600;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.csc-void-info {
+    font-size: 13px;
+    color: $text;
+    margin: 10px 0;
+    padding: 10px 12px;
+    background-color: $bg-light;
+    border: 1px solid $border;
+    border-radius: 3px;
+}
+
+.csc-multi-capture-info {
+    font-size: 12px;
+    color: $text-light;
+    margin-top: 6px;
+}
+
+// Capture Options
 .csc-capture-options {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.5rem;
-    margin-top: 0.375rem;
-    padding-top: 0.375rem;
-    border-top: 1px dashed $color-border;
-
-    .csc-btn {
-        align-self: flex-start;
-    }
+    gap: 8px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid $border;
 }
 
-// ── Per-capture refund (inside amount cell) ──
+.csc-capture-options .csc-btn {
+    align-self: flex-start;
+}
+
 .csc-capture-amount {
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
+    font-weight: 600;
 }
 
 .csc-capture-refund-form {
-    margin: 4px 0 0;
+    margin: 8px 0 0;
 }
 
-.csc-capture-refund-row {
+.csc-capture-refund-form__row {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 8px;
+    margin-bottom: 6px;
+
+    &:last-child {
+        margin-bottom: 0;
+    }
 }
 
-.jpmc-input-sm {
-    min-width: 5rem;
-    width: 6rem;
-    padding: 2px 4px;
-    font-size: $font-size-sm;
-}
-
-.csc-btn-sm {
-    padding: 2px 8px;
+.csc-capture-refund-form__error {
     font-size: 11px;
+    margin-top: 4px;
+    color: $error;
 }
 
-.csc-checkbox-sm {
+.csc-capture-refund-form__full-refund {
     font-size: 11px;
-    margin-top: 2px;
+    margin-top: 4px;
     white-space: nowrap;
-}
-
-.csc-capture-refund-error {
-    font-size: 11px;
-    margin-top: 2px;
+    color: $text-light;
 }
 
 .csc-text-muted {
-    color: $color-muted;
-    font-size: $font-size-sm;
+    color: $text-light;
+    font-size: 12px;
     font-style: italic;
 }
 
-// ── Utility ──────────────────────────────────
 .hidden {
     display: none !important;
 }

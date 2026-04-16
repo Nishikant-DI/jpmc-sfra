@@ -8,6 +8,10 @@
         <div class="payment-card-expiry">
             <span><isprint value="${Resource.msg('msg.card.type.ending', 'confirmation', null)}" encoding="htmlcontent"/> <isprint value="${payment.expirationMonth}" encoding="htmlcontent"/>/<isprint value="${payment.expirationYear}" encoding="htmlcontent"/></span>
         </div>
+    <iselseif condition="${payment.paymentMethod === 'DW_APPLE_PAY'}"/>
+        <div class="payment-type">
+            <span><isprint value="${Resource.msg('label.payment.applepay', 'checkout', null)}" encoding="htmlcontent"/></span>
+        </div>
     <iselseif condition="${payment.paymentMethod === 'JPMC_GOOGLE_PAY'}"/>
         <div class="payment-type">
             <span>${Resource.msg('label.googlepay', 'checkout', null)}</span>

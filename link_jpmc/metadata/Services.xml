@@ -36,18 +36,6 @@
         <password/>
     </service-credential>
 
-    <service-credential service-credential-id="JPMCFraudRetrieveCredentials">
-        <url>https://api-mock.payments.jpmorgan.com/api/v2/fraudcheck</url>
-        <user-id/>
-        <password/>
-    </service-credential>
-
-    <service-credential service-credential-id="JPMCFraudRetrieveByIdCredentials">
-        <url>https://api-mock.payments.jpmorgan.com/api/v2/fraudcheck/{place-holder-id}</url>
-        <user-id/>
-        <password/>
-    </service-credential>
-
     <service-credential service-credential-id="JPMCVerificationCredentials">
         <url>https://api-mock.payments.jpmorgan.com/api/v2/verifications</url>
         <user-id/>
@@ -128,28 +116,6 @@
         <mock-mode-enabled>false</mock-mode-enabled>
         <profile-id>JPMCServiceProfile</profile-id>
         <credential-id>JPMCFraudCheckCredentials</credential-id>
-    </service>
-
-    <service service-id="JPMCFraudRetrieve">
-        <service-type>HTTP</service-type>
-        <enabled>true</enabled>
-        <log-prefix>jpmc</log-prefix>
-        <comm-log-enabled>false</comm-log-enabled>
-        <force-prd-enabled>true</force-prd-enabled>
-        <mock-mode-enabled>false</mock-mode-enabled>
-        <profile-id>JPMCServiceProfile</profile-id>
-        <credential-id>JPMCFraudRetrieveCredentials</credential-id>
-    </service>
-
-    <service service-id="JPMCFraudRetrieveById">
-        <service-type>HTTP</service-type>
-        <enabled>true</enabled>
-        <log-prefix>jpmc</log-prefix>
-        <comm-log-enabled>false</comm-log-enabled>
-        <force-prd-enabled>true</force-prd-enabled>
-        <mock-mode-enabled>false</mock-mode-enabled>
-        <profile-id>JPMCServiceProfile</profile-id>
-        <credential-id>JPMCFraudRetrieveByIdCredentials</credential-id>
     </service>
 
     <service service-id="JPMCVerification">

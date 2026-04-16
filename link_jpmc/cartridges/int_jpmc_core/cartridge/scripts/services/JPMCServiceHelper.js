@@ -44,7 +44,6 @@ function maskSensitiveData(msg) {
 }
 
 /**
- * Encodes object as application/x-www-form-urlencoded
  * @private
  * @param {Object} obj
  * @returns {string}
@@ -63,7 +62,7 @@ function encodeFormData(obj) {
 }
 
 /**
- * Validates URL suffix (prevents path traversal)
+ * Validates URL suffix
  * @private
  * @param {string} urlSuffix
  * @returns {string|null}
@@ -73,11 +72,9 @@ function validateUrlSuffix(urlSuffix) {
         return null;
     }
     if (!/^[a-zA-Z0-9\-_/.?=&]+$/.test(urlSuffix)) {
-        Logger.warn('Invalid URL suffix detected, rejecting: {0}', urlSuffix);
         return null;
     }
     if (urlSuffix.indexOf('..') > -1) {
-        Logger.warn('Path traversal pattern detected in URL suffix');
         return null;
     }
     
@@ -95,7 +92,6 @@ function validatePlaceHolderId(placeHolderId) {
         return null;
     }
     if (!/^[a-zA-Z0-9\-_]+$/.test(placeHolderId) || placeHolderId.length > 100) {
-        Logger.warn('Invalid placeHolderId detected, rejecting');
         return null;
     }
     
@@ -106,12 +102,6 @@ function validatePlaceHolderId(placeHolderId) {
  * Calls a service using SFCC Service Framework
  * @param {string} serviceId
  * @param {Object} params
- * @param {string} params.method
- * @param {Object} [params.payload]
- * @param {Object} [params.headers]
- * @param {string} [params.contentType]
- * @param {string} [params.urlSuffix]
- * @param {string} [params.placeHolderId]
  * @returns {Object}
  */
 function callService(serviceId, params) {
@@ -209,22 +199,12 @@ function callService(serviceId, params) {
 
 /**
  * Generates token and calls service in one operation
- * UPDATED: Now uses TokenManager for unified token retrieval (cache-first strategy)
- * Validates all BM configuration before attempting service calls
  * @param {Object} options
- * @param {string} options.tokenServiceId
- * @param {string} options.serviceId
- * @param {string} options.method
- * @param {Object} [options.data]
- * @param {Object} [options.headers]
- * @param {string} [options.urlSuffix]
- * @param {string} [options.placeHolderId]
  * @returns {Object}
  */
 function callWithTokenGeneration(options) {
     if (!options || !options.tokenServiceId || !options.serviceId || !options.method) {
         var optionsError = 'callWithTokenGeneration: tokenServiceId, serviceId, and method are required';
-        Logger.error('CRITICAL: {0}', optionsError);
         return {
             success: false,
             error: optionsError,
@@ -233,13 +213,18 @@ function callWithTokenGeneration(options) {
         };
     }
     
-    var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
     var TokenManager = require('*/cartridge/scripts/helpers/TokenManager');
     
     try {
-        var config = JPMCConfig.getAccessTokenConfig();
+        var config;
+        if (options.resolvedConfig) {
+            var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+            config = JPMCMerchantResolver.toAccessTokenConfig(options.resolvedConfig);
+        } else {
+            var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
+            config = JPMCConfig.getAccessTokenConfig();
+        }
         
-        // Get valid token using unified TokenManager (cache-first, with auto-refresh)
         var tokenResult = TokenManager.getValidToken(config, options.tokenServiceId);
         
         if (tokenResult.error) {

@@ -217,70 +217,22 @@ function getGooglePayConfig() {
 }
 
 /**
- * Gets merchant preferred routing configuration for card payments
- * @returns {string|null}
+ * Returns whether Google Pay should be shown on the cart page.
+ * Checkout always shows Google Pay; this flag additionally enables it on the cart.
+ * @returns {boolean}
  */
-function getMerchantPreferredRouting() {
-    var routingPref = getPreference('JPMCMerchantPreferredRouting', false);
-    var routingValue = null;
-
-    if (routingPref && typeof routingPref === 'object' && Object.prototype.hasOwnProperty.call(routingPref, 'value')) {
-        routingValue = routingPref.value;
-    } else if (typeof routingPref === 'string') {
-        routingValue = routingPref;
-    }
-
-    // If routing is 'None' or not configured, return null (don't send routing in payload)
-    if (!routingValue || routingValue === 'None') {
-        return null;
-    }
-
-    return routingValue;
+function isGooglePayOnCartEnabled() {
+    var val = getPreference('JPMCGooglePayCartEnabled', false);
+    return val === true || val === 'true';
 }
 
 /**
- * Gets preferred payment network name list for PINLESS routing
- * @returns {Array<string>|null}
+ * Returns whether Google Pay should be shown on the product detail page.
+ * @returns {boolean}
  */
-function getPreferredPaymentNetworkNameList() {
-    var routing = getMerchantPreferredRouting();
-    
-    // Only return network list if routing is PINLESS
-    if (routing !== 'PINLESS') {
-        return null;
-    }
-
-    var networkListPref = getPreference('JPMCPreferredPaymentNetworkNameList', false);
-    
-    if (!networkListPref) {
-        return null;
-    }
-    
-    // Handle SFCC Collection/List (multi-select enums return Collections)
-    if (typeof networkListPref === 'object' && networkListPref) {
-        var finalNetworkList = [];
-        if (networkListPref.length > 0) {
-            // If the collection contains objects with 'value' property, extract those values (common for multi-select enums)
-            finalNetworkList = networkListPref.map(function (item) {
-                return item.value;
-            }).filter(function (v) {
-                return typeof v === 'string' && v.length > 0;
-            });
-        }
-        return finalNetworkList.length > 0 ? finalNetworkList : null;
-    }
-    
-    // Handle single value as object
-    if (typeof networkListPref === 'object' && networkListPref.value) {
-        return [networkListPref.value];
-    }
-    
-    // Handle single value as string
-    if (typeof networkListPref === 'string' && networkListPref.length > 0) {
-        return [networkListPref];
-    }
-
-    return null;
+function isGooglePayOnPDPEnabled() {
+    var val = getPreference('JPMCGooglePayPDPEnabled', false);
+    return val === true || val === 'true';
 }
 
 module.exports = {
@@ -289,9 +241,9 @@ module.exports = {
     getConfig: getConfig,
     getCaptureMethod: getCaptureMethod,
     getGooglePayConfig: getGooglePayConfig,
+    isGooglePayOnCartEnabled: isGooglePayOnCartEnabled,
+    isGooglePayOnPDPEnabled: isGooglePayOnPDPEnabled,
     isFraudCheckEnabled: isFraudCheckEnabled,
     isFraudCheckEnabledAtAuth: isFraudCheckEnabledAtAuth,
-    isAVSEnabled: isAVSEnabled,
-    getMerchantPreferredRouting: getMerchantPreferredRouting,
-    getPreferredPaymentNetworkNameList: getPreferredPaymentNetworkNameList
+    isAVSEnabled: isAVSEnabled
 };

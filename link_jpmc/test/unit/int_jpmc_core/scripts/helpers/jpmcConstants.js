@@ -41,9 +41,9 @@ describe('jpmcConstants', function () {
 
     it('should export config defaults', function () {
         assert.equal(jpmcConstants.DEFAULT_EXPIRES_IN, '5h');
-        assert.equal(jpmcConstants.DEFAULT_COMPANY_NAME, 'Salesforce Commerce Cloud');
-        assert.equal(jpmcConstants.DEFAULT_PRODUCT_NAME, 'SFCC');
-        assert.equal(jpmcConstants.DEFAULT_VERSION, '1.0.0');
+        assert.equal(jpmcConstants.DEFAULT_COMPANY_NAME, 'JPMC Plugin');
+        assert.equal(jpmcConstants.DEFAULT_PRODUCT_NAME, 'JPMC SFCC B2C Cartridge');
+        assert.equal(jpmcConstants.DEFAULT_VERSION, '1.0');
         assert.equal(jpmcConstants.DEFAULT_TOKEN_TYPE, 'SAFETECH_TOKEN');
         assert.equal(jpmcConstants.DEFAULT_CAPTURE_METHOD, 'MANUAL');
     });

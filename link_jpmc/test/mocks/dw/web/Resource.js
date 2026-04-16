@@ -7,6 +7,8 @@
 var messages = {
     'error.technical': 'Technical Error',
     'error.payment.processor': 'Payment Processor Error',
+    'error.payment.processor.missing': 'Payment Processor Missing',
+    'error.payment.instrument.not.found': 'Payment Instrument Not Found',
     'error.payment.authorization': 'Payment Authorization Error',
     'error.payment.declined': 'Payment Declined',
     'error.invalid.googlepay.token': 'Invalid Google Pay Token',
@@ -83,6 +85,8 @@ var Resource = {
         messages = {
             'error.technical': 'Technical Error',
             'error.payment.processor': 'Payment Processor Error',
+            'error.payment.processor.missing': 'Payment Processor Missing',
+            'error.payment.instrument.not.found': 'Payment Instrument Not Found',
             'error.payment.authorization': 'Payment Authorization Error',
             'error.payment.declined': 'Payment Declined',
             'error.invalid.googlepay.token': 'Invalid Google Pay Token',

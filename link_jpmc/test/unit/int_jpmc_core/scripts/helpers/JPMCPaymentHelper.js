@@ -17,6 +17,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCPaymentHelper', function () {
     var mockJPMCPayloadBuilder;
     var mockJPMCPaymentOperations;
     var mockJpmcTransactionHelpers;
+    var mockJPMCMerchantResolver;
     var Order;
 
     beforeEach(function () {
@@ -89,6 +90,14 @@ describe('int_jpmc_core/scripts/helpers/JPMCPaymentHelper', function () {
             resolveJpmcTransactionId: sinon.stub().returns('AUTH123456')
         };
 
+        // Mock JPMCMerchantResolver
+        mockJPMCMerchantResolver = {
+            resolve: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID' }),
+            resolveForOrder: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID' }),
+            toAccessTokenConfig: sinon.stub().returns({}),
+            invalidateCache: sinon.stub()
+        };
+
         // Load module with mocks
         JPMCPaymentHelper = proxyquire('../../../../../cartridges/int_jpmc_core/cartridge/scripts/helpers/JPMCPaymentHelper', {
             'dw/system/Logger': mockLogger,
@@ -99,7 +108,8 @@ describe('int_jpmc_core/scripts/helpers/JPMCPaymentHelper', function () {
             '*/cartridge/scripts/services/JPMCServiceHelper': mockJPMCServiceHelper,
             '*/cartridge/scripts/helpers/JPMCPayloadBuilder': mockJPMCPayloadBuilder,
             '*/cartridge/scripts/helpers/JPMCPaymentOperations': mockJPMCPaymentOperations,
-            '*/cartridge/scripts/helpers/jpmcTransactionHelpers': mockJpmcTransactionHelpers
+            '*/cartridge/scripts/helpers/jpmcTransactionHelpers': mockJpmcTransactionHelpers,
+            '*/cartridge/scripts/helpers/JPMCMerchantResolver': mockJPMCMerchantResolver
         });
     });
 
@@ -653,7 +663,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCPaymentHelper', function () {
         });
 
         it('should handle exceptions gracefully', function () {
-            mockJPMCConfig.getAccessTokenConfig.throws(new Error('Config error'));
+            mockJPMCMerchantResolver.resolveForOrder.throws(new Error('Config error'));
 
             var result = JPMCPaymentHelper.refundPayment(mockOrder, {});
 

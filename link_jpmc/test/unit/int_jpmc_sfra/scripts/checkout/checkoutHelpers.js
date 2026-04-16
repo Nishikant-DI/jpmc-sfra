@@ -18,42 +18,42 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
     var billingData;
 
     beforeEach(function () {
-        // Reset all mocks
+       
         mockTransaction = require('../../../../../test/mocks/dw/system/Transaction');
         mockTransaction.reset();
         sinon.spy(mockTransaction, 'wrap');
 
-        // Mock session global
+     
         global.session = {
             privacy: {
                 jpmcCardSafeTechToken: 'SAFETECH-TOKEN-12345'
             }
         };
 
-        // Create mock stored payment instrument
+        
         var PaymentInstrumentMock = require('../../../../../test/mocks/dw/order/PaymentInstrument');
         mockStoredPaymentInstrument = new PaymentInstrumentMock();
 
-        // Mock wallet
+       
         mockWallet = {
             createPaymentInstrument: sinon.stub().returns(mockStoredPaymentInstrument)
         };
 
-        // Mock profile
+       
         mockProfile = {
             getWallet: sinon.stub().returns(mockWallet)
         };
 
-        // Mock customer
+  
         mockCustomer = {
             getProfile: sinon.stub().returns(mockProfile)
         };
 
-        // Create mock basket
+    
         var Order = require('../../../../../test/mocks/dw/order/Order');
         mockBasket = new Order();
 
-        // Sample billing data
+       
         billingData = {
             paymentInformation: {
                 cardNumber: { value: '************1111' },
@@ -63,18 +63,24 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
             }
         };
 
-        // Mock base checkout helpers (SFRA superModule)
+       
         var baseMock = {
             someOtherMethod: function () {
                 return 'base method';
             }
         };
 
-        // Load module with mocks
+       
         checkoutHelpers = proxyquire('../../../../../cartridges/int_jpmc_sfra/cartridge/scripts/checkout/checkoutHelpers', {
             'dw/system/Transaction': mockTransaction,
             'dw/order/PaymentInstrument': require('../../../../../test/mocks/dw/order/PaymentInstrument'),
-            '*/cartridge/scripts/checkout/checkoutHelpers': baseMock
+            '*/cartridge/scripts/checkout/checkoutHelpers': baseMock,
+            '*/cartridge/scripts/helpers/JPMCMerchantResolver': {
+                resolve: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID' }),
+                resolveForOrder: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID' }),
+                toAccessTokenConfig: sinon.stub().returns({}),
+                invalidateCache: sinon.stub()
+            }
         });
     });
 
@@ -83,7 +89,6 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
         delete global.session;
     });
 
-    // ==================== savePaymentInstrumentToWallet Tests ====================
 
     describe('savePaymentInstrumentToWallet()', function () {
         it('should create payment instrument in customer wallet', function () {
@@ -97,7 +102,7 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
             assert.isTrue(mockProfile.getWallet.calledOnce);
             assert.isTrue(mockWallet.createPaymentInstrument.calledOnce);
             
-            // Verify the payment instrument was created with CREDIT_CARD method
+    
             var createArgs = mockWallet.createPaymentInstrument.firstCall.args;
             assert.equal(createArgs[0], 'CREDIT_CARD');
         });
@@ -278,7 +283,7 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
                 mockCustomer
             );
 
-            // Should still create payment instrument but with undefined token
+          
             assert.isUndefined(mockStoredPaymentInstrument.creditCardToken);
         });
 
@@ -307,7 +312,7 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
         });
     });
 
-    // ==================== Module Structure Tests ====================
+    
 
     describe('Module Structure', function () {
         it('should export savePaymentInstrumentToWallet function', function () {
@@ -315,13 +320,13 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
         });
 
         it('should extend base checkout helpers', function () {
-            // The module should have inherited methods from base
+          
             assert.isFunction(checkoutHelpers.someOtherMethod);
             assert.equal(checkoutHelpers.someOtherMethod(), 'base method');
         });
 
         it('should override savePaymentInstrumentToWallet from base module', function () {
-            // Verify the function exists and is callable
+           
             assert.isFunction(checkoutHelpers.savePaymentInstrumentToWallet);
             
             var result = checkoutHelpers.savePaymentInstrumentToWallet(
@@ -334,7 +339,7 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
         });
     });
 
-    // ==================== Integration Tests ====================
+  
 
     describe('Integration Scenarios', function () {
         it('should successfully save complete payment information', function () {
@@ -355,19 +360,19 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
                 mockCustomer
             );
 
-            // Verify all data was set correctly
+          
             assert.equal(result.creditCardNumber, '************5454');
             assert.equal(result.creditCardType, 'Visa');
             assert.equal(result.creditCardExpirationMonth, 3);
             assert.equal(result.creditCardExpirationYear, 2030);
             assert.equal(result.creditCardToken, 'SAFETECH-FULL-TOKEN');
             
-            // Verify token was cleaned up
+     
             assert.isUndefined(global.session.privacy.jpmcCardSafeTechToken);
         });
 
         it('should handle wallet creation for new customer', function () {
-            // Simulate first time wallet usage
+          
             var newCustomer = {
                 getProfile: sinon.stub().returns(mockProfile)
             };

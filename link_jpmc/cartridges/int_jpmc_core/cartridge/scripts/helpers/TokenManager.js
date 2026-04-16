@@ -1,16 +1,10 @@
 /**
  * 3-tier token management: cache → custom object → generate
- * Includes 30-second clock-skew buffer for expiry prevention
- * 
- * IMPORTANT: Cache must be registered in cartridge's caches.json:
- * { "caches": [{ "id": "jpmc_access_token_cache", "expireAfterSeconds": 3600 }] }
- * 
  * @module scripts/helpers/TokenManager
  */
 
 'use strict';
 
-var Logger = require('dw/system/Logger').getLogger('JPMC', 'token');
 var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
 
 /**
@@ -73,14 +67,16 @@ function storeTokenInCache(cacheKey, tokenData) {
 }
 
 /**
+ * @param {string} [tokenKey]
  * @returns {Object|null}
  */
-function getTokenFromCustomObject() {
+function getTokenFromCustomObject(tokenKey) {
     try {
         var CustomObjectMgr = require('dw/object/CustomObjectMgr');
         var Transaction = require('dw/system/Transaction');
+        var key = tokenKey || constants.TOKEN_CACHE_KEY;
         
-        var co = CustomObjectMgr.getCustomObject(constants.TOKEN_CUSTOM_OBJECT_TYPE, constants.TOKEN_CACHE_KEY);
+        var co = CustomObjectMgr.getCustomObject(constants.TOKEN_CUSTOM_OBJECT_TYPE, key);
         if (!co) return null;
         
         var expiresAt = String(co.custom.expiresAt || '');
@@ -105,19 +101,21 @@ function getTokenFromCustomObject() {
 /**
  * @param {string} accessToken
  * @param {number} expiresIn
+ * @param {string} [tokenKey]
  * @returns {boolean}
  */
-function storeTokenInCustomObject(accessToken, expiresIn) {
+function storeTokenInCustomObject(accessToken, expiresIn, tokenKey) {
     try {
         var CustomObjectMgr = require('dw/object/CustomObjectMgr');
         var Transaction = require('dw/system/Transaction');
+        var key = tokenKey || constants.TOKEN_CACHE_KEY;
         var expiresAtMs = Date.now() + (expiresIn * 1000);
         
         Transaction.wrap(function() {
-            var existing = CustomObjectMgr.getCustomObject(constants.TOKEN_CUSTOM_OBJECT_TYPE, constants.TOKEN_CACHE_KEY);
+            var existing = CustomObjectMgr.getCustomObject(constants.TOKEN_CUSTOM_OBJECT_TYPE, key);
             if (existing) CustomObjectMgr.remove(existing);
             
-            var co = CustomObjectMgr.createCustomObject(constants.TOKEN_CUSTOM_OBJECT_TYPE, constants.TOKEN_CACHE_KEY);
+            var co = CustomObjectMgr.createCustomObject(constants.TOKEN_CUSTOM_OBJECT_TYPE, key);
             co.custom.accessToken = accessToken;
             co.custom.expiresIn = expiresIn;
             co.custom.expiresAt = new Date(expiresAtMs).toISOString();
@@ -127,7 +125,6 @@ function storeTokenInCustomObject(accessToken, expiresIn) {
         
         return true;
     } catch (e) {
-        Logger.error('Failed to store token: {0}', e.message || String(e));
         return false;
     }
 }
@@ -170,7 +167,6 @@ function requestToken(jwt, config, serviceId) {
         var result = service.call();
         
         if (!result.ok || !result.object || !result.object.access_token) {
-            Logger.error('Token request failed: {0}', result.errorMessage || 'No access_token');
             return { error: result.errorMessage || 'Token request failed', statusCode: result.status || 500 };
         }
         
@@ -181,7 +177,6 @@ function requestToken(jwt, config, serviceId) {
             tokenType: result.object.token_type
         };
     } catch (e) {
-        Logger.error('Token request error: {0}', e.message || String(e));
         return { error: e.message || 'Token request failed', statusCode: 500 };
     }
 }
@@ -197,33 +192,31 @@ function getValidToken(config, serviceId) {
     }
     
     serviceId = serviceId || 'JPMCAccessToken';
-    
-    // L1: Cache
-    var cached = getTokenFromCache(constants.TOKEN_CACHE_KEY);
+    var merchantScopedKey = config.merchantId
+        ? constants.TOKEN_CACHE_KEY_PREFIX + config.merchantId
+        : constants.TOKEN_CACHE_KEY;
+
+    var cached = getTokenFromCache(merchantScopedKey);
     if (cached) {
         return { accessToken: cached.accessToken, expiresIn: cached.expiresIn };
     }
     
-    // L2: Custom Object
-    var stored = getTokenFromCustomObject();
+    var stored = getTokenFromCustomObject(merchantScopedKey);
     if (stored) {
-        storeTokenInCache(constants.TOKEN_CACHE_KEY, stored);
+        storeTokenInCache(merchantScopedKey, stored);
         return { accessToken: stored.accessToken, expiresIn: stored.expiresIn };
     }
     
-    // L3: Generate new token
     var JWTHelper = require('*/cartridge/scripts/helpers/JWTHelper');
     var jwt;
     
     try {
         jwt = JWTHelper.generateJWT(config);
     } catch (e) {
-        Logger.error('JWT generation failed: {0}', e.message || String(e));
         return { error: 'JWT generation failed', statusCode: 500 };
     }
     
     if (!jwt) {
-        Logger.error('JWT generation returned empty');
         return { error: 'JWT generation failed', statusCode: 500 };
     }
     
@@ -239,8 +232,8 @@ function getValidToken(config, serviceId) {
         expiresIn: result.expiresIn
     };
     
-    storeTokenInCustomObject(result.accessToken, result.expiresIn);
-    storeTokenInCache(constants.TOKEN_CACHE_KEY, tokenData);
+    storeTokenInCustomObject(result.accessToken, result.expiresIn, merchantScopedKey);
+    storeTokenInCache(merchantScopedKey, tokenData);
     
     return { accessToken: result.accessToken, expiresIn: result.expiresIn };
 }

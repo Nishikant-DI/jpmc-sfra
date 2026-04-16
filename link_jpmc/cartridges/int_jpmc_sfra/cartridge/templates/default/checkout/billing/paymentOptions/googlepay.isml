@@ -6,18 +6,11 @@
         />
 
         <div class="googlepay-button-container">
-            <div class="googlepay-message text-center mb-3">
-                <p>${Resource.msg('msg.googlepay.description', 'checkout', null)}</p>
-            </div>
-
             <div id="googlepay-button-wrapper" class="text-center"
-                 data-config-url="${URLUtils.url('JpmcGooglePay-GetConfig')}"
-                 data-store-url="${URLUtils.url('JpmcGooglePay-StoreToken')}"
-                 data-clear-url="${URLUtils.url('JpmcGooglePay-ClearToken')}">
-            </div>
-
-            <div id="googlepay-status" class="googlepay-status text-center mt-3 d-none">
-                <span class="googlepay-status-text">${Resource.msg('msg.googlepay.authorized', 'checkout', null)}</span>
+                 data-config-url="${URLUtils.https('JpmcGooglePay-GetConfig')}"
+                 data-store-url="${URLUtils.https('JpmcGooglePay-StoreToken')}"
+                 data-clear-url="${URLUtils.https('JpmcGooglePay-ClearToken')}"
+                 data-gpay-context="checkout">
             </div>
 
             <div id="googlepay-error" class="googlepay-error text-center mt-3 text-danger d-none">

@@ -20,7 +20,6 @@ var jpmcTransactionHelpers = require('*/cartridge/scripts/helpers/jpmcTransactio
 function createPayment(order, options) {
     var JPMCServiceHelper = require('*/cartridge/scripts/services/JPMCServiceHelper');
     var JPMCPayloadBuilder = require('*/cartridge/scripts/helpers/JPMCPayloadBuilder');
-    var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
     
     var result = {
         success: false,
@@ -48,7 +47,9 @@ function createPayment(order, options) {
     
     try {
         var paymentInstrument = options.paymentInstrument;
-        var merchantId = JPMCConfig.getPreference('JPMC_MerchantCode', false);
+        var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+        var resolvedConfig = options.resolvedConfig || JPMCMerchantResolver.resolve();
+        var merchantId = resolvedConfig.merchantId;
         var captureMethod = options.captureMethod;
         result.captureMethod = captureMethod;
         
@@ -60,7 +61,8 @@ function createPayment(order, options) {
             accountOnFile: options.accountOnFile,
             isAmountFinal: options.isAmountFinal,
             accountNumberType: options.accountNumberType,
-            IPAddress: options.IPAddress
+            IPAddress: options.IPAddress,
+            resolvedConfig: resolvedConfig
         });
         var requestId = UUID.createUUID().toString();
 
@@ -73,7 +75,8 @@ function createPayment(order, options) {
                     serviceId: 'JPMCPaymentService',
                     method: 'POST',
                     data: payload,
-                    headers: headers
+                    headers: headers,
+                    resolvedConfig: resolvedConfig
                 });
         
         if (serviceResult.success && serviceResult.data) {
@@ -186,18 +189,16 @@ function capturePayment(order, options) {
             multiCapture: options && options.multiCapture
         });
         
-        var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
-        var config = JPMCConfig.getAccessTokenConfig();
-        var merchantId = config.merchantId;
+        var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+        var resolvedConfig = (options && options.resolvedConfig) || JPMCMerchantResolver.resolveForOrder(order);
+        var merchantId = resolvedConfig.merchantId;
         
         if (!merchantId) {
             result.error = 'Merchant ID not configured';
             Logger.error('capturePayment: {0}', result.error);
             return result;
         }
-        
-        // Deterministic idempotent request-id: same inputs → same id (no double-charge on retry).
-        // Format: "CAP-<orderNo>-<amountCents>-<seqNum>" truncated to 40 chars (JPMC max).
+
         var captureAmountCents = capturePayload.amount;
         var captureSeq = (options && options.multiCapture && options.multiCapture.sequenceNumber) ? options.multiCapture.sequenceNumber : 1;
         var requestIdRaw = 'CAP-' + order.orderNo + '-' + captureAmountCents + '-' + captureSeq;
@@ -212,7 +213,8 @@ function capturePayment(order, options) {
                 'merchant-id': merchantId,
                 'request-id': requestId
             },
-            placeHolderId: jpmcTransactionId // Used to replace {id} placeholder in URL
+            placeHolderId: jpmcTransactionId,
+            resolvedConfig: resolvedConfig
         });
         
         
@@ -265,9 +267,6 @@ function capturePayment(order, options) {
                         if (captureData.remainingAuthAmount !== undefined) {
                             paymentTransaction.custom.jpmcRemainingAuthAmount = captureData.remainingAuthAmount / 100;
                         }
-
-                        // Always compute remaining refundable from cumulative totals (both in dollars).
-                        // JPMC returns per-capture remainingRefundableAmount — not cumulative across multi-captures.
                         var totalCapturedDollars = paymentTransaction.custom.jpmcCapturedAmount || 0;
                         var totalRefundedDollars = paymentTransaction.custom.jpmcRefundedAmount || 0;
                         paymentTransaction.custom.jpmcRemainingRefundableAmount = Math.max(totalCapturedDollars - totalRefundedDollars, 0);
@@ -377,17 +376,9 @@ function refundPayment(order, options) {
             return result;
         }
 
-        // Determine the correct transactionReferenceId for the refund.
-        // Per JPMC Refund Guide:
-        //   - Single capture / full refund: use the original payment transactionId (auth ID)
-        //   - Multi-capture: use the specific captureId; refund amount must be <= that capture's amount
-        //
-        // For multi-capture we walk the capture history and pick the first capture
-        // whose remaining refundable amount can cover this refund.
+       
         var refundReferenceId = jpmcTransactionId;
 
-        // If the caller explicitly provides a captureId (e.g. per-capture refund from CSC),
-        // use it directly — skip the auto-selection walk.
         if (options && options.captureId) {
             refundReferenceId = options.captureId;
         } else if (paymentTransaction.custom && paymentTransaction.custom.jpmcCaptureHistory) {
@@ -443,7 +434,6 @@ function refundPayment(order, options) {
             var refundedDollarsForValidation = paymentTransaction.custom.jpmcRefundedAmount || 0;
             var authDollars = paymentTransaction.amount ? paymentTransaction.amount.value : 0;
 
-            // Backwards compatibility: pre-migration orders may have stored amounts in cents
             if (capturedDollarsForValidation > authDollars * 2 && authDollars > 0) {
                 capturedDollarsForValidation = capturedDollarsForValidation / 100;
             }
@@ -460,9 +450,9 @@ function refundPayment(order, options) {
             }
         }
         
-        var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
-        var config = JPMCConfig.getAccessTokenConfig();
-        var merchantId = config.merchantId;
+        var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+        var resolvedConfig = (options && options.resolvedConfig) || JPMCMerchantResolver.resolveForOrder(order);
+        var merchantId = resolvedConfig.merchantId;
         
         if (!merchantId) {
             result.error = 'Merchant ID not configured';
@@ -471,13 +461,11 @@ function refundPayment(order, options) {
         }
         var refundPayload = JPMCPayloadBuilder.buildRefundPayload({
             transactionReferenceId: refundReferenceId,
-            amount: refundAmount, // Optional - omit for full refund
-            currency: !isFullRefund ? order.getCurrencyCode() : undefined, // Only for partial refunds
-            paymentInstrument: paymentInstrument // Pass payment instrument for routing preferences
+            amount: refundAmount, 
+            currency: !isFullRefund ? order.getCurrencyCode() : undefined,
+            resolvedConfig: resolvedConfig
         });
         
-        // Deterministic idempotent request-id: same inputs → same id (no double-refund on retry).
-        // Format: "REF-<orderNo>-<refId-suffix>-<amountCents>" truncated to 40 chars (JPMC max).
         var refundAmountCents = refundPayload.amount || 0;
         var refIdSuffix = refundReferenceId ? refundReferenceId.slice(-8) : 'FULL';
         var refRequestIdRaw = 'REF-' + order.orderNo + '-' + refIdSuffix + '-' + refundAmountCents;
@@ -490,7 +478,8 @@ function refundPayment(order, options) {
             headers: {
                 'merchant-id': merchantId,
                 'request-id': requestId
-            }
+            },
+            resolvedConfig: resolvedConfig
         });
         
         
@@ -531,8 +520,6 @@ function refundPayment(order, options) {
                         refundHistory.push(refundHistoryEntry);
                         paymentTransaction.custom.jpmcRefundHistory = JSON.stringify(refundHistory);
                         
-                        // Always compute remaining refundable from cumulative totals (captured - refunded).
-                        // JPMC's remainingRefundableAmount is per-capture, not cumulative across multi-captures.
                         var capturedDollars = paymentTransaction.custom.jpmcCapturedAmount || 0;
                         var refundedDollars = paymentTransaction.custom.jpmcRefundedAmount || 0;
                         paymentTransaction.custom.jpmcRemainingRefundableAmount = Math.max(capturedDollars - refundedDollars, 0);
@@ -593,8 +580,7 @@ function refundPayment(order, options) {
     return result;
 }
 
-// Fraud check, verification re-exported from JPMCPaymentOperations.js.
-// voidPayment, resolveJpmcTransactionId re-exported from jpmcTransactionHelpers.js.
+
 var JPMCPaymentOperations = require('*/cartridge/scripts/helpers/JPMCPaymentOperations');
 
 module.exports = {

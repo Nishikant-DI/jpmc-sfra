@@ -6,183 +6,190 @@ var Resource = require('dw/web/Resource');
 var OrderMgr = require('dw/order/OrderMgr');
 var PaymentTransaction = require('dw/order/PaymentTransaction');
 var csrfProtection = require('dw/web/CSRFProtection');
-var Logger = require('dw/system/Logger').getLogger('JPMC', 'CSC');
 
-var CSCHelper = require('./JPMCPaymentCSCHelper');
+var CSCHelper = require('~/cartridge/scripts/helpers/CSCPaymentHelpers');
 
 var PAYMENT_STATUS = CSCHelper.PAYMENT_STATUS;
 var PAYMENT_STATUS_LABELS = CSCHelper.PAYMENT_STATUS_LABELS;
 var AMOUNT_REGEX = CSCHelper.AMOUNT_REGEX;
 var DELAYED_CAPTURE_WINDOW_MINUTES = CSCHelper.DELAYED_CAPTURE_WINDOW_MINUTES;
 
-var isWithinDelayedCaptureWindow = CSCHelper.isWithinDelayedCaptureWindow;
-var delayedWindowMinutesRemaining = CSCHelper.delayedWindowMinutesRemaining;
-var canCapture = CSCHelper.canCapture;
-var canVoid = CSCHelper.canVoid;
-var canRefund = CSCHelper.canRefund;
-var getCaptureHistory = CSCHelper.getCaptureHistory;
-var getRefundHistory = CSCHelper.getRefundHistory;
-var getVoidHistory = CSCHelper.getVoidHistory;
-var maskCardNumber = CSCHelper.maskCardNumber;
-var getPaymentMethodName = CSCHelper.getPaymentMethodName;
-var isSupportedPaymentMethod = CSCHelper.isSupportedPaymentMethod;
+/**
+ * @returns {{tokenName: string, token: string}}
+ */
+function buildCsrfBlock() {
+    return {
+        tokenName: csrfProtection.getTokenName(),
+        token: csrfProtection.generateToken()
+    };
+}
 
 /**
- * Get order payment details
- * @param {dw.order.Order} order
- * @returns {Object}
+ * @param {Object} viewData
  */
-function getOrderPaymentDetails(order) {
-    var paymentInstruments = order.getPaymentInstruments();
-    var paymentInstrument = null;
-    for (var i = 0; i < paymentInstruments.length; i++) {
-        var pi = paymentInstruments[i];
-        if (isSupportedPaymentMethod(pi.paymentMethod)) {
-            paymentInstrument = pi;
-            break;
-        }
+function renderOrder(viewData) {
+    viewData.csrf = buildCsrfBlock();
+    ISML.renderTemplate('csc/order', viewData);
+}
+
+/**
+ * @param {string|null} amountParam
+ * @param {number} fallback
+ * @returns {{amount: number|null, error: string|null}}
+ */
+function validateAndParseAmount(amountParam, fallback) {
+    if (!amountParam) return { amount: fallback, error: null };
+    if (!AMOUNT_REGEX.test(amountParam)) {
+        return { amount: null, error: Resource.msg('csc.error.amount.format', 'jpmcbm', null) };
     }
-    
-    if (!paymentInstrument) {
-        return {
-            found: false,
-            error: Resource.msg('csc.error.no.jpmc.instrument', 'jpmcbm', null)
-        };
+    var parsed = parseFloat(amountParam);
+    if (!parsed || parsed <= 0) {
+        return { amount: null, error: Resource.msg('csc.error.amount.positive', 'jpmcbm', null) };
     }
-    
-    var paymentTransaction = paymentInstrument.getPaymentTransaction();
+    return { amount: parsed, error: null };
+}
+
+/**
+ * @param {dw.order.PaymentTransaction} paymentTransaction
+ * @param {number} authorizedAmount
+ * @param {number} capturedAmount
+ * @param {number} refundedAmount
+ * @returns {{paymentStatus: string, capturedAmount: number, remainingAuthAmount: number, remainingRefundableAmount: number}}
+ */
+function derivePaymentStatus(paymentTransaction, authorizedAmount, capturedAmount, refundedAmount) {
     var custom = paymentTransaction.custom;
-    var authorizedAmount = paymentTransaction.amount.value;
-    var capturedAmount = custom.jpmcCapturedAmount || 0;
-    var refundedAmount = custom.jpmcRefundedAmount || 0;
+    var remainingAuthAmount = Math.max(authorizedAmount - capturedAmount, 0);
 
-    // Backwards compatibility: orders created before the cents-to-dollars migration
-    // will have custom attribute values ~100× larger than the authorized dollar amount.
-    // Detect and convert them so the UI shows correct dollar values.
-    if (capturedAmount > authorizedAmount * 2 && authorizedAmount > 0) {
-        capturedAmount = capturedAmount / 100;
-    }
-    if (refundedAmount > authorizedAmount * 2 && authorizedAmount > 0) {
-        refundedAmount = refundedAmount / 100;
-    }
-    
-    // Remaining amounts: prefer gateway-tracked values, fall back to simple arithmetic.
-    // After void, jpmcRemainingAuthAmount is explicitly set to 0 — we must honour that
-    // rather than falling back to (authorized – captured) which re-shows voided funds.
-    var storedRemainingAuth = custom.jpmcRemainingAuthAmount;
-    var remainingAuthAmount;
-    if (storedRemainingAuth !== null && storedRemainingAuth !== undefined && !isNaN(storedRemainingAuth)) {
-        remainingAuthAmount = Number(storedRemainingAuth);
-    } else {
-        remainingAuthAmount = Math.max(authorizedAmount - capturedAmount, 0);
-    }
-
-    // Always compute remaining refundable from cumulative totals (captured - refunded).
-    // The stored jpmcRemainingRefundableAmount may have been corrupted by per-capture API
-    // values from JPMC. Computing fresh from totals is always correct.
     var remainingRefundableAmount = Math.max(capturedAmount - refundedAmount, 0);
 
-    // Same backwards-compat guard for remaining amounts
-    if (remainingAuthAmount > authorizedAmount * 2 && authorizedAmount > 0) {
-        remainingAuthAmount = remainingAuthAmount / 100;
-    }
-    if (remainingRefundableAmount > authorizedAmount * 2 && authorizedAmount > 0) {
-        remainingRefundableAmount = remainingRefundableAmount / 100;
-    }
-    
-    // Get payment status — must be explicitly set on the order's transaction
     var paymentStatus = custom.jpmcPaymentStatus;
 
     if (!paymentStatus) {
-        // Derive status from this order's actual financial data (never from site preferences)
         if (refundedAmount > 0 && refundedAmount >= capturedAmount) {
-            paymentStatus = PAYMENT_STATUS.REFUNDED;          // 'RF'
+            paymentStatus = PAYMENT_STATUS.REFUNDED;
         } else if (refundedAmount > 0) {
-            paymentStatus = PAYMENT_STATUS.PARTIAL_REFUNDED;  // 'PRF'
+            paymentStatus = PAYMENT_STATUS.PARTIAL_REFUNDED;
         } else if (capturedAmount > 0 && capturedAmount >= authorizedAmount) {
-            paymentStatus = PAYMENT_STATUS.CAPTURED;          // 'C'
+            paymentStatus = PAYMENT_STATUS.CAPTURED;
         } else if (capturedAmount > 0) {
-            paymentStatus = PAYMENT_STATUS.PARTIAL_CAPTURED;  // 'PC'
+            paymentStatus = PAYMENT_STATUS.PARTIAL_CAPTURED;
         } else if (authorizedAmount > 0) {
-            // Check transaction type — AUTH_CAPTURE means sale (capture at auth time)
             var txType = paymentTransaction.type ? paymentTransaction.type.value : null;
             if (txType === PaymentTransaction.TYPE_CAPTURE) {
-                paymentStatus = PAYMENT_STATUS.AUTH_AND_CAPTURE;  // 'AC'
-                // Ensure amounts reflect the immediate capture
+                paymentStatus = PAYMENT_STATUS.AUTH_AND_CAPTURE;
                 if (capturedAmount === 0) {
                     capturedAmount = authorizedAmount;
                     remainingAuthAmount = 0;
                     remainingRefundableAmount = authorizedAmount;
                 }
             } else {
-                paymentStatus = PAYMENT_STATUS.AUTHORIZED;  // 'A'
+                paymentStatus = PAYMENT_STATUS.AUTHORIZED;
             }
         } else {
-            paymentStatus = PAYMENT_STATUS.AUTHORIZED;  // 'A' — safe default
+            paymentStatus = PAYMENT_STATUS.AUTHORIZED;
         }
     }
 
-    // Safety net: if the order has been voided (full or partial), remaining auth must be 0.
-    // This catches any stale/incorrect stored values or arithmetic fallback drift.
-    if (paymentStatus === PAYMENT_STATUS.VOIDED || paymentStatus === PAYMENT_STATUS.PARTIAL_VOID) {
+    if (PAYMENT_STATUS && (paymentStatus === PAYMENT_STATUS.VOIDED || paymentStatus === PAYMENT_STATUS.PARTIAL_VOID)) {
         remainingAuthAmount = 0;
     }
 
-    // DELAYED auto-capture inference: when capture method is DELAYED, the window has expired,
-    // and SFCC still shows AUTHORIZED (no callback from JPMC), the gateway has auto-captured
-    // the full authorized amount. Reflect that in the amounts so the UI shows correct values.
+    return {
+        paymentStatus: paymentStatus,
+        capturedAmount: capturedAmount,
+        remainingAuthAmount: remainingAuthAmount,
+        remainingRefundableAmount: remainingRefundableAmount
+    };
+}
+
+/**
+ * @param {Array} captureHistory
+ * @param {Array} refundHistory
+ */
+function enrichCaptureHistory(captureHistory, refundHistory) {
+    if (!captureHistory.length || !refundHistory) return;
+
+    var refundedPerCapture = {};
+    for (var ri = 0; ri < refundHistory.length; ri++) {
+        var rh = refundHistory[ri];
+        if (rh.captureId) {
+            refundedPerCapture[rh.captureId] = (refundedPerCapture[rh.captureId] || 0) + (rh.amount || 0);
+        }
+    }
+
+    for (var ci = 0; ci < captureHistory.length; ci++) {
+        var cap = captureHistory[ci];
+        var capCents = cap.amount || 0;
+        var refCents = refundedPerCapture[cap.transactionId] || 0;
+        var remainCents = Math.max(capCents - refCents, 0);
+        cap.refundedCents = refCents;
+        cap.remainingRefundableCents = remainCents;
+        cap.remainingRefundableDollars = remainCents / 100;
+    }
+}
+
+/**
+ * @param {dw.order.Order} order
+ * @returns {Object}
+ */
+function getOrderPaymentDetails(order) {
+    var instruments = order.getPaymentInstruments();
+    var paymentInstrument = null;
+    for (var i = 0; i < instruments.length; i++) {
+        if (CSCHelper.isSupportedPaymentMethod(instruments[i].paymentMethod)) {
+            paymentInstrument = instruments[i];
+            break;
+        }
+    }
+
+    if (!paymentInstrument) {
+        return { found: false, errorMessage: Resource.msg('csc.error.no.jpmc.instrument', 'jpmcbm', null) };
+    }
+
+    var paymentTransaction = paymentInstrument.getPaymentTransaction();
+    var custom = paymentTransaction.custom;
+    var authorizedAmount = paymentTransaction.amount.value;
+    var capturedAmount = custom.jpmcCapturedAmount || 0;
+    var refundedAmount = custom.jpmcRefundedAmount || 0;
+
+    var derived = derivePaymentStatus(paymentTransaction, authorizedAmount, capturedAmount, refundedAmount);
+    var paymentStatus = derived.paymentStatus;
+    capturedAmount = derived.capturedAmount;
+    var remainingAuthAmount = derived.remainingAuthAmount;
+    var remainingRefundableAmount = derived.remainingRefundableAmount;
+
     var delayedAutoCapture = false;
     var captureMethodValue = custom.jpmcCaptureMethod || null;
     if (captureMethodValue === 'DELAYED'
         && paymentStatus === PAYMENT_STATUS.AUTHORIZED
-        && !isWithinDelayedCaptureWindow(custom.jpmcAuthTimestamp)) {
+        && !CSCHelper.isWithinDelayedCaptureWindow(custom.jpmcAuthTimestamp)) {
         delayedAutoCapture = true;
         capturedAmount = authorizedAmount;
         remainingAuthAmount = 0;
         remainingRefundableAmount = Math.max(authorizedAmount - refundedAmount, 0);
     }
-    var authorizationId = custom.jpmcAuthorizationId 
+
+    var authorizationId = custom.jpmcAuthorizationId
         || (paymentInstrument.custom && paymentInstrument.custom.jpmcTransactionId)
         || paymentTransaction.transactionID;
-    var captureHistory = getCaptureHistory(paymentTransaction);
-    var refundHistory = getRefundHistory(paymentTransaction);
-    var voidHistory = getVoidHistory(paymentTransaction);
 
-    // Enrich each capture history entry with per-capture remaining refundable amount.
-    // This is used by the template to show a refund button per capture row.
-    if (captureHistory.length > 0 && refundHistory) {
-        // Build map of total refunded (in cents) per captureId
-        var refundedPerCapture = {};
-        for (var ri = 0; ri < refundHistory.length; ri++) {
-            var rh = refundHistory[ri];
-            if (rh.captureId) {
-                refundedPerCapture[rh.captureId] = (refundedPerCapture[rh.captureId] || 0) + (rh.amount || 0);
-            }
-        }
-        for (var ci = 0; ci < captureHistory.length; ci++) {
-            var cap = captureHistory[ci];
-            var capCents = cap.amount || 0;           // stored in cents
-            var refCents = refundedPerCapture[cap.transactionId] || 0;
-            var remainCents = Math.max(capCents - refCents, 0);
-            cap.refundedCents = refCents;
-            cap.remainingRefundableCents = remainCents;
-            cap.remainingRefundableDollars = remainCents / 100;
-        }
-    }
-    
+    var captureHistory = CSCHelper.getCaptureHistory(paymentTransaction);
+    var refundHistory = CSCHelper.getRefundHistory(paymentTransaction);
+    var voidHistory = CSCHelper.getVoidHistory(paymentTransaction);
+
+    enrichCaptureHistory(captureHistory, refundHistory);
+
     return {
         found: true,
         paymentInstrument: paymentInstrument,
         paymentTransaction: paymentTransaction,
-        paymentMethod: getPaymentMethodName(paymentInstrument.paymentMethod),
+        paymentMethod: CSCHelper.getPaymentMethodName(paymentInstrument.paymentMethod),
         paymentStatus: paymentStatus,
         captureMethod: captureMethodValue,
         authTimestamp: custom.jpmcAuthTimestamp || null,
         delayedAutoCapture: delayedAutoCapture,
         transactionId: paymentTransaction.transactionID,
         jpmcTransactionId: authorizationId,
-        cardNumber: paymentInstrument.creditCardNumber ? maskCardNumber(paymentInstrument.creditCardNumber) : null,
-        cardType: paymentInstrument.creditCardType,
         captureHistory: captureHistory,
         refundHistory: refundHistory,
         voidHistory: voidHistory,
@@ -199,10 +206,255 @@ function getOrderPaymentDetails(order) {
 }
 
 /**
- * Main CSC entry point - display order payment details and handle actions.
- * Called from the CSC tab on the order detail page.
- * @returns {void}
+ * @param {dw.order.Order} order
+ * @param {Object} paymentDetails
+ * @param {Object} params
+ * @returns {{error: Object, successMessage: string|null, paymentDetails: Object}}
  */
+function handleCapture(order, paymentDetails, params) {
+    var JPMCPaymentHelper = require('*/cartridge/scripts/helpers/JPMCPaymentHelper');
+    var error = { isError: false, message: '' };
+
+    var captureEligibility = CSCHelper.canCapture(paymentDetails);
+    if (!captureEligibility.allowed) {
+        return {
+            error: { isError: true, message: captureEligibility.reason || Resource.msg('csc.error.capture.notmanual', 'jpmcbm', null) },
+            successMessage: null,
+            paymentDetails: paymentDetails
+        };
+    }
+
+    var parsed = validateAndParseAmount(params.amountParam, paymentDetails.amounts.remainingAuth);
+    if (parsed.error) {
+        return {
+            error: { isError: true, message: parsed.error },
+            successMessage: null,
+            paymentDetails: paymentDetails
+        };
+    }
+
+    var captureAmount = parsed.amount || 0;
+    if (captureAmount > paymentDetails.amounts.remainingAuth) {
+        return {
+            error: {
+                isError: true,
+                message: Resource.msgf('csc.error.capture.exceeds', 'jpmcbm', null,
+                    captureAmount.toFixed(2), paymentDetails.amounts.remainingAuth.toFixed(2))
+            },
+            successMessage: null,
+            paymentDetails: paymentDetails
+        };
+    }
+
+    var existingCaptures = paymentDetails.captureHistory || [];
+    var isFinalCapture = captureAmount >= paymentDetails.amounts.remainingAuth || params.finalCaptureParam === 'true';
+
+    var captureResult = JPMCPaymentHelper.capturePayment(order, {
+        amount: captureAmount,
+        isFinal: isFinalCapture,
+        multiCapture: { sequenceNumber: existingCaptures.length + 1, isFinal: isFinalCapture },
+        resolvedConfig: params.resolvedConfig
+    });
+
+    if (!captureResult.success) {
+        return {
+            error: { isError: true, message: Resource.msg('csc.error.capture.failed', 'jpmcbm', null) },
+            successMessage: null,
+            paymentDetails: paymentDetails
+        };
+    }
+
+    Transaction.wrap(function () {
+        var txCustom = paymentDetails.paymentInstrument.paymentTransaction.custom;
+        txCustom.jpmcPaymentStatus = isFinalCapture ? PAYMENT_STATUS.CAPTURED : PAYMENT_STATUS.PARTIAL_CAPTURED;
+        if (isFinalCapture) txCustom.jpmcRemainingAuthAmount = 0;
+    });
+
+    return {
+        error: error,
+        successMessage: Resource.msgf('csc.success.capture', 'jpmcbm', null, captureAmount.toFixed(2)),
+        paymentDetails: getOrderPaymentDetails(order)
+    };
+}
+
+/**
+ * @param {dw.order.Order} order
+ * @param {Object} paymentDetails
+ * @param {Object} params
+ * @returns {{error: Object, successMessage: string|null, paymentDetails: Object}}
+ */
+function handleRefund(order, paymentDetails, params) {
+    var JPMCPaymentHelper = require('*/cartridge/scripts/helpers/JPMCPaymentHelper');
+    var error = { isError: false, message: '' };
+
+    var refundEligibility = CSCHelper.canRefund(paymentDetails);
+    if (!refundEligibility.allowed) {
+        return {
+            error: { isError: true, message: refundEligibility.reason || Resource.msg('csc.info.refund.nothing', 'jpmcbm', null) },
+            successMessage: null,
+            paymentDetails: paymentDetails
+        };
+    }
+
+    if (refundEligibility.delayedAutoCapture) {
+        try {
+            Transaction.wrap(function () {
+                var txCustom = paymentDetails.paymentInstrument.paymentTransaction.custom;
+                txCustom.jpmcCapturedAmount = paymentDetails.amounts.authorized;
+                txCustom.jpmcRemainingAuthAmount = 0;
+                txCustom.jpmcPaymentStatus = PAYMENT_STATUS.CAPTURED;
+            });
+            paymentDetails = getOrderPaymentDetails(order);
+        } catch (syncErr) {
+            return {
+                error: { isError: true, message: Resource.msg('csc.error.sync.auto.capture', 'jpmcbm', null) },
+                successMessage: null,
+                paymentDetails: paymentDetails
+            };
+        }
+    }
+
+    var effectiveMax = paymentDetails.amounts.remainingRefundable;
+    if (params.refundCaptureId && paymentDetails.captureHistory) {
+        var targetCapture = null;
+        for (var ci = 0; ci < paymentDetails.captureHistory.length; ci++) {
+            if (paymentDetails.captureHistory[ci].transactionId === params.refundCaptureId) {
+                targetCapture = paymentDetails.captureHistory[ci];
+                break;
+            }
+        }
+        if (!targetCapture) {
+            return {
+                error: {
+                    isError: true,
+                    message: Resource.msg('csc.error.capture.id.not.found', 'jpmcbm', null) + ': ' + params.refundCaptureId
+                },
+                successMessage: null,
+                paymentDetails: paymentDetails
+            };
+        }
+        var perCaptureMax = targetCapture.remainingRefundableDollars || 0;
+        if (perCaptureMax <= 0) {
+            return {
+                error: { isError: true, message: Resource.msg('csc.info.refund.nothing', 'jpmcbm', null) },
+                successMessage: null,
+                paymentDetails: paymentDetails
+            };
+        }
+        effectiveMax = perCaptureMax;
+    }
+
+    var parsed = validateAndParseAmount(params.amountParam, effectiveMax);
+    if (parsed.error) {
+        return {
+            error: { isError: true, message: parsed.error },
+            successMessage: null,
+            paymentDetails: paymentDetails
+        };
+    }
+
+    var refundAmount = parsed.amount || 0;
+    if (refundAmount > effectiveMax + 0.001) {
+        return {
+            error: {
+                isError: true,
+                message: Resource.msgf('csc.error.refund.exceeds', 'jpmcbm', null,
+                    refundAmount.toFixed(2), effectiveMax.toFixed(2))
+            },
+            successMessage: null,
+            paymentDetails: paymentDetails
+        };
+    }
+
+    var refundOpts = { amount: refundAmount };
+    if (params.refundCaptureId) refundOpts.captureId = params.refundCaptureId;
+    if (params.resolvedConfig) refundOpts.resolvedConfig = params.resolvedConfig;
+
+    var refundResult = JPMCPaymentHelper.refundPayment(order, refundOpts);
+    if (!refundResult.success) {
+        return {
+            error: { isError: true, message: Resource.msg('csc.error.refund.failed', 'jpmcbm', null) },
+            successMessage: null,
+            paymentDetails: paymentDetails
+        };
+    }
+
+    Transaction.wrap(function () {
+        var txCustom = paymentDetails.paymentInstrument.paymentTransaction.custom;
+        txCustom.jpmcPaymentStatus = refundAmount >= paymentDetails.amounts.remainingRefundable
+            ? PAYMENT_STATUS.REFUNDED
+            : PAYMENT_STATUS.PARTIAL_REFUNDED;
+    });
+
+    return {
+        error: error,
+        successMessage: Resource.msgf('csc.success.refund', 'jpmcbm', null, refundAmount.toFixed(2)),
+        paymentDetails: getOrderPaymentDetails(order)
+    };
+}
+
+/**
+ * @param {dw.order.Order} order
+ * @param {Object} paymentDetails
+ * @param {Object} params
+ * @returns {{error: Object, successMessage: string|null, paymentDetails: Object}}
+ */
+function handleVoid(order, paymentDetails, params) {
+    var JPMCPaymentHelper = require('*/cartridge/scripts/helpers/JPMCPaymentHelper');
+
+    var voidEligibility = CSCHelper.canVoid(paymentDetails);
+    if (!voidEligibility.allowed) {
+        return {
+            error: { isError: true, message: voidEligibility.reason || Resource.msg('csc.error.void.notallowed', 'jpmcbm', null) },
+            successMessage: null,
+            paymentDetails: paymentDetails
+        };
+    }
+
+    var voidResult = JPMCPaymentHelper.voidPayment(order, { resolvedConfig: params ? params.resolvedConfig : undefined });
+    if (!voidResult.success) {
+        return {
+            error: { isError: true, message: Resource.msg('csc.error.void.failed', 'jpmcbm', null) },
+            successMessage: null,
+            paymentDetails: paymentDetails
+        };
+    }
+
+    var hadCaptures = paymentDetails.amounts.captured > 0;
+    var voidedAmount = paymentDetails.amounts.remainingAuth;
+    
+    Transaction.wrap(function () {
+        var txCustom = paymentDetails.paymentInstrument.paymentTransaction.custom;
+        txCustom.jpmcPaymentStatus = hadCaptures ? PAYMENT_STATUS.PARTIAL_VOID : PAYMENT_STATUS.VOIDED;
+        txCustom.jpmcRemainingAuthAmount = 0;
+
+        var existingVoidHistory = [];
+        if (txCustom.jpmcVoidHistory) {
+            try { existingVoidHistory = JSON.parse(txCustom.jpmcVoidHistory); } catch (parseErr) {
+                // Ignore parse errors, treat as empty history
+            }
+        }
+        existingVoidHistory.push({
+            amount: voidedAmount,
+            amountDisplay: voidedAmount.toFixed(2),
+            currency: paymentDetails.amounts.currency,
+            timestamp: new Date().toISOString(),
+            status: 'SUCCESS',
+            type: hadCaptures ? 'PARTIAL_VOID' : 'FULL_VOID',
+            userId: session.userName || 'System'
+        });
+        txCustom.jpmcVoidHistory = JSON.stringify(existingVoidHistory);
+    });
+
+    return {
+        error: { isError: false, message: '' },
+        successMessage: Resource.msg('csc.success.void', 'jpmcbm', null),
+        paymentDetails: getOrderPaymentDetails(order)
+    };
+}
+
+exports.getOrderPaymentDetails = getOrderPaymentDetails;
+
 exports.ManagePayment = function () {
     var orderId = request.httpParameterMap.orderNo.stringValue || '';
     var captureAction = request.httpParameterMap.capture.stringValue || null;
@@ -211,318 +463,70 @@ exports.ManagePayment = function () {
     var amountParam = request.httpParameterMap.amountIntroduced.stringValue || null;
     var finalCaptureParam = request.httpParameterMap.isFinalCapture.stringValue || null;
     var refundCaptureId = request.httpParameterMap.refundCaptureId.stringValue || null;
-    if (request.httpMethod !== 'GET') {
-        var validateRequest = csrfProtection.validateRequest();
-        if (!validateRequest) {
-            ISML.renderTemplate('csrfFail');
-            return; // eslint-disable-line consistent-return
-        }
-    }
-    
-    var error = {
-        isError: false,
-        message: ''
-    };
-    
-    var successMessage = null;
-    
-    if (!orderId) {
-        error.isError = true;
-        error.message = Resource.msg('error.order.notfound', 'jpmcbm', 'Order not found');
-        ISML.renderTemplate('csc/order', {
-            error: error,
-            orderId: orderId,
-            csrf: {
-                tokenName: csrfProtection.getTokenName(),
-                token: csrfProtection.generateToken()
-            }
-        });
+
+    if (request.httpMethod !== 'GET' && !csrfProtection.validateRequest()) {
+        ISML.renderTemplate('csrfFail');
         return; // eslint-disable-line consistent-return
     }
-    
+
+    var error = { isError: false, message: '' };
+    var successMessage = null;
+
+    if (!orderId) {
+        error.isError = true;
+        error.message = Resource.msg('error.order.notfound', 'jpmcbm', null);
+        renderOrder({ error: error, orderId: orderId });
+        return; // eslint-disable-line consistent-return
+    }
+
     var order = OrderMgr.getOrder(orderId);
     if (!order) {
         error.isError = true;
-        error.message = Resource.msg('error.order.notfound', 'jpmcbm', 'Order ' + orderId + ' not found');
-        ISML.renderTemplate('csc/order', {
-            error: error,
-            orderId: orderId,
-            csrf: {
-                tokenName: csrfProtection.getTokenName(),
-                token: csrfProtection.generateToken()
-            }
-        });
+        error.message = Resource.msg('error.order.notfound', 'jpmcbm', null);
+        renderOrder({ error: error, orderId: orderId });
         return; // eslint-disable-line consistent-return
     }
-    
+
     var paymentDetails = getOrderPaymentDetails(order);
     if (!paymentDetails.found) {
         error.isError = true;
-        error.message = paymentDetails.error;
-        ISML.renderTemplate('csc/order', {
-            error: error,
-            orderId: orderId,
-            order: order,
-            csrf: {
-                tokenName: csrfProtection.getTokenName(),
-                token: csrfProtection.generateToken()
-            }
-        });
+        error.message = paymentDetails.errorMessage;
+        renderOrder({ error: error, orderId: orderId, order: order });
         return; // eslint-disable-line consistent-return
     }
-    var JPMCPaymentHelper;
+
     try {
+        var result;
+        var params = { amountParam: amountParam, finalCaptureParam: finalCaptureParam, refundCaptureId: refundCaptureId };
+
+        var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+        var resolvedConfig = JPMCMerchantResolver.resolveForOrder(order);
+        params.resolvedConfig = resolvedConfig;
+
         if (captureAction) {
-            JPMCPaymentHelper = require('*/cartridge/scripts/helpers/JPMCPaymentHelper');
-            var captureEligibility = canCapture(paymentDetails);
-            if (!captureEligibility.allowed) {
-                error.isError = true;
-                error.message = captureEligibility.reason
-                    || Resource.msg('csc.error.capture.notmanual', 'jpmcbm', 'Capture is not available for this order.');
-            }
-            var captureAmount;
-            if (!error.isError) {
-                if (amountParam) {
-                    if (!AMOUNT_REGEX.test(amountParam)) {
-                        error.isError = true;
-                        error.message = Resource.msg('csc.error.amount.format', 'jpmcbm', 'Enter a valid dollar amount (e.g. 10.00).');
-                    } else {
-                        captureAmount = parseFloat(amountParam);
-                    }
-                } else {
-                    captureAmount = paymentDetails.amounts.remainingAuth;
-                }
-            }
-
-            if (!error.isError) {
-                if (!captureAmount || captureAmount <= 0) {
-                    error.isError = true;
-                    error.message = Resource.msg('csc.error.amount.positive', 'jpmcbm', 'Amount must be greater than 0.');
-                } else if (captureAmount > paymentDetails.amounts.remainingAuth) {
-                    error.isError = true;
-                    error.message = Resource.msgf('csc.error.capture.exceeds', 'jpmcbm', null,
-                        captureAmount.toFixed(2), paymentDetails.amounts.remainingAuth.toFixed(2));
-                } else {
-                    // Determine multi-capture sequence from existing capture history
-                    var existingCaptures = paymentDetails.captureHistory || [];
-                    var sequenceNumber = existingCaptures.length + 1;
-                    // Final if: amount equals remaining, OR user explicitly checked "final capture"
-                    var isFinalCapture = captureAmount >= paymentDetails.amounts.remainingAuth
-                        || finalCaptureParam === 'true';
-
-                    var captureResult = JPMCPaymentHelper.capturePayment(order, {
-                        amount: captureAmount,
-                        isFinal: isFinalCapture,
-                        multiCapture: {
-                            sequenceNumber: sequenceNumber,
-                            isFinal: isFinalCapture
-                        }
-                    });
-
-                    if (captureResult.success) {
-                        Transaction.wrap(function () {
-                            var pi = paymentDetails.paymentInstrument;
-                            var custom = pi.paymentTransaction.custom;
-                            if (isFinalCapture) {
-                                custom.jpmcPaymentStatus = PAYMENT_STATUS.CAPTURED;
-                                // Final capture — no more auth to capture
-                                custom.jpmcRemainingAuthAmount = 0;
-                            } else {
-                                custom.jpmcPaymentStatus = PAYMENT_STATUS.PARTIAL_CAPTURED;
-                            }
-                        });
-
-                        successMessage = Resource.msgf('csc.success.capture', 'jpmcbm', null, captureAmount.toFixed(2));
-                        Logger.info('CSC: Capture successful - Order: {0}, Amount: {1}', orderId, captureAmount);
-                        paymentDetails = getOrderPaymentDetails(order);
-                    } else {
-                        error.isError = true;
-                        Logger.error('CSC: Capture failed - Order: {0}, Gateway: {1}', orderId, captureResult.error);
-                        error.message = Resource.msg('csc.error.capture.failed', 'jpmcbm',
-                            'Capture could not be completed. Please retry or contact payment support.');
-                    }
-                }
-            }
+            result = handleCapture(order, paymentDetails, params);
         } else if (refundAction) {
-            JPMCPaymentHelper = require('*/cartridge/scripts/helpers/JPMCPaymentHelper');
-            var refundEligibility = canRefund(paymentDetails);
-            if (!refundEligibility.allowed) {
-                error.isError = true;
-                error.message = refundEligibility.reason
-                    || Resource.msg('csc.info.refund.nothing', 'jpmcbm', 'No remaining refundable amount.');
-            }
-
-            // DELAYED auto-capture: the gateway captured the full auth amount but SFCC
-            // doesn't know yet. Sync SFCC financial data before processing the refund so
-            // the helper's validation (captured − refunded) gives the correct ceiling.
-            if (!error.isError && refundEligibility.delayedAutoCapture) {
-                try {
-                    Transaction.wrap(function () {
-                        var pi = paymentDetails.paymentInstrument;
-                        var txCustom = pi.paymentTransaction.custom;
-                        txCustom.jpmcCapturedAmount = paymentDetails.amounts.authorized;
-                        txCustom.jpmcRemainingAuthAmount = 0;
-                        txCustom.jpmcPaymentStatus = PAYMENT_STATUS.CAPTURED;
-                    });
-                    Logger.info('CSC: Synced DELAYED auto-capture for order {0} — set captured = {1}',
-                        orderId, paymentDetails.amounts.authorized);
-                    // Refresh after sync so downstream amounts are current
-                    paymentDetails = getOrderPaymentDetails(order);
-                } catch (syncErr) {
-                    error.isError = true;
-                    Logger.error('CSC: DELAYED auto-capture sync failed - Order: {0}: {1}', orderId, syncErr.message || String(syncErr));
-                    error.message = Resource.msg('csc.error.sync.auto.capture', 'jpmcbm',
-                        'An internal error occurred while syncing the payment record. Please retry.');
-                }
-            }
-            var refundAmount;
-            // Per-capture ceiling: when a specific captureId is targeted, validate
-            // against that capture's remaining refundable amount (not the global total).
-            var perCaptureMax = 0;
-            var targetCapture = null;
-            if (!error.isError && refundCaptureId && paymentDetails.captureHistory) {
-                for (var ci = 0; ci < paymentDetails.captureHistory.length; ci++) {
-                    if (paymentDetails.captureHistory[ci].transactionId === refundCaptureId) {
-                        targetCapture = paymentDetails.captureHistory[ci];
-                        break;
-                    }
-                }
-                if (!targetCapture) {
-                    error.isError = true;
-                    error.message = Resource.msg('csc.error.capture.id.not.found', 'jpmcbm', null) + ': ' + refundCaptureId;
-                    Logger.error('CSC: Refund target capture not found - Order: {0}, CaptureId: {1}', orderId, refundCaptureId);
-                } else {
-                    perCaptureMax = targetCapture.remainingRefundableDollars || 0;
-                    if (perCaptureMax <= 0) {
-                        error.isError = true;
-                        error.message = Resource.msg('csc.info.refund.nothing', 'jpmcbm', 'No remaining refundable amount.');
-                    }
-                }
-            }
-            var effectiveMax = (refundCaptureId && perCaptureMax > 0) ? perCaptureMax : paymentDetails.amounts.remainingRefundable;
-
-            if (!error.isError) {
-                if (amountParam) {
-                    if (!AMOUNT_REGEX.test(amountParam)) {
-                        error.isError = true;
-                        error.message = Resource.msg('csc.error.amount.format', 'jpmcbm', 'Enter a valid dollar amount (e.g. 10.00).');
-                    } else {
-                        refundAmount = parseFloat(amountParam);
-                    }
-                } else {
-                    refundAmount = effectiveMax;
-                }
-            }
-
-            if (!error.isError) {
-                if (!refundAmount || refundAmount <= 0) {
-                    error.isError = true;
-                    error.message = Resource.msg('csc.error.amount.positive', 'jpmcbm', 'Amount must be greater than 0.');
-                } else if (refundAmount > effectiveMax + 0.001) {
-                    error.isError = true;
-                    error.message = Resource.msgf('csc.error.refund.exceeds', 'jpmcbm', null,
-                        refundAmount.toFixed(2), effectiveMax.toFixed(2));
-                } else {
-                    var refundOpts = { amount: refundAmount };
-                    if (refundCaptureId) {
-                        refundOpts.captureId = refundCaptureId;
-                    }
-                    var refundResult = JPMCPaymentHelper.refundPayment(order, refundOpts);
-
-                    if (refundResult.success) {
-                        Transaction.wrap(function () {
-                            var pi = paymentDetails.paymentInstrument;
-                            var custom = pi.paymentTransaction.custom;
-                            if (refundAmount >= paymentDetails.amounts.remainingRefundable) {
-                                custom.jpmcPaymentStatus = PAYMENT_STATUS.REFUNDED;
-                            } else {
-                                custom.jpmcPaymentStatus = PAYMENT_STATUS.PARTIAL_REFUNDED;
-                            }
-                        });
-
-                        successMessage = Resource.msgf('csc.success.refund', 'jpmcbm', null, refundAmount.toFixed(2));
-                        Logger.info('CSC: Refund successful - Order: {0}, Amount: {1}', orderId, refundAmount);
-                        paymentDetails = getOrderPaymentDetails(order);
-                    } else {
-                        error.isError = true;
-                        Logger.error('CSC: Refund failed - Order: {0}, Gateway: {1}', orderId, refundResult.error);
-                        error.message = Resource.msg('csc.error.refund.failed', 'jpmcbm',
-                            'Refund could not be completed. Please retry or contact payment support.');
-                    }
-                }
-            }
+            result = handleRefund(order, paymentDetails, params);
         } else if (voidAction) {
-            JPMCPaymentHelper = require('*/cartridge/scripts/helpers/JPMCPaymentHelper');
-            var voidEligibility = canVoid(paymentDetails);
+            result = handleVoid(order, paymentDetails, params);
+        }
 
-            if (!voidEligibility.allowed) {
-                error.isError = true;
-                error.message = voidEligibility.reason
-                    || Resource.msg('csc.error.void.notallowed', 'jpmcbm',
-                        'Void not available — authorization already fully captured or voided.');
-            } else {
-                var voidResult = JPMCPaymentHelper.voidPayment(order);
-
-                if (voidResult.success) {
-                    // Update payment status, zero out remaining auth, and record void history
-                    var hadCaptures = paymentDetails.amounts.captured > 0;
-                    var voidedAmount = paymentDetails.amounts.remainingAuth;
-                    Transaction.wrap(function () {
-                        var pi = paymentDetails.paymentInstrument;
-                        var custom = pi.paymentTransaction.custom;
-                        // If some amount was already captured, this is a partial void
-                        custom.jpmcPaymentStatus = hadCaptures
-                            ? PAYMENT_STATUS.PARTIAL_VOID
-                            : PAYMENT_STATUS.VOIDED;
-                        // Zero out remaining auth — voided amount is no longer capturable
-                        custom.jpmcRemainingAuthAmount = 0;
-
-                        // Record void history entry
-                        var existingVoidHistory = [];
-                        if (custom.jpmcVoidHistory) {
-                            try {
-                                existingVoidHistory = JSON.parse(custom.jpmcVoidHistory);
-                            } catch (parseErr) {
-                                Logger.warn('CSC: Could not parse existing void history: {0}', parseErr.message);
-                            }
-                        }
-                        existingVoidHistory.push({
-                            amount: voidedAmount,
-                            amountDisplay: voidedAmount.toFixed(2),
-                            currency: paymentDetails.amounts.currency,
-                            timestamp: new Date().toISOString(),
-                            status: 'SUCCESS',
-                            type: hadCaptures ? 'PARTIAL_VOID' : 'FULL_VOID',
-                            userId: session.userName || 'System'
-                        });
-                        custom.jpmcVoidHistory = JSON.stringify(existingVoidHistory);
-                    });
-
-                    successMessage = Resource.msg('csc.success.void', 'jpmcbm', 'Authorization voided successfully.');
-                    Logger.info('CSC: Void successful - Order: {0}', orderId);
-                    paymentDetails = getOrderPaymentDetails(order);
-                } else {
-                    error.isError = true;
-                    Logger.error('CSC: Void failed - Order: {0}, Gateway: {1}', orderId, voidResult.error);
-                    error.message = Resource.msg('csc.error.void.failed', 'jpmcbm',
-                        'Void could not be completed. Please retry or contact payment support.');
-                }
-            }
+        if (result) {
+            error = result.error;
+            successMessage = result.successMessage;
+            paymentDetails = result.paymentDetails;
         }
     } catch (e) {
         error.isError = true;
-        Logger.error('CSC: Exception processing action - Order: {0}: {1}', orderId, e instanceof Error ? e.message : String(e));
-        error.message = Resource.msg('csc.error.unexpected', 'jpmcbm',
-            'An unexpected error occurred. Please refresh and try again.');
+        error.message = Resource.msg('csc.error.unexpected', 'jpmcbm', null);
     }
-    var captureInfo = paymentDetails ? canCapture(paymentDetails) : { allowed: false, reason: null };
-    var voidInfo = paymentDetails ? canVoid(paymentDetails) : { allowed: false, reason: null };
-    var refundInfo = paymentDetails ? canRefund(paymentDetails) : { allowed: false, reason: null };
+
     var delayedWindowRemaining = 0;
     if (paymentDetails && paymentDetails.captureMethod === 'DELAYED' && paymentDetails.authTimestamp) {
-        delayedWindowRemaining = delayedWindowMinutesRemaining(paymentDetails.authTimestamp);
+        delayedWindowRemaining = CSCHelper.delayedWindowMinutesRemaining(paymentDetails.authTimestamp);
     }
-    ISML.renderTemplate('csc/order', {
+
+    renderOrder({
         error: error,
         successMessage: successMessage,
         orderId: orderId,
@@ -530,15 +534,11 @@ exports.ManagePayment = function () {
         paymentDetails: paymentDetails,
         PAYMENT_STATUS: PAYMENT_STATUS,
         PAYMENT_STATUS_LABELS: PAYMENT_STATUS_LABELS,
-        captureInfo: captureInfo,
-        voidInfo: voidInfo,
-        refundInfo: refundInfo,
+        captureInfo: paymentDetails ? CSCHelper.canCapture(paymentDetails) : { allowed: false, reason: null },
+        voidInfo: paymentDetails ? CSCHelper.canVoid(paymentDetails) : { allowed: false, reason: null },
+        refundInfo: paymentDetails ? CSCHelper.canRefund(paymentDetails) : { allowed: false, reason: null },
         delayedWindowRemaining: delayedWindowRemaining,
-        delayedWindowMinutes: DELAYED_CAPTURE_WINDOW_MINUTES,
-        csrf: {
-            tokenName: csrfProtection.getTokenName(),
-            token: csrfProtection.generateToken()
-        }
+        delayedWindowMinutes: DELAYED_CAPTURE_WINDOW_MINUTES
     });
 };
 exports.ManagePayment.public = true;

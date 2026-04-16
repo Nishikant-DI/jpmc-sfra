@@ -44,7 +44,7 @@ function fraudDetection(basketOrOrder, paymentInstrument, options) {
             Logger.error('fraudDetection: {0}', result.errorMessage);
             return result;
         }
-        if (!JPMCConfig.isFraudCheckEnabled()) {
+        if (!JPMCConfig.isFraudCheckEnabled() && !(options && options.resolvedConfig && options.resolvedConfig.enableFraudCheck === true)) {
             result.status = 'success';
             result.errorMessage = 'Fraud check disabled';
             return result;

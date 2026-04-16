@@ -121,9 +121,9 @@ describe('JPMCConfig', function () {
 
             var config = JPMCConfig.getConfig();
 
-            assert.equal(config.merchantSoftware.companyName, 'Salesforce Commerce Cloud');
-            assert.equal(config.merchantSoftware.productName, 'SFCC');
-            assert.equal(config.merchantSoftware.version, '1.0.0');
+            assert.equal(config.merchantSoftware.companyName, 'JPMC Plugin');
+            assert.equal(config.merchantSoftware.productName, 'JPMC SFCC B2C Cartridge');
+            assert.equal(config.merchantSoftware.version, '1.0');
             assert.equal(config.accountNumberType, 'SAFETECH_TOKEN');
         });
 

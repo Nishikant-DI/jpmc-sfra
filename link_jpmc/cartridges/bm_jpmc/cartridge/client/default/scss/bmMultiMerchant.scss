@@ -1,0 +1,228 @@
+@import 'bm-common';
+
+// ============================================
+// Merchant List & Management Styles
+// ============================================
+// Table-based layout for merchant configuration list
+// Namespace: .jpmc-merchant-* to prevent BM frame bleed
+
+.jpmc-merchant-list {
+    @include jpmc-shared-components;
+
+    h1 {
+        margin-bottom: 20px;
+        font-size: 24px;
+        color: $text;
+    }
+
+    .info-panel {
+        margin: 15px 0 20px;
+        padding: 15px;
+        background-color: $bg-panel;
+        border-left: 4px solid $border-accent;
+        border-radius: 3px;
+
+        h2 {
+            margin: 0 0 10px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #003d82;
+        }
+
+        p {
+            margin: 0 0 10px;
+            color: $text;
+            line-height: 1.5;
+            font-size: 13px;
+
+            &:last-child {
+                margin-bottom: 0;
+            }
+        }
+    }
+
+    .action-bar {
+        margin: 15px 0 20px;
+        padding: 15px;
+        background-color: $secondary;
+        border: 1px solid $border;
+        border-radius: 3px;
+    }
+
+    .actions {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .config-count {
+        color: $text-light;
+        font-size: 12px;
+        margin-left: auto;
+        white-space: nowrap;
+
+        strong {
+            font-weight: 600;
+            color: $text;
+        }
+    }
+
+    .error-message {
+        margin: 15px 0 20px;
+        padding: 12px 15px;
+        background-color: #fee;
+        border-left: 4px solid $error;
+        border-radius: 3px;
+        color: $error;
+        font-weight: 500;
+        font-size: 13px;
+    }
+
+    .table-wrapper {
+        overflow-x: auto;
+        margin-top: 20px;
+    }
+
+    .config-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0;
+        border: 1px solid $border;
+        border-radius: 3px;
+        overflow: hidden;
+
+        thead {
+            background-color: $secondary;
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid $border;
+            color: $text;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid $border;
+            font-size: 13px;
+            color: $text;
+            vertical-align: middle;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        tbody tr:hover {
+            background-color: #f0f4f8;
+        }
+    }
+
+    .col-locale {
+        width: 30%;
+    }
+
+    .col-merchant {
+        width: 50%;
+    }
+
+    .col-actions {
+        width: 20%;
+    }
+
+    .row-even {
+        background-color: #fff;
+
+        &:hover {
+            background-color: #f0f4f8;
+        }
+    }
+
+    .row-odd {
+        background-color: #fafbfc;
+
+        &:hover {
+            background-color: #f0f4f8;
+        }
+    }
+
+    .link-edit,
+    .link-delete {
+        color: $primary;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 500;
+        transition: all 0.2s;
+
+        &:hover {
+            text-decoration: underline;
+            opacity: 0.8;
+        }
+
+        &:focus {
+            outline: 2px solid $primary;
+            outline-offset: 2px;
+            border-radius: 2px;
+        }
+    }
+
+    .link-delete {
+        color: $error;
+
+        &:hover {
+            color: darken($error, 10%);
+        }
+
+        &:focus {
+            outline-color: $error;
+        }
+    }
+
+    .divider {
+        margin: 0 6px;
+        color: $border;
+        font-weight: normal;
+    }
+
+    .empty-state {
+        margin-top: 40px;
+        padding: 50px 30px;
+        text-align: center;
+        background-color: $bg-light;
+        border: 1px solid $border;
+        border-radius: 3px;
+    }
+
+    .empty-state-content h3 {
+        margin: 0 0 20px;
+        font-size: 16px;
+        font-weight: 600;
+        color: $text;
+    }
+
+    .empty-tips {
+        margin: 0;
+        padding-left: 20px;
+        text-align: left;
+        display: inline-block;
+
+        li {
+            margin: 15px 0;
+            font-size: 13px;
+            line-height: 1.6;
+            color: $text;
+        }
+
+        strong {
+            color: #003d82;
+            font-weight: 600;
+            display: block;
+            margin-bottom: 4px;
+        }
+    }
+}

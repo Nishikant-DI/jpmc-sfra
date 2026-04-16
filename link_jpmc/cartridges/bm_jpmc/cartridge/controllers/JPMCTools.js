@@ -3,10 +3,16 @@
 var ISML = require('dw/template/ISML');
 var CSRFProtection = require('dw/web/CSRFProtection');
 var Resource = require('dw/web/Resource');
-var Logger = require('dw/system/Logger').getLogger('JPMC', 'bm-tools');
+var Site = require('dw/system/Site');
+var Transaction = require('dw/system/Transaction');
+var URLUtils = require('dw/web/URLUtils');
+var CertificateRef = require('dw/crypto/CertificateRef');
+var CertificateUtils = require('dw/crypto/CertificateUtils');
+
+var RESOURCE_BUNDLE = 'jpmcbm';
 
 /**
- * Validate a certificate alias against the allowed pattern.
+ * Validate a certificate alias against the allowed pattern
  * @param {string} alias
  * @returns {boolean}
  */
@@ -16,142 +22,241 @@ function isValidAlias(alias) {
 }
 
 /**
- * Send JSON response to client.
  * @param {Object} data
  * @returns {void}
  */
-function json(data) {
+function sendJsonResponse(data) {
     response.setContentType('application/json');
     response.writer.print(JSON.stringify(data));
 }
 
 /**
- * Build and send a standard JSON response.
+ * Build and send a standard JSON response
  * @param {boolean} success
- * @param {string} [message]
- * @param {Object} [extra]
+ * @param {string|null} messageKey
+ * @param {Object} additionalData
  * @returns {void}
  */
-function sendResponse(success, message, extra) {
-    var resp = { success: success };
-    if (message) resp.message = message;
-    if (extra) {
-        Object.keys(extra).forEach(function(key) {
-            resp[key] = extra[key];
+function sendStandardResponse(success, messageKey, additionalData) {
+    var responseData = { success: success };
+    
+    if (messageKey) {
+        responseData.message = Resource.msg(messageKey, RESOURCE_BUNDLE, null);
+    }
+    
+    if (additionalData && typeof additionalData === 'object') {
+        Object.keys(additionalData).forEach(function (key) {
+            responseData[key] = additionalData[key];
         });
     }
-    json(resp);
+    
+    sendJsonResponse(responseData);
 }
 
 /**
- * Renders thumbprint generator page.
+ * Retrieve site preference value safely
+ * @param {string} preferenceKey
+ * @returns {string}
+ */
+function getSitePreference(preferenceKey) {
+    var site = Site.getCurrent();
+    var value = site.getCustomPreferenceValue(preferenceKey);
+    return value || '';
+}
+
+/**
+ * @returns {Array}
+ */
+function getLocaleEntriesForThumbprint() {
+    var CustomObjectMgr = require('dw/object/CustomObjectMgr');
+    var site = Site.getCurrent();
+    var siteId = site.getID();
+
+    var seen = {};
+    var localeIds = [];
+
+    seen['default'] = true;
+    localeIds.push('default');
+
+    var allowedLocales = site.getAllowedLocales();
+    for (var i = 0; i < allowedLocales.size(); i++) {
+        var loc = String(allowedLocales.get(i));
+        if (!seen[loc]) {
+            seen[loc] = true;
+            localeIds.push(loc);
+        }
+    }
+
+    var coMap = {};
+    for (var k = 0; k < localeIds.length; k++) {
+        var coLocale = localeIds[k];
+        var coConfigKey = siteId + '::' + coLocale;
+        var co = CustomObjectMgr.getCustomObject('JPMCMerchantConfig', coConfigKey);
+        if (co) {
+            coMap[coConfigKey] = {
+                certAlias: String(co.custom.certAlias || ''),
+                privateKeyAlias: String(co.custom.privateKeyAlias || ''),
+                hasKid: !!(co.custom.kid)
+            };
+        }
+    }
+
+    var entries = [];
+    for (var j = 0; j < localeIds.length; j++) {
+        var entryLocale = localeIds[j];
+        var entryConfigKey = siteId + '::' + entryLocale;
+        var coData = coMap[entryConfigKey] || null;
+        entries.push({
+            locale: entryLocale,
+            configKey: entryConfigKey,
+            hasCO: !!coData,
+            certAlias: coData ? coData.certAlias : '',
+            privateKeyAlias: coData ? coData.privateKeyAlias : '',
+            hasKid: coData ? coData.hasKid : false
+        });
+    }
+    return entries;
+}
+
+/**
+ * @returns {void}
  */
 function thumbprintGenerator() {
     try {
-        var Site = require('dw/system/Site');
-        var URLUtils = require('dw/web/URLUtils');
-        var site = Site.getCurrent();
+        var kidValue = getSitePreference('jpmc_kid');
+        var localeEntries = getLocaleEntriesForThumbprint();
+        var siteId = Site.getCurrent().getID();
 
         ISML.renderTemplate('jpmc/thumbprintGenerator', {
-            kidConfigured: !!(site.getCustomPreferenceValue('jpmc_kid')),
-            certAlias: site.getCustomPreferenceValue('JPMCCertAlias') || '',
-            privateKeyAlias: site.getCustomPreferenceValue('JPMCPrivateKeyAlias') || '',
+            kidConfigured: !!(kidValue),
+            certAlias: getSitePreference('JPMCCertAlias'),
+            privateKeyAlias: getSitePreference('JPMCPrivateKeyAlias'),
+            localeEntries: localeEntries,
+            siteId: siteId,
             saveUrl: URLUtils.url('JPMCTools-SaveThumbprint').toString(),
             getCertUrl: URLUtils.url('JPMCTools-GetCertificatePEM').toString(),
-            // Two independent tokens — each endpoint consumes its own token.
             csrfTokenGet: CSRFProtection.getTokenName() + '=' + CSRFProtection.generateToken(),
             csrfTokenSave: CSRFProtection.getTokenName() + '=' + CSRFProtection.generateToken()
         });
     } catch (e) {
-        Logger.error('Failed to render thumbprint generator page');
-        response.writer.print(Resource.msg('error.page.load', 'jpmcbm', 'Error loading page'));
+        ISML.renderTemplate('csrfFail', {
+            errorTitle: Resource.msg('error.csrf.title', RESOURCE_BUNDLE, null),
+            errorMessage: Resource.msg('error.page.load', RESOURCE_BUNDLE, null)
+        });
     }
 }
 
 /**
- * Returns the certificate DER as base64 for client-side SHA-1 thumbprint computation.
- * CSRF-protected. DER is only returned to authenticated BM sessions.
+ * @returns {void}
  */
 function getCertificatePEM() {
     if (!CSRFProtection.validateRequest()) {
-        Logger.warn('CSRF validation failed for GetCertificatePEM');
-        sendResponse(false, 'Security validation failed');
+        response.setStatus(403);
+        sendStandardResponse(false, 'error.csrf.token.mismatch', null);
         return;
     }
 
     var certAlias = request.httpParameterMap.certAlias.stringValue || '';
 
+    if (!certAlias) {
+        response.setStatus(400);
+        sendStandardResponse(false, 'thumbprint.js.error.cert.required', null);
+        return;
+    }
+
     if (!isValidAlias(certAlias)) {
-        sendResponse(false, 'Invalid certificate alias format');
+        response.setStatus(400);
+        sendStandardResponse(false, 'thumbprint.js.error.cert.not.found', null);
         return;
     }
 
     try {
-        var CertificateRef = require('dw/crypto/CertificateRef');
-        var CertificateUtils = require('dw/crypto/CertificateUtils');
-
-        var derBase64 = CertificateUtils.getEncodedCertificate(new CertificateRef(certAlias));
+        var certificateRef = new CertificateRef(certAlias);
+        var derBase64 = CertificateUtils.getEncodedCertificate(certificateRef);
 
         if (!derBase64) {
-            sendResponse(false, 'Certificate not found');
+            response.setStatus(404);
+            sendStandardResponse(false, 'thumbprint.js.error.cert.not.found', null);
             return;
         }
 
-        sendResponse(true, '', { derBase64: derBase64 });
+        sendStandardResponse(true, null, { derBase64: derBase64 });
     } catch (e) {
-        Logger.error('Certificate retrieval failed');
-        sendResponse(false, 'Failed to retrieve certificate');
+        sendStandardResponse(false, 'thumbprint.js.error.cert.decode.failed', null);
     }
 }
 
 /**
- * Saves thumbprint to site preferences.
- * The kid value is computed client-side via crypto.subtle SHA-1 and submitted via CSRF-protected POST.
- * Server validates the format against THUMBPRINT_PATTERN before persisting.
+ * @returns {void}
  */
 function saveThumbprint() {
     if (!CSRFProtection.validateRequest()) {
-        Logger.warn('CSRF validation failed for SaveThumbprint');
-        sendResponse(false, 'Security validation failed');
+        response.setStatus(403);
+        sendStandardResponse(false, 'error.csrf.token.mismatch', null);
         return;
     }
 
-    var params = request.httpParameterMap;
-    var kid = params.kid.stringValue || '';
-    var certAlias = params.certAlias.stringValue || '';
-    var privateKeyAlias = params.privateKeyAlias.stringValue || '';
+    var kid = request.httpParameterMap.kid.stringValue || '';
+    var configKey = request.httpParameterMap.configKey.stringValue || '';
+    var certAlias = request.httpParameterMap.certAlias.stringValue || '';
+    var privateKeyAlias = request.httpParameterMap.privateKeyAlias.stringValue || '';
 
     var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
+
     if (!kid || !constants.THUMBPRINT_PATTERN.test(kid)) {
-        sendResponse(false, 'Invalid thumbprint format');
+        response.setStatus(400);
+        sendStandardResponse(false, 'thumbprint.js.error.save.failed', null);
+        return;
+    }
+
+    if (configKey && !/^[a-zA-Z0-9_-]+::[a-zA-Z0-9_-]+$/.test(configKey)) {
+        response.setStatus(400);
+        sendStandardResponse(false, 'thumbprint.js.error.save.failed', null);
         return;
     }
 
     if (certAlias && !isValidAlias(certAlias)) {
-        sendResponse(false, 'Invalid certificate alias format');
+        response.setStatus(400);
+        sendStandardResponse(false, 'thumbprint.js.error.save.failed', null);
         return;
     }
 
     if (privateKeyAlias && !isValidAlias(privateKeyAlias)) {
-        sendResponse(false, 'Invalid private key alias format');
+        response.setStatus(400);
+        sendStandardResponse(false, 'thumbprint.js.error.save.failed', null);
+        return;
+    }
+
+    if (configKey && (!certAlias || !privateKeyAlias)) {
+        response.setStatus(400);
+        sendStandardResponse(false, 'thumbprint.js.error.save.failed', null);
         return;
     }
 
     try {
-        var Transaction = require('dw/system/Transaction');
-        var Site = require('dw/system/Site');
-        var site = Site.getCurrent();
+        if (configKey) {
+            var CustomObjectMgr = require('dw/object/CustomObjectMgr');
+            Transaction.wrap(function () {
+                /** @type {dw.object.CustomObject} */
+                var co = CustomObjectMgr.getCustomObject('JPMCMerchantConfig', configKey);
+                var target = co || CustomObjectMgr.createCustomObject('JPMCMerchantConfig', configKey);
+                if (!co) { target.custom.enabled = true; }
+                target.custom.kid = kid;
+                target.custom.certAlias = certAlias;
+                target.custom.privateKeyAlias = privateKeyAlias;
+            });
 
-        Transaction.wrap(function () {
-            site.setCustomPreferenceValue('jpmc_kid', kid);
-            if (certAlias) { site.setCustomPreferenceValue('JPMCCertAlias', certAlias); }
-            if (privateKeyAlias) { site.setCustomPreferenceValue('JPMCPrivateKeyAlias', privateKeyAlias); }
-        });
-
-        sendResponse(true, 'Configuration saved');
+            var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+            JPMCMerchantResolver.invalidateCache(configKey);
+        } else {
+            var site = Site.getCurrent();
+            Transaction.wrap(function () {
+                site.setCustomPreferenceValue('jpmc_kid', kid);
+            });
+        }
+        sendStandardResponse(true, 'thumbprint.js.success.saved', null);
     } catch (e) {
-        Logger.error('Failed to save thumbprint configuration');
-        sendResponse(false, 'Failed to save configuration');
+        sendStandardResponse(false, 'thumbprint.js.error.save.failed', null);
     }
 }
 

@@ -13,6 +13,14 @@
             "script": "./cartridge/scripts/hooks/payment/processor/jpmc_applepay"
         },
         {
+            "name": "dw.extensions.applepay.getRequest",
+            "script": "./cartridge/scripts/hooks/payment/processor/jpmc_applepay"
+        },
+        {
+            "name": "dw.extensions.applepay.cancel",
+            "script": "./cartridge/scripts/hooks/payment/processor/jpmc_applepay"
+        },
+        {
             "name": "app.safetech.fraud.detection",
             "script": "./cartridge/scripts/hooks/payment/processor/fraudDetection"
         }

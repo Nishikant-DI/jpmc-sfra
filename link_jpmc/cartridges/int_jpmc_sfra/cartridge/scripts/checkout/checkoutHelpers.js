@@ -44,6 +44,13 @@ baseCheckoutHelpers.savePaymentInstrumentToWallet = function savePaymentInstrume
         storedPaymentInstrument.setCreditCardToken(
             verifiedCardToken
         );
+
+        var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+        var resolvedConfig = JPMCMerchantResolver.resolve();
+        if (resolvedConfig.merchantId) {
+            storedPaymentInstrument.custom.jpmcMerchantId = resolvedConfig.merchantId;
+        }
+
         delete session.privacy.jpmcCardSafeTechToken;
         return storedPaymentInstrument;
     });

@@ -1,6 +1,4 @@
 /**
- * JPMC Payment Operations — fraud check and verification functions.
- * Re-exported by JPMCPaymentHelper.js for backward compatibility.
  * @module scripts/helpers/JPMCPaymentOperations
  */
 
@@ -19,7 +17,6 @@ var UUID = require('dw/util/UUIDUtils');
 function performFraudCheck(basketOrOrder, options) {
     var JPMCServiceHelper = require('*/cartridge/scripts/services/JPMCServiceHelper');
     var JPMCPayloadBuilder = require('*/cartridge/scripts/helpers/JPMCPayloadBuilder');
-    var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
 
     var result = {
         success: false,
@@ -53,8 +50,9 @@ function performFraudCheck(basketOrOrder, options) {
             paymentInstrument = paymentInstruments[0];
         }
 
-        var config = JPMCConfig.getConfig();
-        if (!config || !config.merchantId) {
+        var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+        var resolvedConfig = (options && options.resolvedConfig) || JPMCMerchantResolver.resolve();
+        if (!resolvedConfig || !resolvedConfig.merchantId) {
             result.error = 'Merchant ID not configured';
             Logger.error('performFraudCheck: {0}', result.error);
             return result;
@@ -65,17 +63,18 @@ function performFraudCheck(basketOrOrder, options) {
             paymentInstrument: paymentInstrument,
             deviceIPAddress: options ? options.deviceIPAddress : undefined,
             fraudScore: options ? options.fraudScore : null,
-            accountNumberType: options ? options.accountNumberType : undefined
+            accountNumberType: options ? options.accountNumberType : undefined,
+            resolvedConfig: resolvedConfig
         });
 
         var requestId = 'fraud-' + UUID.createUUID();
         var headers = {
-            'merchant-id': config.merchantId,
+            'merchant-id': resolvedConfig.merchantId,
             'request-id': requestId
         };
 
-        if (config.platformId) {
-            headers['platform-id'] = config.platformId;
+        if (resolvedConfig.platformId) {
+            headers['platform-id'] = resolvedConfig.platformId;
         }
 
         var serviceResult = JPMCServiceHelper.callWithTokenGeneration({
@@ -83,7 +82,8 @@ function performFraudCheck(basketOrOrder, options) {
             serviceId: 'JPMCFraudCheck',
             method: 'POST',
             data: fraudCheckPayload,
-            headers: headers
+            headers: headers,
+            resolvedConfig: resolvedConfig
         });
 
         if (serviceResult.success && serviceResult.data) {
@@ -119,7 +119,6 @@ function performFraudCheck(basketOrOrder, options) {
                             try {
                                 basketOrOrder.custom.jpmcFraudResponse = JSON.stringify(fraudData);
                             } catch (jsonError) {
-                                // ignore serialization errors — fraud check result already stored
                             }
                         }
                     });
@@ -140,7 +139,6 @@ function performFraudCheck(basketOrOrder, options) {
                                 basketOrOrder.custom.jpmcFraudResponse = JSON.stringify(fraudData);
                                 basketOrOrder.custom.jpmcFraudCheckDate = new Date();
                             } catch (jsonError) {
-                                // ignore serialization errors
                             }
                         }
                     });
@@ -156,7 +154,7 @@ function performFraudCheck(basketOrOrder, options) {
                         basketOrOrder.custom.jpmcFraudResponse = JSON.stringify(serviceResult.data);
                         basketOrOrder.custom.jpmcFraudCheckDate = new Date();
                     } catch (jsonError) {
-                        // ignore serialization errors
+                       
                     }
                 });
             }
@@ -179,7 +177,6 @@ function performFraudCheck(basketOrOrder, options) {
 function performFraudCheckForCardSave(cardData, options) {
     var JPMCServiceHelper = require('*/cartridge/scripts/services/JPMCServiceHelper');
     var JPMCPayloadBuilder = require('*/cartridge/scripts/helpers/JPMCPayloadBuilder');
-    var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
     var Site = require('dw/system/Site');
     var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
 
@@ -198,14 +195,14 @@ function performFraudCheckForCardSave(cardData, options) {
             return result;
         }
 
-        var config = JPMCConfig.getConfig();
-        if (!config || !config.merchantId) {
+        var opts = options || {};
+        var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+        var resolvedConfig = (opts && opts.resolvedConfig) || JPMCMerchantResolver.resolve();
+        if (!resolvedConfig || !resolvedConfig.merchantId) {
             result.error = 'Merchant ID not configured';
             Logger.error('performFraudCheckForCardSave: {0}', result.error);
             return result;
         }
-
-        var opts = options || {};
 
         var customerEmail = (customer && customer.authenticated && customer.profile)
             ? customer.profile.email
@@ -220,25 +217,28 @@ function performFraudCheckForCardSave(cardData, options) {
             deviceIPAddress: request.getHttpRemoteAddress() || jpmcConstants.FALLBACK_IP_ADDRESS,
             customerEmail: customerEmail,
             browserInformation: request.httpUserAgent || jpmcConstants.FALLBACK_USER_AGENT,
-            kountSessionId: opts.kountSessionId
+            kountSessionId: opts.kountSessionId,
+            resolvedConfig: resolvedConfig
         });
 
-        var requestId = 'fraud-' + UUID.createUUID().toString();
+        var requestId = 'fraud-' + UUID.createUUID();
 
         var headers = {
-            'merchant-id': config.merchantId,
+            'merchant-id': resolvedConfig.merchantId,
             'request-id': requestId
         };
 
-        if (config.platformId) {
-            headers['platform-id'] = config.platformId;
+        if (resolvedConfig.platformId) {
+            headers['platform-id'] = resolvedConfig.platformId;
         }
 
-        var serviceResult = JPMCServiceHelper.callWithTokenGeneration({            tokenServiceId: 'JPMCAccessToken',
+        var serviceResult = JPMCServiceHelper.callWithTokenGeneration({
+            tokenServiceId: 'JPMCAccessToken',
             serviceId: 'JPMCFraudCheck',
             method: 'POST',
             data: payload,
-            headers: headers
+            headers: headers,
+            resolvedConfig: resolvedConfig
         });
 
         if (serviceResult.success && serviceResult.data) {
@@ -281,7 +281,6 @@ function performFraudCheckForCardSave(cardData, options) {
 function verifyPaymentInstrument(cardData, options) {
     var JPMCServiceHelper = require('*/cartridge/scripts/services/JPMCServiceHelper');
     var JPMCPayloadBuilder = require('*/cartridge/scripts/helpers/JPMCPayloadBuilder');
-    var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
     var Site = require('dw/system/Site');
 
     var result = {
@@ -305,15 +304,19 @@ function verifyPaymentInstrument(cardData, options) {
     }
 
     try {
-        var config = JPMCConfig.getConfig();
-        if (!config || !config.merchantId) {
+        var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+        var resolvedConfig = (options && options.resolvedConfig) || JPMCMerchantResolver.resolve();
+        if (!resolvedConfig || !resolvedConfig.merchantId) {
             result.error = 'Merchant ID not configured';
             Logger.error('verifyPaymentInstrument: {0}', result.error);
             return result;
         }
 
         var opts = options || {};
-        var currency = opts.currency || Site.getCurrent().getDefaultCurrency();
+        var sessionCurrency = (typeof session !== 'undefined' && session && session.currency)
+            ? session.currency.currencyCode
+            : null;
+        var currency = opts.currency || sessionCurrency || Site.getCurrent().getDefaultCurrency();
 
         var payload = JPMCPayloadBuilder.buildVerificationPayload({
             cardData: cardData,
@@ -324,18 +327,19 @@ function verifyPaymentInstrument(cardData, options) {
             authentication: opts.authentication,
             walletProvider: opts.walletProvider,
             accountOnFile: opts.accountOnFile,
-            initiatorType: opts.initiatorType
+            initiatorType: opts.initiatorType,
+            resolvedConfig: resolvedConfig
         });
 
-        var requestId = 'verify-' + UUID.createUUID().toString();
+        var requestId = 'verify-' + UUID.createUUID();
 
         var headers = {
-            'merchant-id': config.merchantId,
+            'merchant-id': resolvedConfig.merchantId,
             'request-id': requestId
         };
 
-        if (config.platformId) {
-            headers['platform-id'] = config.platformId;
+        if (resolvedConfig.platformId) {
+            headers['platform-id'] = resolvedConfig.platformId;
         }
 
         var serviceResult = JPMCServiceHelper.callWithTokenGeneration({
@@ -343,7 +347,8 @@ function verifyPaymentInstrument(cardData, options) {
             serviceId: 'JPMCVerification',
             method: 'POST',
             data: payload,
-            headers: headers
+            headers: headers,
+            resolvedConfig: resolvedConfig
         });
 
         if (serviceResult.success && serviceResult.data) {

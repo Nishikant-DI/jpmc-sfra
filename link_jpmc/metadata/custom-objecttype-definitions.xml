@@ -2,10 +2,12 @@
 <metadata xmlns="http://www.demandware.com/xml/impex/metadata/2006-10-31">
     <custom-type type-id="JPMCAccessToken">
         <display-name xml:lang="x-default">JPMC Access Token</display-name>
-        <description xml:lang="x-default">Stores JPMC OAuth2 access tokens with expiration metadata</description>
+        <description xml:lang="x-default">Stores JPMC OAuth2 access tokens with expiration metadata. Keyed by siteID::localeID (e.g. RefArch::en_US) for locale-specific token management.</description>
         <staging-mode>no-staging</staging-mode>
         <storage-scope>site</storage-scope>
         <key-definition attribute-id="tokenKey">
+            <display-name xml:lang="x-default">Token Key</display-name>
+            <description xml:lang="x-default">Composite key: {siteID}::{localeID} (e.g. RefArch::en_US)</description>
             <type>string</type>
             <min-length>0</min-length>
         </key-definition>
@@ -68,5 +70,329 @@
             </attribute-group>
         </group-definitions>
     </custom-type>
-
+    <custom-type type-id="JPMCMerchantConfig">
+        <display-name xml:lang="x-default">JPMC Merchant Configuration</display-name>
+        <description xml:lang="x-default">Stores per-merchant JPMC payment configuration. Keyed by siteID::localeID (e.g. SiteA::en_CA) or siteID::default for site-wide config. Resolution order: locale-specific → site-default → site preferences fallback.</description>
+        <staging-mode>no-staging</staging-mode>
+        <storage-scope>site</storage-scope>
+        <key-definition attribute-id="configKey">
+            <display-name xml:lang="x-default">Config Key</display-name>
+            <description xml:lang="x-default">Composite key: {siteID}::{localeID} or {siteID}::default</description>
+            <type>string</type>
+            <min-length>0</min-length>
+        </key-definition>
+        <attribute-definitions>
+            <attribute-definition attribute-id="enabled">
+                <display-name xml:lang="x-default">Enabled</display-name>
+                <description xml:lang="x-default">Master switch for this merchant configuration</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <default-value>true</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="merchantId">
+                <display-name xml:lang="x-default">Merchant ID</display-name>
+                <description xml:lang="x-default">JPMC Merchant Code (equivalent to JPMC_MerchantCode site preference)</description>
+                <type>string</type>
+                <mandatory-flag>true</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="clientId">
+                <display-name xml:lang="x-default">Client ID</display-name>
+                <description xml:lang="x-default">OAuth2 Client ID from J.P.Morgan</description>
+                <type>password</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="resourceId">
+                <display-name xml:lang="x-default">Resource ID</display-name>
+                <description xml:lang="x-default">OAuth2 Resource ID from J.P.Morgan</description>
+                <type>password</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="audience">
+                <display-name xml:lang="x-default">Audience</display-name>
+                <description xml:lang="x-default">JWT audience URI from J.P.Morgan</description>
+                <type>password</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="tokenUri">
+                <display-name xml:lang="x-default">Token URI</display-name>
+                <description xml:lang="x-default">OAuth2 token endpoint URI. If blank, uses the JPMCAccessToken service URL.</description>
+                <type>password</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="expiresIn">
+                <display-name xml:lang="x-default">Token Expiration</display-name>
+                <description xml:lang="x-default">JWT token expiration time (e.g., 8h). Defaults to 5h if blank.</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="certAlias">
+                <display-name xml:lang="x-default">Certificate Alias</display-name>
+                <description xml:lang="x-default">Alias of the X.509 certificate in BM Certificate Manager. Naming convention: jpmc-cert-{merchantName}</description>
+                <type>password</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="privateKeyAlias">
+                <display-name xml:lang="x-default">Private Key Alias</display-name>
+                <description xml:lang="x-default">Alias of the private key in BM Certificate Manager. Naming convention: jpmc-key-{merchantName}</description>
+                <type>password</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="kid">
+                <display-name xml:lang="x-default">Key ID (kid)</display-name>
+                <description xml:lang="x-default">SHA-1 hex thumbprint (uppercase, 40 characters) for JWT kid claim</description>
+                <type>password</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="pieGetKeyUrl">
+                <display-name xml:lang="x-default">PIE Get Key URL</display-name>
+                <description xml:lang="x-default">URL for JPMC Page Integrated Encryption (PIE) getkey.js script. Each merchant has a unique PIE ID.</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="pieEncryptionUrl">
+                <display-name xml:lang="x-default">PIE Encryption URL</display-name>
+                <description xml:lang="x-default">URL for JPMC PIE encryption.js script</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="captureMethod">
+                <display-name xml:lang="x-default">Capture Method</display-name>
+                <description xml:lang="x-default">Payment capture method: MANUAL (auth only), DELAYED, NOW (immediate sale). Defaults to site preference if blank.</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">Manual (Authorization Only)</display>
+                        <value>MANUAL</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Delayed Capture</display>
+                        <value>DELAYED</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Immediate Sale (NOW)</display>
+                        <value>NOW</value>
+                    </value-definition>
+                </value-definitions>
+            </attribute-definition>
+            <attribute-definition attribute-id="platformId">
+                <display-name xml:lang="x-default">Platform ID</display-name>
+                <description xml:lang="x-default">Optional JPMC Platform ID</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="googlePayGatewayMerchantId">
+                <display-name xml:lang="x-default">Google Pay Gateway Merchant ID</display-name>
+                <description xml:lang="x-default">Gateway merchant ID provided by Chase for Google Pay tokenization</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="googlePayMerchantId">
+                <display-name xml:lang="x-default">Google Pay Merchant ID</display-name>
+                <description xml:lang="x-default">Google Pay merchant ID from Google Pay Business Console (required for PRODUCTION)</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="googlePayMerchantName">
+                <display-name xml:lang="x-default">Google Pay Merchant Name</display-name>
+                <description xml:lang="x-default">Merchant display name in the Google Pay payment sheet</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="googlePayEnvironment">
+                <display-name xml:lang="x-default">Google Pay Environment</display-name>
+                <description xml:lang="x-default">Google Pay environment: TEST or PRODUCTION</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">Test</display>
+                        <value>TEST</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Production</display>
+                        <value>PRODUCTION</value>
+                    </value-definition>
+                </value-definitions>
+            </attribute-definition>
+            <attribute-definition attribute-id="kountClientId">
+                <display-name xml:lang="x-default">Kount Client ID</display-name>
+                <description xml:lang="x-default">Kount Web Client SDK Client ID for this merchant</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="kountEnvironment">
+                <display-name xml:lang="x-default">Kount Environment</display-name>
+                <description xml:lang="x-default">Kount environment: TEST for sandbox/development, PROD for production.</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">Test</display>
+                        <value>TEST</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Production</display>
+                        <value>PROD</value>
+                    </value-definition>
+                </value-definitions>
+            </attribute-definition>
+            <attribute-definition attribute-id="enableFraudCheck">
+                <display-name xml:lang="x-default">Enable Fraud Check (Handle)</display-name>
+                <description xml:lang="x-default">Enable fraud check validation during payment verification (basket stage). Transactions declined by fraud rules will be blocked.</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <default-value>false</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="enableFraudCheckAtAuth">
+                <display-name xml:lang="x-default">Enable Fraud Check (Authorize)</display-name>
+                <description xml:lang="x-default">Enable fraud check validation before payment authorization (order stage). Transactions declined by fraud rules will be blocked and order data stored.</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <default-value>false</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="enableAVS">
+                <display-name xml:lang="x-default">Enable Address Verification Service (AVS)</display-name>
+                <description xml:lang="x-default">Include billing address in Verify Payment and Authorization API payloads for address verification checks.</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <default-value>true</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="tokenizationType">
+                <display-name xml:lang="x-default">Tokenization Type</display-name>
+                <description xml:lang="x-default">Default tokenization type for payment transactions.</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">Safetech Token</display>
+                        <value>SAFETECH_TOKEN</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Network Token</display>
+                        <value>NETWORK_TOKEN</value>
+                    </value-definition>
+                </value-definitions>
+            </attribute-definition>
+            <attribute-definition attribute-id="googlePayGateway">
+                <display-name xml:lang="x-default">Google Pay Gateway</display-name>
+                <description xml:lang="x-default">Payment gateway identifier for Google Pay tokenization (e.g. chase)</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="googlePayAllowedCardNetworks">
+                <display-name xml:lang="x-default">Google Pay Allowed Card Networks</display-name>
+                <description xml:lang="x-default">Comma-separated list of allowed card networks. Example: VISA,MASTERCARD,AMEX,DISCOVER</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="googlePayAllowedAuthMethods">
+                <display-name xml:lang="x-default">Google Pay Allowed Auth Methods</display-name>
+                <description xml:lang="x-default">Comma-separated list of allowed authentication methods. Example: PAN_ONLY,CRYPTOGRAM_3DS</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCGooglePayCartEnabled">
+                <display-name xml:lang="x-default">Enable Google Pay on Cart</display-name>
+                <description xml:lang="x-default">Show Google Pay button on the cart page in addition to checkout.</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <default-value>false</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCGooglePayPDPEnabled">
+                <display-name xml:lang="x-default">Enable Google Pay on PDP</display-name>
+                <description xml:lang="x-default">Show Google Pay button on the product detail page.</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <default-value>false</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="applePayMerchantId">
+                <display-name xml:lang="x-default">Apple Pay Merchant Identifier</display-name>
+                <description xml:lang="x-default">Apple Pay merchant identifier for this locale (e.g. merchant.com.company.ca). When set, overrides the site-level BM Apple Pay configuration for merchant validation. Leave blank to use the default BM Apple Pay config.</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+        </attribute-definitions>
+        <group-definitions>
+            <attribute-group group-id="JPMCMerchantIdentity">
+                <display-name xml:lang="x-default">Merchant Identity</display-name>
+                <attribute attribute-id="configKey"/>
+                <attribute attribute-id="enabled"/>
+                <attribute attribute-id="merchantId"/>
+                <attribute attribute-id="platformId"/>
+            </attribute-group>
+            <attribute-group group-id="JPMCMerchantOAuth">
+                <display-name xml:lang="x-default">OAuth &amp; JWT</display-name>
+                <attribute attribute-id="clientId"/>
+                <attribute attribute-id="resourceId"/>
+                <attribute attribute-id="audience"/>
+                <attribute attribute-id="tokenUri"/>
+                <attribute attribute-id="expiresIn"/>
+                <attribute attribute-id="certAlias"/>
+                <attribute attribute-id="privateKeyAlias"/>
+                <attribute attribute-id="kid"/>
+            </attribute-group>
+            <attribute-group group-id="JPMCMerchantPayment">
+                <display-name xml:lang="x-default">Payment Configuration</display-name>
+                <attribute attribute-id="captureMethod"/>
+                <attribute attribute-id="tokenizationType"/>
+                <attribute attribute-id="pieGetKeyUrl"/>
+                <attribute attribute-id="pieEncryptionUrl"/>
+            </attribute-group>
+            <attribute-group group-id="JPMCMerchantGooglePay">
+                <display-name xml:lang="x-default">Google Pay</display-name>
+                <attribute attribute-id="googlePayEnvironment"/>
+                <attribute attribute-id="googlePayGateway"/>
+                <attribute attribute-id="googlePayGatewayMerchantId"/>
+                <attribute attribute-id="googlePayMerchantId"/>
+                <attribute attribute-id="googlePayMerchantName"/>
+                <attribute attribute-id="googlePayAllowedCardNetworks"/>
+                <attribute attribute-id="googlePayAllowedAuthMethods"/>
+                <attribute attribute-id="JPMCGooglePayCartEnabled"/>
+                <attribute attribute-id="JPMCGooglePayPDPEnabled"/>
+            </attribute-group>
+            <attribute-group group-id="JPMCMerchantApplePay">
+                <display-name xml:lang="x-default">Apple Pay</display-name>
+                <attribute attribute-id="applePayMerchantId"/>
+            </attribute-group>
+            <attribute-group group-id="JPMCMerchantFraud">
+                <display-name xml:lang="x-default">Fraud Detection</display-name>
+                <attribute attribute-id="enableFraudCheck"/>
+                <attribute attribute-id="enableFraudCheckAtAuth"/>
+                <attribute attribute-id="enableAVS"/>
+                <attribute attribute-id="kountClientId"/>
+                <attribute attribute-id="kountEnvironment"/>
+            </attribute-group>
+        </group-definitions>
+    </custom-type>
     </metadata>

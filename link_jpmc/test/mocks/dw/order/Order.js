@@ -72,12 +72,16 @@ Order.prototype.getAllProductLineItems = function () {
 };
 
 Order.prototype.getPaymentInstruments = function (paymentMethodId) {
+    var Collection = require('../../dw.util.Collection');
+    var filtered;
     if (paymentMethodId) {
-        return this.paymentInstruments.toArray().filter(function (pi) {
+        filtered = this.paymentInstruments.toArray().filter(function (pi) {
             return pi.paymentMethod === paymentMethodId;
         });
+    } else {
+        filtered = this.paymentInstruments.toArray();
     }
-    return this.paymentInstruments.toArray();
+    return new Collection(filtered);
 };
 
 Order.prototype.createPaymentInstrument = function (paymentMethod, amount) {

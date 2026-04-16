@@ -29,7 +29,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_googlepay', functio
         }
     });
 
-    /** Valid ECv1 Google Pay token structure */
+    
     var VALID_GPAY_TOKEN_V1 = JSON.stringify({
         signedMessage: 'BASE64_SIGNED_MESSAGE',
         protocolVersion: 'ECv1',
@@ -58,14 +58,14 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_googlepay', functio
         };
         mockPaymentMgr.setMockPaymentMethod('JPMC_GOOGLE_PAY', gpayMethod);
 
-        // Global session mock
+        
         global.session = {
             privacy: {
                 jpmcGooglePayToken: VALID_GPAY_TOKEN
             }
         };
 
-        // Create mock basket
+  
         var Order = require('../../../../../../../test/mocks/dw/order/Order');
         Order.resetMock();
         mockBasket = new Order();
@@ -101,7 +101,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_googlepay', functio
             })
         };
 
-        // Load module
+
         jpmcGooglepay = proxyquire(
             '../../../../../../../cartridges/int_jpmc_sfra/cartridge/scripts/hooks/payment/processor/jpmc_googlepay',
             {
@@ -111,7 +111,10 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_googlepay', functio
                 'dw/web/Resource': mockResource,
                 '*/cartridge/scripts/helpers/jpmcConstants': jpmcConstantsModule,
                 '*/cartridge/scripts/util/collections': collectionsModule,
-                '*/cartridge/scripts/helpers/jpmcTransactionHelpers': mockJPMCTransactionHelpers
+                '*/cartridge/scripts/helpers/jpmcTransactionHelpers': mockJPMCTransactionHelpers,
+                '*/cartridge/scripts/helpers/JPMCMerchantResolver': {
+                    resolve: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID' })
+                }
             }
         );
     });
@@ -122,9 +125,6 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_googlepay', functio
         mockPaymentMgr.resetMockPaymentMethods();
     });
 
-    // ==================================================================
-    // processForm
-    // ==================================================================
     describe('processForm()', function () {
         it('should extract Google Pay token from session.privacy into viewData', function () {
             var result = jpmcGooglepay.processForm(mockReq, {}, {});
@@ -144,9 +144,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_googlepay', functio
         });
     });
 
-    // ==================================================================
-    // Handle — Token Validation
-    // ==================================================================
+
     describe('Handle() — Token Validation', function () {
         it('should accept a valid ECv2 token and create PI on basket', function () {
             var paymentInfo = { googlePayToken: { value: VALID_GPAY_TOKEN } };
@@ -222,9 +220,6 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_googlepay', functio
         });
     });
 
-    // ==================================================================
-    // Handle — Security: Token Lifecycle
-    // ==================================================================
     describe('Handle() — Token Lifecycle Security', function () {
         it('should NOT store Google Pay token on PI custom (session-only)', function () {
             var paymentInfo = { googlePayToken: { value: VALID_GPAY_TOKEN } };
@@ -254,6 +249,15 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_googlepay', functio
             assert.equal(instruments[0].custom.jpmcWalletProvider, 'GOOGLE_PAY');
         });
 
+        it('should stamp jpmcMerchantId on basket PI for multi-MID routing', function () {
+            var paymentInfo = { googlePayToken: { value: VALID_GPAY_TOKEN } };
+
+            jpmcGooglepay.Handle(mockBasket, paymentInfo, 'JPMC_GOOGLE_PAY', mockReq);
+
+            var instruments = mockBasket.getPaymentInstruments('JPMC_GOOGLE_PAY');
+            assert.equal(instruments[0].custom.jpmcMerchantId, 'TEST_MERCHANT_ID');
+        });
+
         it('should remove existing Google Pay and Credit Card PIs before creating new one', function () {
             // Pre-populate basket with an old GPAY instrument
             mockBasket.createPaymentInstrument('JPMC_GOOGLE_PAY', 50.00);
@@ -268,9 +272,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_googlepay', functio
         });
     });
 
-    // ==================================================================
-    // Authorize
-    // ==================================================================
+
     describe('Authorize()', function () {
         var mockProcessor;
 
@@ -347,9 +349,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_googlepay', functio
         });
     });
 
-    // ==================================================================
-    // Security: No Sensitive Data Logging
-    // ==================================================================
+  
     describe('Security — No Token Logging', function () {
         it('should never log the raw Google Pay encrypted token', function () {
             var paymentInfo = { googlePayToken: { value: VALID_GPAY_TOKEN } };
@@ -370,9 +370,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_googlepay', functio
         });
     });
 
-    // ==================================================================
-    // Module Exports
-    // ==================================================================
+
     describe('Module Exports', function () {
         it('should export processForm, Handle, and Authorize', function () {
             assert.isFunction(jpmcGooglepay.processForm);

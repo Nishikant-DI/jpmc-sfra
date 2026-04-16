@@ -1,0 +1,168 @@
+@import "~base/variables";
+@import "bootstrap/scss/mixins/breakpoints";
+@import "bootstrap/scss/variables";
+
+$payment-btn-height: 3rem;
+
+
+.applepay-content {
+    .dw-apple-pay-button {
+        display: block !important;
+        width: 100% !important;
+        height: $payment-btn-height !important;
+        min-height: $payment-btn-height !important;
+        box-sizing: border-box;
+    }
+}
+
+.googlepay-content {
+    #googlepay-button-wrapper {
+        button {
+            display: block !important;
+            width: 100% !important;
+            height: $payment-btn-height !important;
+            min-height: $payment-btn-height;
+            max-height: $payment-btn-height;
+            box-sizing: border-box;
+        }
+    }
+}
+
+
+.checkout-and-applepay {
+
+    .payment-buttons-row {
+        width: 100%;
+    }
+
+    .btn,
+    .dw-apple-pay-button {
+        width: 100%;
+        height: $payment-btn-height;
+        padding: 0.5em 1em;
+        border-radius: $border-radius;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+    }
+
+    .cart-googlepay-col {
+        #googlepay-button-wrapper {
+            width: 100%;
+
+            button {
+                width: 100%;
+                height: $payment-btn-height !important;
+                min-height: $payment-btn-height;
+            }
+        }
+    }
+}
+
+
+
+.cart-and-ipay {
+
+    .row {
+        margin-left: 0;
+        margin-right: 0;
+        align-items: stretch;
+    }
+
+    .pdp-checkout-button,
+    .pdp-apple-pay-button {
+        padding-left: 0;
+        padding-right: 0;
+        display: flex;
+        align-items: stretch;
+
+        &.pdp-apple-pay-button {
+            padding-left: 8px;
+        }
+    }
+
+    .pdp-checkout-button .add-to-cart {
+        width: 100%;
+        height: $payment-btn-height;
+        min-height: $payment-btn-height;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5em 1em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .pdp-apple-pay-button .dw-apple-pay-button {
+        display: block !important;
+        width: 100% !important;
+        height: $payment-btn-height !important;
+        min-height: $payment-btn-height !important;
+        box-sizing: border-box;
+        border-radius: $border-radius;
+        margin: 0;
+    }
+
+    .pdp-googlepay-container {
+        #googlepay-button-wrapper {
+            width: 100%;
+
+            button {
+                display: block !important;
+                width: 100% !important;
+                height: $payment-btn-height !important;
+                min-height: $payment-btn-height;
+                max-height: $payment-btn-height;
+                box-sizing: border-box;
+            }
+        }
+    }
+}
+
+.dw-apple-pay-button.apple-pay-cart,
+.dw-apple-pay-button.apple-pay-cart:hover {
+    padding: 0.5em 1em;
+    margin: auto;
+    border-radius: $border-radius;
+}
+
+
+
+.dw-apple-pay-button.apple-pay-pdp,
+.dw-apple-pay-button.apple-pay-pdp:hover {
+    width: 100%;
+    padding: 0.5em 1em;
+    flex-basis: 0;
+    flex-grow: 1;
+    max-width: 100%;
+    border-radius: $border-radius;
+}
+
+isapplepay.btn {
+    display: none !important;
+}
+
+
+.add-to-cart,
+.add-to-cart-global {
+    flex-basis: 0;
+    flex-grow: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    @include media-breakpoint-down(xs) {
+        max-width: 100%;
+    }
+}
+
+
+
+.applepay-tab-wrapper {
+    display: none;
+}
+
+body.apple-pay-enabled .applepay-tab-wrapper {
+    display: block;
+}

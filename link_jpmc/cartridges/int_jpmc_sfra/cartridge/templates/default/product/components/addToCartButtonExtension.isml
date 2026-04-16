@@ -1,4 +1,29 @@
-
-<div class="apple-pay-pdp-container">
-    <isapplepay class="apple-pay-pdp-btn"></isapplepay>
-</div>
+<isscript>
+    var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
+    var showGPayOnPDP = JPMCConfig.isGooglePayOnPDPEnabled();
+    var gpayPdpConfig = showGPayOnPDP ? JPMCConfig.getGooglePayConfig() : { enabled: false };
+    if (showGPayOnPDP && gpayPdpConfig.enabled) {
+        var assets = require('*/cartridge/scripts/assets.js');
+        assets.addJs('/js/gpayPdp.js');
+    }
+</isscript>
+<isif condition="${showGPayOnPDP && gpayPdpConfig.enabled}">
+    <div class="mt-2 pdp-googlepay-container">
+        <div id="googlepay-button-wrapper"
+             class="text-center"
+             data-config-url="${URLUtils.https('JpmcGooglePay-GetConfig')}"
+             data-store-url="${URLUtils.https('JpmcGooglePay-StoreToken')}"
+             data-clear-url="${URLUtils.https('JpmcGooglePay-ClearToken')}"
+             data-shipping-details-url="${URLUtils.https('JpmcGooglePay-SelectShippingDetails')}"
+             data-shipping-method-url="${URLUtils.https('JpmcGooglePay-SelectShippingMethod')}"
+             data-submit-order-url="${URLUtils.https('JpmcGooglePay-SubmitOrder')}"
+             data-place-order-url="${URLUtils.https('CheckoutServices-PlaceOrder')}"
+             data-prepare-basket-url="${URLUtils.https('JpmcGooglePay-PrepareBasket')}"
+             data-restore-basket-url="${URLUtils.https('JpmcGooglePay-RestoreBasket')}"
+             data-gpay-context="pdp">
+        </div>
+        <div id="googlepay-error" class="googlepay-error text-center mt-2 text-danger d-none">
+            <span>${Resource.msg('error.technical', 'checkout', null)}</span>
+        </div>
+    </div>
+</isif>

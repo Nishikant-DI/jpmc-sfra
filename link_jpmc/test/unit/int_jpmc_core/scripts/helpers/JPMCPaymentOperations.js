@@ -17,6 +17,7 @@ describe('JPMCPaymentOperations', function () {
     var mockJPMCServiceHelper;
     var mockJPMCPayloadBuilder;
     var mockJPMCConfig;
+    var mockJPMCMerchantResolver;
     var mockOrder;
     var mockPaymentInstrument;
     var sandbox;
@@ -57,6 +58,20 @@ describe('JPMCPaymentOperations', function () {
             })
         };
 
+        // Setup merchant resolver mock
+        mockJPMCMerchantResolver = {
+            resolve: sandbox.stub().returns({
+                merchantId: 'test-merchant-id',
+                platformId: 'test-platform-id'
+            }),
+            resolveForOrder: sandbox.stub().returns({
+                merchantId: 'test-merchant-id',
+                platformId: 'test-platform-id'
+            }),
+            toAccessTokenConfig: sandbox.stub().returns({}),
+            invalidateCache: sandbox.stub()
+        };
+
         // Setup mock order and payment instrument
         mockOrder = OrderMock.create();
         mockPaymentInstrument = PaymentInstrumentMock.create();
@@ -80,7 +95,8 @@ describe('JPMCPaymentOperations', function () {
                 FALLBACK_IP_ADDRESS: '0.0.0.0',
                 FALLBACK_USER_AGENT: 'Unknown',
                 ACCOUNT_NUMBER_TYPE_PIE: 'SAFETECH_PAGE_ENCRYPTION'
-            }
+            },
+            '*/cartridge/scripts/helpers/JPMCMerchantResolver': mockJPMCMerchantResolver
         });
     });
 
@@ -137,7 +153,7 @@ describe('JPMCPaymentOperations', function () {
         });
 
         it('should return error when merchant ID not configured', function () {
-            mockJPMCConfig.getConfig.returns(null);
+            mockJPMCMerchantResolver.resolve.returns(null);
 
             var result = JPMCPaymentOperations.performFraudCheck(mockOrder);
 
@@ -146,7 +162,7 @@ describe('JPMCPaymentOperations', function () {
         });
 
         it('should return error when config lacks merchantId', function () {
-            mockJPMCConfig.getConfig.returns({ platformId: 'test-platform' });
+            mockJPMCMerchantResolver.resolve.returns({ platformId: 'test-platform' });
 
             var result = JPMCPaymentOperations.performFraudCheck(mockOrder);
 
@@ -198,6 +214,7 @@ describe('JPMCPaymentOperations', function () {
 
         it('should not include platform-id header when not configured', function () {
             mockJPMCConfig.getConfig.returns({ merchantId: 'test-merchant-id' });
+            mockJPMCMerchantResolver.resolve.returns({ merchantId: 'test-merchant-id' });
 
             mockJPMCServiceHelper.callWithTokenGeneration.returns({
                 success: true,
@@ -501,7 +518,7 @@ describe('JPMCPaymentOperations', function () {
         });
 
         it('should return error when merchant ID not configured', function () {
-            mockJPMCConfig.getConfig.returns(null);
+            mockJPMCMerchantResolver.resolve.returns(null);
 
             var result = JPMCPaymentOperations.performFraudCheckForCardSave(mockCardData);
 
@@ -757,7 +774,7 @@ describe('JPMCPaymentOperations', function () {
         });
 
         it('should return error when merchant ID not configured', function () {
-            mockJPMCConfig.getConfig.returns(null);
+            mockJPMCMerchantResolver.resolve.returns(null);
 
             var result = JPMCPaymentOperations.verifyPaymentInstrument(mockCardData);
 

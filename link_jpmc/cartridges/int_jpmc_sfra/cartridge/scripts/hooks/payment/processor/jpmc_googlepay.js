@@ -98,6 +98,12 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
         );
 
         paymentInstrument.custom.jpmcWalletProvider = jpmcConstants.GOOGLE_PAY_WALLET_PROVIDER;
+
+        var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+        var resolvedConfig = JPMCMerchantResolver.resolve();
+        if (resolvedConfig && resolvedConfig.merchantId) {
+            paymentInstrument.custom.jpmcMerchantId = resolvedConfig.merchantId;
+        }
     });
 
     // Token stays in session.privacy (memory-only, never persisted to DB).

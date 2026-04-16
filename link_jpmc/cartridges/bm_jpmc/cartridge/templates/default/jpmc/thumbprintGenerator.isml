@@ -1,236 +1,114 @@
 <iscontent type="text/html" charset="UTF-8" compact="true"/>
 <isdecorate template="application/MenuFrame">
 
+<link rel="stylesheet" href="${URLUtils.staticURL('/css/thumbprintGenerator.css')}" />
+
 <h1 class="overview_title">${Resource.msg('thumbprint.title','jpmcbm',null)}</h1>
 
-<isif condition="${pdict.kidConfigured}">
-<table class="infobox w e s n" cellpadding="0" cellspacing="0" border="0">
-    <tr>
-        <td class="infobox_title aldi">${Resource.msg('thumbprint.section.current','jpmcbm',null)}</td>
-    </tr>
-    <tr>
-        <td class="infobox_item">
-            <table class="infobox_item_container" border="0" cellpadding="4" cellspacing="0" width="100%">
-                <tr>
-                    <td class="fielditem" width="200"><strong>${Resource.msg('thumbprint.label.certAlias','jpmcbm',null)}</strong></td>
-                    <td class="fielditem"><isprint value="${pdict.certAlias}" encoding="on"/></td>
-                </tr>
-                <tr>
-                    <td class="fielditem"><strong>${Resource.msg('thumbprint.label.keyAlias','jpmcbm',null)}</strong></td>
-                    <td class="fielditem"><isprint value="${pdict.privateKeyAlias}" encoding="on"/></td>
-                </tr>
-                <tr>
-                    <td class="fielditem"><strong>${Resource.msg('thumbprint.label.kid','jpmcbm',null)}</strong></td>
-                    <td class="fielditem"><em>${Resource.msg('thumbprint.label.configured','jpmcbm',null)}</em></td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-</table>
-</isif>
+<div class="thumbprint-page">
 
-<table class="infobox w e s n" cellpadding="0" cellspacing="0" border="0">
-    <tr>
-        <td class="infobox_title aldi">${Resource.msg('thumbprint.section.generate','jpmcbm',null)}</td>
-    </tr>
-    <tr>
-        <td class="infobox_item">
-            <table class="infobox_item_container" border="0" cellpadding="4" cellspacing="0" width="100%">
-                <tr>
-                    <td class="fielditem" width="200"><label for="certAlias"><strong>${Resource.msg('thumbprint.label.certAlias','jpmcbm',null)}</strong></label></td>
-                    <td class="fielditem">
-                        <input type="text" id="certAlias" value="<isprint value="${pdict.certAlias}" encoding="htmlcontent"/>" size="50" class="inputfield_en"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td class="fielditem"><label for="keyAlias"><strong>${Resource.msg('thumbprint.label.keyAlias','jpmcbm',null)}</strong></label></td>
-                    <td class="fielditem">
-                        <input type="text" id="keyAlias" value="<isprint value="${pdict.privateKeyAlias}" encoding="htmlcontent"/>" size="50" class="inputfield_en"/>
-                    </td>
-                </tr>
-                <tr>
-                    <td colspan="2" align="right">
-                        <button type="button" id="genBtn" class="button">${Resource.msg('thumbprint.button','jpmcbm',null)}</button>
-                    </td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-</table>
-
-<table id="resultsTable" class="infobox w e s n hidden" cellpadding="0" cellspacing="0" border="0">
-    <tr>
-        <td class="infobox_title aldi">${Resource.msg('thumbprint.section.result','jpmcbm',null)}</td>
-    </tr>
-    <tr>
-        <td class="infobox_item">
-            <table class="infobox_item_container" border="0" cellpadding="4" cellspacing="0" width="100%">
-                <tr>
-                    <td class="fielditem" width="200"><strong>${Resource.msg('thumbprint.label.status','jpmcbm',null)}</strong></td>
-                    <td class="fielditem"><code id="hexResult"></code></td>
-                </tr>
-            </table>
-        </td>
-    </tr>
-</table>
-
-<div id="msgBox" class="hidden">
-    <table id="msgTable" class="infobox w e s n" cellpadding="0" cellspacing="0" border="0">
-        <tr>
-            <td id="msgContent" class="infobox_item"></td>
-        </tr>
-    </table>
+<div class="info-section">
+    <h2>${Resource.msg('thumbprint.section.current','jpmcbm',null)}</h2>
+    <div class="info-content">
+        <div class="fielditem">
+            <label><strong>${Resource.msg('thumbprint.label.certAlias','jpmcbm',null)}</strong></label>
+            <div id="curCertAlias">&mdash;</div>
+        </div>
+        <div class="fielditem">
+            <label><strong>${Resource.msg('thumbprint.label.keyAlias','jpmcbm',null)}</strong></label>
+            <div id="curKeyAlias">&mdash;</div>
+        </div>
+        <div class="fielditem" id="curKidRow">
+            <label><strong>${Resource.msg('thumbprint.label.kid','jpmcbm',null)}</strong></label>
+            <div><em>${Resource.msg('thumbprint.label.configured','jpmcbm',null)}</em></div>
+        </div>
+    </div>
 </div>
 
-<script>
-(function() {
-    'use strict';
-    var getCertUrl = '<isprint value="${pdict.getCertUrl}" encoding="jshtml"/>';
-    var saveUrl = '<isprint value="${pdict.saveUrl}" encoding="jshtml"/>';
-    // Two independent CSRF tokens — one per endpoint to avoid token reuse/invalidation.
-    var csrfGet  = '<isprint value="${pdict.csrfTokenGet}" encoding="jshtml"/>';
-    var csrfSave = '<isprint value="${pdict.csrfTokenSave}" encoding="jshtml"/>';
+<div class="info-section">
+    <h2>${Resource.msg('thumbprint.section.generate','jpmcbm',null)}</h2>
+    <div class="info-content">
+        <iscomment>--- Scope selector: Site Preferences or a specific locale ---</iscomment>
+        <div class="fielditem">
+            <label for="localeSelect"><strong>Configuration Scope</strong></label>
+            <select id="localeSelect" class="inputfield_en">
+                <iscomment>Site Preferences option (single-MID / legacy path)</iscomment>
+                <option value=""
+                    data-configkey=""
+                    data-cert="<isprint value="${pdict.certAlias}" encoding="htmlcontent"/>"
+                    data-key="<isprint value="${pdict.privateKeyAlias}" encoding="htmlcontent"/>"
+                    data-has-co="false"
+                    data-kid="<isprint value="${pdict.kidConfigured ? 'configured' : ''}" encoding="htmlcontent"/>">
+                    Site Preferences (single-MID)
+                </option>
+                <iscomment>One option per site locale — carries CO data when a config exists</iscomment>
+                <isloop items="${pdict.localeEntries}" var="entry">
+                    <option value="<isprint value="${entry.locale}" encoding="htmlcontent"/>"
+                        data-configkey="<isprint value="${entry.configKey}" encoding="htmlcontent"/>"
+                        data-cert="<isprint value="${entry.certAlias}" encoding="htmlcontent"/>"
+                        data-key="<isprint value="${entry.privateKeyAlias}" encoding="htmlcontent"/>"
+                        data-has-co="<isprint value="${entry.hasCO ? 'true' : 'false'}" encoding="htmlcontent"/>"
+                        data-kid="<isprint value="${entry.hasKid ? 'configured' : ''}" encoding="htmlcontent"/>">
+                        <isprint value="${entry.locale}" encoding="on"/>
+                    </option>
+                </isloop>
+            </select>
+            <p id="scopeHint" class="scope-hint"></p>
+        </div>
 
-    var i18n = {
-        errorCertRequired:  '<isprint value="${Resource.msg(\'thumbprint.js.error.cert.required\',\'jpmcbm\',null)}" encoding="jshtml"/>',
-        errorKeyRequired:   '<isprint value="${Resource.msg(\'thumbprint.js.error.key.required\',\'jpmcbm\',null)}" encoding="jshtml"/>',
-        btnRetrieving:      '<isprint value="${Resource.msg(\'thumbprint.js.button.retrieving\',\'jpmcbm\',null)}" encoding="jshtml"/>',
-        btnComputing:       '<isprint value="${Resource.msg(\'thumbprint.js.button.computing\',\'jpmcbm\',null)}" encoding="jshtml"/>',
-        btnSaving:          '<isprint value="${Resource.msg(\'thumbprint.js.button.saving\',\'jpmcbm\',null)}" encoding="jshtml"/>',
-        btnDefault:         '<isprint value="${Resource.msg(\'thumbprint.js.button.default\',\'jpmcbm\',null)}" encoding="jshtml"/>',
-        successSaved:       '<isprint value="${Resource.msg(\'thumbprint.js.success.saved\',\'jpmcbm\',null)}" encoding="jshtml"/>',
-        errorCertNotFound:  '<isprint value="${Resource.msg(\'thumbprint.js.error.cert.not.found\',\'jpmcbm\',null)}" encoding="jshtml"/>',
-        errorSha1Failed:    '<isprint value="${Resource.msg(\'thumbprint.js.error.sha1.failed\',\'jpmcbm\',null)}" encoding="jshtml"/>',
-        errorCertDecode:    '<isprint value="${Resource.msg(\'thumbprint.js.error.cert.decode.failed\',\'jpmcbm\',null)}" encoding="jshtml"/>',
-        errorNetwork:       '<isprint value="${Resource.msg(\'thumbprint.js.error.network\',\'jpmcbm\',null)}" encoding="jshtml"/>',
-        errorParse:         '<isprint value="${Resource.msg(\'thumbprint.js.error.parse\',\'jpmcbm\',null)}" encoding="jshtml"/>',
-        errorSaveFailed:    '<isprint value="${Resource.msg(\'thumbprint.js.error.save.failed\',\'jpmcbm\',null)}" encoding="jshtml"/>'
-    };
+        <div class="fielditem">
+            <label for="certAlias"><strong>${Resource.msg('thumbprint.label.certAlias','jpmcbm',null)}</strong></label>
+            <input type="text" id="certAlias" value="" size="50" class="inputfield_en"/>
+        </div>
 
-    var $cert = document.getElementById('certAlias');
-    var $key = document.getElementById('keyAlias');
-    var $gen = document.getElementById('genBtn');
-    var $results = document.getElementById('resultsTable');
-    var $hex = document.getElementById('hexResult');
-    var $msgBox = document.getElementById('msgBox');
-    var $msgTable = document.getElementById('msgTable');
-    var $msgContent = document.getElementById('msgContent');
+        <div class="fielditem">
+            <label for="keyAlias"><strong>${Resource.msg('thumbprint.label.keyAlias','jpmcbm',null)}</strong></label>
+            <input type="text" id="keyAlias" value="" size="50" class="inputfield_en"/>
+        </div>
 
-    function showMsg(text, type) {
-        $msgContent.textContent = text;
-        $msgBox.className = '';
-        if (type === 'success') {
-            $msgTable.className = 'infobox w e s n';
-        } else if (type === 'error') {
-            $msgTable.className = 'error_box w e s n';
-        } else {
-            $msgTable.className = 'infobox w e s n';
-        }
-    }
+        <div class="action-buttons">
+            <button type="button" id="genBtn" class="button">${Resource.msg('thumbprint.button','jpmcbm',null)}</button>
+        </div>
+    </div>
+</div>
 
-    function hideMsg() {
-        $msgBox.className = 'hidden';
-    }
+<div class="info-section hidden" id="resultsTable">
+    <h2>${Resource.msg('thumbprint.section.result','jpmcbm',null)}</h2>
+    <div class="info-content">
+        <div class="fielditem">
+            <label><strong>${Resource.msg('thumbprint.label.status','jpmcbm',null)}</strong></label>
+            <code id="hexResult"></code>
+        </div>
+    </div>
 
-    function post(url, data, cb) {
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', url, true);
-        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-        xhr.onload = function() {
-            try { cb(JSON.parse(xhr.responseText)); }
-            catch (e) { cb({ success: false, message: i18n.errorParse }); }
-        };
-        xhr.onerror = function() { cb({ success: false, message: i18n.errorNetwork }); };
-        xhr.send(data);
-    }
+    <div id="msgBox" class="hidden">
+        <div id="msgTable" class="info-section">
+            <div id="msgContent" class="info-content"></div>
+        </div>
+    </div>
+</div>
 
-    $gen.onclick = function() {
-        hideMsg();
-        var cert = $cert.value.trim();
-        var key = $key.value.trim();
+<div id="thumbprintConfig" class="hidden" aria-hidden="true"
+    data-get-cert-url="<isprint value="${pdict.getCertUrl}" encoding="htmldoublequote"/>"
+    data-save-url="<isprint value="${pdict.saveUrl}" encoding="htmldoublequote"/>"
+    data-site-id="<isprint value="${pdict.siteId}" encoding="htmldoublequote"/>"
+    data-csrf-get="<isprint value="${pdict.csrfTokenGet}" encoding="htmldoublequote"/>"
+    data-csrf-save="<isprint value="${pdict.csrfTokenSave}" encoding="htmldoublequote"/>"
+    data-i18n-error-cert-required="<isprint value="${Resource.msg('thumbprint.js.error.cert.required','jpmcbm',null)}" encoding="htmldoublequote"/>"
+    data-i18n-error-key-required="<isprint value="${Resource.msg('thumbprint.js.error.key.required','jpmcbm',null)}" encoding="htmldoublequote"/>"
+    data-i18n-btn-retrieving="<isprint value="${Resource.msg('thumbprint.js.button.retrieving','jpmcbm',null)}" encoding="htmldoublequote"/>"
+    data-i18n-btn-computing="<isprint value="${Resource.msg('thumbprint.js.button.computing','jpmcbm',null)}" encoding="htmldoublequote"/>"
+    data-i18n-btn-saving="<isprint value="${Resource.msg('thumbprint.js.button.saving','jpmcbm',null)}" encoding="htmldoublequote"/>"
+    data-i18n-btn-default="<isprint value="${Resource.msg('thumbprint.js.button.default','jpmcbm',null)}" encoding="htmldoublequote"/>"
+    data-i18n-success-saved="<isprint value="${Resource.msg('thumbprint.js.success.saved','jpmcbm',null)}" encoding="htmldoublequote"/>"
+    data-i18n-error-cert-not-found="<isprint value="${Resource.msg('thumbprint.js.error.cert.not.found','jpmcbm',null)}" encoding="htmldoublequote"/>"
+    data-i18n-error-sha1-failed="<isprint value="${Resource.msg('thumbprint.js.error.sha1.failed','jpmcbm',null)}" encoding="htmldoublequote"/>"
+    data-i18n-error-cert-decode="<isprint value="${Resource.msg('thumbprint.js.error.cert.decode.failed','jpmcbm',null)}" encoding="htmldoublequote"/>"
+    data-i18n-error-network="<isprint value="${Resource.msg('thumbprint.js.error.network','jpmcbm',null)}" encoding="htmldoublequote"/>"
+    data-i18n-error-parse="<isprint value="${Resource.msg('thumbprint.js.error.parse','jpmcbm',null)}" encoding="htmldoublequote"/>"
+    data-i18n-error-save-failed="<isprint value="${Resource.msg('thumbprint.js.error.save.failed','jpmcbm',null)}" encoding="htmldoublequote"/>"
+></div>
 
-        if (!cert) {
-            showMsg(i18n.errorCertRequired, 'error');
-            $cert.focus();
-            return;
-        }
-        if (!key) {
-            showMsg(i18n.errorKeyRequired, 'error');
-            $key.focus();
-            return;
-        }
-
-        $gen.disabled = true;
-        $gen.textContent = i18n.btnRetrieving;
-        $results.className = 'infobox w e s n hidden';
-        $hex.textContent = '';
-
-        post(getCertUrl, 'certAlias=' + encodeURIComponent(cert) + '&' + csrfGet, function(r) {
-            if (!r.success || !r.derBase64) {
-                $gen.disabled = false;
-                $gen.textContent = i18n.btnDefault;
-                showMsg(r.message || i18n.errorCertNotFound, 'error');
-                return;
-            }
-
-            $gen.textContent = i18n.btnComputing;
-
-            try {
-                var bin = atob(r.derBase64);
-                var bytes = new Uint8Array(bin.length);
-                for (var i = 0; i < bin.length; i++) { bytes[i] = bin.charCodeAt(i); }
-                // Dereference DER string — no longer needed after bytes are built.
-                bin = null;
-
-                crypto.subtle.digest('SHA-1', bytes).then(function(hash) {
-                    // Dereference DER bytes — no longer needed after hash is computed.
-                    bytes = null;
-
-                    var arr = new Uint8Array(hash);
-                    var hex = '';
-                    // Use a for loop — avoids Array.from which is ES2015 and may not be
-                    // available in all BM browser environments.
-                    for (var j = 0; j < arr.length; j++) {
-                        hex += ('0' + arr[j].toString(16)).slice(-2);
-                    }
-                    var kid = hex.toUpperCase();
-                    arr = null;
-
-                    // Build POST body and zero kid immediately — full value must not
-                    // persist in any variable after the POST body is assembled.
-                    var saveData = 'kid=' + encodeURIComponent(kid) +
-                        '&certAlias=' + encodeURIComponent(cert) +
-                        '&privateKeyAlias=' + encodeURIComponent(key) +
-                        '&' + csrfSave;
-                    kid = null;
-
-                    $gen.textContent = i18n.btnSaving;
-
-                    post(saveUrl, saveData, function(s) {
-                        saveData = null;
-                        $gen.disabled = false;
-                        $gen.textContent = i18n.btnDefault;
-                        if (s.success) {
-                            // Show only a masked confirmation — full value never reaches DOM.
-                            $hex.textContent = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (saved)';
-                            $results.className = 'infobox w e s n';
-                            showMsg(i18n.successSaved, 'success');
-                        } else {
-                            showMsg(s.message || i18n.errorSaveFailed, 'error');
-                        }
-                    });
-                }).catch(function() {
-                    $gen.disabled = false;
-                    $gen.textContent = i18n.btnDefault;
-                    showMsg(i18n.errorSha1Failed, 'error');
-                });
-            } catch (e) {
-                $gen.disabled = false;
-                $gen.textContent = i18n.btnDefault;
-                showMsg(i18n.errorCertDecode, 'error');
-            }
-        });
-    };
-})();
-</script>
+<script src="${URLUtils.staticURL('/js/thumbprintGenerator.js')}"></script>
+</div>
 </isdecorate>

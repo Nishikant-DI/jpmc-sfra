@@ -17,6 +17,7 @@ describe('int_jpmc_core/scripts/helpers/jpmcTransactionHelpers', function () {
     var mockJPMCPaymentHelper;
     var mockJPMCServiceHelper;
     var mockJPMCPayloadBuilder;
+    var mockJPMCMerchantResolver;
     var mockUUID;
     var Order;
     var PaymentInstrument;
@@ -24,8 +25,11 @@ describe('int_jpmc_core/scripts/helpers/jpmcTransactionHelpers', function () {
     var mockPaymentProcessor;
     var mockOrder;
     var mockPaymentInstrument;
+    var sandbox;
 
     beforeEach(function () {
+        sandbox = sinon.createSandbox();
+
         // Reset all mocks
         mockLogger = require('../../../../../test/mocks/dw/system/Logger');
         mockLogger.resetAllLoggers();
@@ -90,6 +94,14 @@ describe('int_jpmc_core/scripts/helpers/jpmcTransactionHelpers', function () {
             getAccessTokenConfig: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID' })
         };
 
+        // Mock JPMCMerchantResolver
+        mockJPMCMerchantResolver = {
+            resolve: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID', tokenizationType: 'DPAN', captureMethod: 'DELAYED', enableFraudCheckAtAuth: false }),
+            resolveForOrder: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID', tokenizationType: 'DPAN', captureMethod: 'DELAYED', enableFraudCheckAtAuth: false }),
+            toAccessTokenConfig: sinon.stub().returns({}),
+            invalidateCache: sinon.stub()
+        };
+
         // Mock JPMCPaymentHelper
         mockJPMCPaymentHelper = {
             createPayment: sinon.stub().returns({
@@ -152,7 +164,8 @@ describe('int_jpmc_core/scripts/helpers/jpmcTransactionHelpers', function () {
                 GOOGLE_PAY_WALLET_PROVIDER: 'GOOGLE_PAY',
                 JPMC_GOOGLE_PAY: 'JPMC_GOOGLE_PAY',
                 JPMC_Processor: 'JPMC_Payment'
-            }
+            },
+            '*/cartridge/scripts/helpers/JPMCMerchantResolver': mockJPMCMerchantResolver
         });
     });
 
@@ -226,6 +239,12 @@ describe('int_jpmc_core/scripts/helpers/jpmcTransactionHelpers', function () {
 
         it('should use capture method from site preference', function () {
             mockJPMCConfig.getCaptureMethod.returns('NOW');
+            mockJPMCMerchantResolver.resolve.returns({ 
+                merchantId: 'TEST_MERCHANT_ID', 
+                tokenizationType: 'DPAN', 
+                captureMethod: 'NOW', 
+                enableFraudCheckAtAuth: false 
+            });
             mockPaymentInstrument.getCreditCardToken = function () {
                 return null;
             };
@@ -241,6 +260,12 @@ describe('int_jpmc_core/scripts/helpers/jpmcTransactionHelpers', function () {
 
         it('should set payment status to AC for NOW capture method', function () {
             mockJPMCConfig.getCaptureMethod.returns('NOW');
+            mockJPMCMerchantResolver.resolve.returns({ 
+                merchantId: 'TEST_MERCHANT_ID', 
+                tokenizationType: 'DPAN', 
+                captureMethod: 'NOW', 
+                enableFraudCheckAtAuth: false 
+            });
             mockPaymentInstrument.getCreditCardToken = function () {
                 return null;
             };
@@ -294,6 +319,7 @@ describe('int_jpmc_core/scripts/helpers/jpmcTransactionHelpers', function () {
 
         it('should decline payment when fraud detection returns fail status', function () {
             mockJPMCConfig.isFraudCheckEnabledAtAuth.returns(true);
+            mockJPMCMerchantResolver.resolve.returns({ merchantId: 'TEST_MERCHANT_ID', tokenizationType: 'DPAN', captureMethod: 'DELAYED', enableFraudCheckAtAuth: true });
             mockHookMgr._registerHook('app.safetech.fraud.detection');
             mockHookMgr._setHookResult('app.safetech.fraud.detection', 'fraudDetection', {
                 status: 'fail',
@@ -331,6 +357,7 @@ describe('int_jpmc_core/scripts/helpers/jpmcTransactionHelpers', function () {
         it('should override capture method to MANUAL when fraud flagged from auth stage', function () {
             mockJPMCConfig.getCaptureMethod.returns('NOW');
             mockJPMCConfig.isFraudCheckEnabledAtAuth.returns(true);
+            mockJPMCMerchantResolver.resolve.returns({ merchantId: 'TEST_MERCHANT_ID', tokenizationType: 'DPAN', captureMethod: 'NOW', enableFraudCheckAtAuth: true });
             mockHookMgr._registerHook('app.safetech.fraud.detection');
             mockHookMgr._setHookResult('app.safetech.fraud.detection', 'fraudDetection', {
                 status: 'success',
@@ -685,6 +712,12 @@ describe('int_jpmc_core/scripts/helpers/jpmcTransactionHelpers', function () {
 
         it('should set payment status to AC for NOW capture', function () {
             mockJPMCConfig.getCaptureMethod.returns('NOW');
+            mockJPMCMerchantResolver.resolve.returns({ 
+                merchantId: 'TEST_MERCHANT_ID', 
+                tokenizationType: 'DPAN', 
+                captureMethod: 'NOW', 
+                enableFraudCheckAtAuth: false 
+            });
             mockPaymentInstrument.paymentTransaction.custom = {};
             mockJPMCServiceHelper.callWithTokenGeneration.returns({
                 success: true,
@@ -1150,7 +1183,7 @@ describe('int_jpmc_core/scripts/helpers/jpmcTransactionHelpers', function () {
         });
 
         it('should return error when merchant ID is not configured', function () {
-            mockJPMCConfig.getAccessTokenConfig.returns({});
+            mockJPMCMerchantResolver.resolveForOrder.returns({});
 
             var result = jpmcTransactionHelpers.voidPayment(mockOrder);
 

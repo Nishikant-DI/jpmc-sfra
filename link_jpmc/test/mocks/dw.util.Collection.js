@@ -6,10 +6,22 @@
  */
 function Collection(arr) {
     this.arr = arr || [];
-    // Add length property getter for compatibility
+  
+    for (var i = 0; i < this.arr.length; i++) {
+        this[i] = this.arr[i];
+    }
+    
     Object.defineProperty(this, 'length', {
         get: function () {
             return this.arr.length;
+        },
+        enumerable: true,
+        configurable: true
+    });
+   
+    Object.defineProperty(this, 'empty', {
+        get: function () {
+            return this.arr.length === 0;
         },
         enumerable: true,
         configurable: true

@@ -7,8 +7,7 @@ var Resource = require('dw/web/Resource');
 var Transaction = require('dw/system/Transaction');
 
 /**
- * Clears sensitive payment data (CVV, encrypted card data) from session.privacy.
- * Called on every exit path from Handle/authorize. No-op if session is unavailable.
+ * Clears sensitive payment data (CVV, encrypted card data) from session.privacy
  */
 function clearSensitivePaymentData() {
     try {
@@ -130,7 +129,6 @@ function savePaymentInformation(req, basket, billingData) {
     var CustomerMgr = require('dw/customer/CustomerMgr');
     var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
 
-    // Google Pay does not support saving card to wallet
     if (billingData.paymentMethod && billingData.paymentMethod.value === jpmcConstants.JPMC_GOOGLE_PAY) {
         return;
     }
@@ -150,6 +148,14 @@ function savePaymentInformation(req, basket, billingData) {
             basket,
             customer
         );
+
+        var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+        var resolvedConfig = JPMCMerchantResolver.resolve();
+        if (resolvedConfig && resolvedConfig.merchantId) {
+            Transaction.wrap(function () {
+                saveCardResult.custom.jpmcMerchantId = resolvedConfig.merchantId;
+            });
+        }
 
         req.currentCustomer.wallet.paymentInstruments.push({
             creditCardHolder: saveCardResult.creditCardHolder,
@@ -248,9 +254,26 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
             return { fieldErrors: [], serverErrors: serverErrors, error: true };
         }
     }
-    var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
-    var jpmcConfig = JPMCConfig.getConfig();
-    var storedCardTokenType = jpmcConfig.accountNumberType || jpmcConstants.DEFAULT_TOKEN_TYPE;
+    var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+    var resolvedConfig = JPMCMerchantResolver.resolve();
+    var storedCardTokenType = (resolvedConfig && resolvedConfig.tokenizationType)
+        ? resolvedConfig.tokenizationType
+        : jpmcConstants.DEFAULT_TOKEN_TYPE;
+
+    if (isStoredCard && req.currentCustomer.raw.authenticated && req.currentCustomer.raw.registered) {
+        var array = require('*/cartridge/scripts/util/array');
+        var storedPI = array.find(req.currentCustomer.wallet.paymentInstruments, function (item) {
+            return paymentInformation.storedPaymentUUID === item.UUID;
+        });
+        if (storedPI && storedPI.raw && storedPI.raw.custom && storedPI.raw.custom.jpmcMerchantId) {
+            var cardMerchantId = storedPI.raw.custom.jpmcMerchantId;
+            if (resolvedConfig.merchantId && cardMerchantId !== resolvedConfig.merchantId) {
+                serverErrors.push(Resource.msg('error.payment.not.valid', 'checkout', null));
+                return { fieldErrors: [], serverErrors: serverErrors, error: true };
+            }
+        }
+    }
+
     var paymentInstrument = null;
     Transaction.wrap(function () {
         var paymentInstruments = basket.getPaymentInstruments(PaymentInstrument.METHOD_CREDIT_CARD);
@@ -258,7 +281,6 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
             basket.removePaymentInstrument(item);
         });
 
-        // Remove any existing Google Pay instruments — only one payment method at a time
         var existingGPayInstruments = basket.getPaymentInstruments(jpmcConstants.JPMC_GOOGLE_PAY);
         collections.forEach(existingGPayInstruments, function (item) {
             basket.removePaymentInstrument(item);
@@ -281,20 +303,22 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
         paymentInstrument.setCreditCardExpirationMonth(paymentInformation.expirationMonth.value);
         paymentInstrument.setCreditCardExpirationYear(paymentInformation.expirationYear.value);
 
-        // Only set token on basket PI for stored cards
-        // New cards will get token after verification
+
         if (isStoredCard) {
             paymentInstrument.setCreditCardToken(paymentInformation.creditCardToken);
         }
         
-        // Capture Kount session ID from form for fraud detection (non-sensitive — OK on PI)
+
         if (req.form.kountSessionId) {
             paymentInstrument.custom.kountSessionId = req.form.kountSessionId;
         }
+
+        if (resolvedConfig && resolvedConfig.merchantId) {
+            paymentInstrument.custom.jpmcMerchantId = resolvedConfig.merchantId;
+        }
     });
 
-    // Store CVV / encrypted card data in session.privacy (memory-only, never persisted).
-    // Cleared on every exit path in authorize().
+  
     if (isStoredCard) {
         session.privacy.jpmcCvv = paymentInformation.securityCode.value;
         session.privacy.jpmcEncryptedCvv = null;
@@ -313,7 +337,7 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
             'fraudDetection',
             basket,
             paymentInstrument,
-            { accountNumberType: accountNumberType }
+            { accountNumberType: accountNumberType, resolvedConfig: resolvedConfig }
         );
         if (fraudDetectionResult.fraudRuleAction) {
             Transaction.wrap(function () {
@@ -352,7 +376,8 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
             initiatorType: 'CARDHOLDER',
             accountOnFile: accountOnFile,
             isStoredCard: isStoredCard,
-            accountNumberType: isStoredCard ? storedCardTokenType : jpmcConstants.ACCOUNT_NUMBER_TYPE_PIE
+            accountNumberType: isStoredCard ? storedCardTokenType : jpmcConstants.ACCOUNT_NUMBER_TYPE_PIE,
+            resolvedConfig: resolvedConfig
         };
         var verifyResult = JPMCPaymentHelper.verifyPaymentInstrument(cardData, verificationOptions);
         
@@ -369,7 +394,6 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
             }
         }
 
-        // If shopper did not opt to save the card, ensure no SAFETECH token lingers in session
         if (!isSaveCardChecked) {
             session.privacy.jpmcCardSafeTechToken = null;
         }
@@ -430,8 +454,7 @@ function Authorize(orderNumber, paymentInstrument, paymentProcessor) {
 }
 
 /**
- * Creates a SAFETECH token for My Account Save Payment flow.
- * Reads PIE encrypted data from session form, performs optional fraud check, calls JPMC verification.
+ * Creates a SAFETECH token for My Account Save Payment flow
  * @returns {String}
  * @throws {Error}
  */
@@ -439,6 +462,9 @@ function createToken() {
     var JPMCPaymentHelper = require('*/cartridge/scripts/helpers/JPMCPaymentHelper');
     var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
     var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+
+    var resolvedConfig = JPMCMerchantResolver.resolve();
 
     var creditCardForm = session.forms.creditCard;
     var encryptedDataValue = creditCardForm.encryptedData.value;
@@ -474,7 +500,8 @@ function createToken() {
     if (JPMCConfig.isFraudCheckEnabled()) {
         var fraudCheckOptions = {
             accountNumberType: jpmcConstants.ACCOUNT_NUMBER_TYPE_PIE,
-            kountSessionId: creditCardForm.kountSessionId ? creditCardForm.kountSessionId.value : null
+            kountSessionId: creditCardForm.kountSessionId ? creditCardForm.kountSessionId.value : null,
+            resolvedConfig: resolvedConfig
         };
         var fraudResult = JPMCPaymentHelper.performFraudCheckForCardSave(cardData, fraudCheckOptions);
 
@@ -489,7 +516,8 @@ function createToken() {
         }
     }
     var verificationOptions = {
-        accountNumberType: jpmcConstants.ACCOUNT_NUMBER_TYPE_PIE
+        accountNumberType: jpmcConstants.ACCOUNT_NUMBER_TYPE_PIE,
+        resolvedConfig: resolvedConfig
     };
 
     var verifyResult = JPMCPaymentHelper.verifyPaymentInstrument(cardData, verificationOptions);

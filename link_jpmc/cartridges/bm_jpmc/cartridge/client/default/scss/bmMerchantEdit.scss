@@ -1,0 +1,166 @@
+@import 'bm-common';
+
+.jpmc-merchant-edit {
+    @include jpmc-shared-components;
+
+    h1 {
+        margin-bottom: 20px;
+        font-size: 24px;
+        color: $text;
+    }
+
+    form {
+        background-color: #fff;
+        padding: 0;
+    }
+
+    fieldset {
+        margin: 0 0 25px 0;
+        padding: 0;
+        border: none;
+    }
+
+    .form-section-title {
+        margin: 20px 0 15px 0;
+        padding-bottom: 10px;
+        font-size: 16px;
+        font-weight: 600;
+        color: #003d82;
+        border-bottom: 2px solid $border-accent;
+        display: block;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-label {
+        margin-bottom: 6px;
+        font-weight: 500;
+        color: $text;
+        font-size: 13px;
+        display: block;
+
+        .required {
+            color: $error;
+            margin-left: 4px;
+            font-weight: 600;
+        }
+    }
+
+    .form-input,
+    select {
+        padding: 8px;
+        border: 1px solid $border;
+        border-radius: 3px;
+        font-size: 13px;
+        background-color: #fff;
+        color: $text;
+
+        &:focus {
+            outline: none;
+            border-color: $primary;
+            box-shadow: 0 0 0 2px rgba(0, 112, 210, 0.1);
+        }
+
+        &:disabled,
+        &[readonly] {
+            background-color: $bg-light;
+            cursor: not-allowed;
+        }
+    }
+
+    select {
+        cursor: pointer;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="url"] {
+        max-width: 500px;
+    }
+
+    .form-help {
+        margin-top: 6px;
+        font-size: 12px;
+        color: $text-light;
+        line-height: 1.5;
+    }
+
+    .form-code {
+        background-color: $bg-light;
+        border: 1px solid $border;
+        border-radius: 2px;
+        padding: 4px 8px;
+        font-family: monospace;
+        font-size: 11px;
+        display: inline-block;
+        color: #666;
+    }
+
+    .form-static {
+        margin-bottom: 15px;
+
+        p {
+            margin: 0 0 6px 0;
+            font-size: 13px;
+            color: $text;
+
+            &:first-child {
+                font-weight: 500;
+            }
+        }
+    }
+
+    .alert {
+        margin: 15px 0;
+        padding: 12px 15px;
+        border-radius: 3px;
+        font-size: 13px;
+        line-height: 1.5;
+
+        &.alert-warning {
+            background-color: #fef5e7;
+            border-left: 4px solid #f39c12;
+            color: #8b6914;
+        }
+
+        &.alert-error {
+            background-color: #fee;
+            border-left: 4px solid $error;
+            color: $error;
+        }
+    }
+
+    .error-message {
+        margin: 15px 0 20px;
+        padding: 12px 15px;
+        background-color: #fee;
+        border-left: 4px solid $error;
+        border-radius: 3px;
+        color: $error;
+        font-weight: 500;
+        font-size: 13px;
+    }
+
+    .form-actions {
+        margin-top: 25px;
+        padding: 15px 0;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        border-top: 1px solid $border;
+    }
+
+    .btn {
+        cursor: pointer;
+
+        &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    }
+}

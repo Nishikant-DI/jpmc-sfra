@@ -1,0 +1,326 @@
+@import 'bm-common';
+
+.thumbprint-page {
+    @include jpmc-shared-components;
+
+    h1 {
+        font-size: 24px;
+        font-weight: 700;
+        margin: 0 0 20px;
+        color: $text;
+    }
+
+    h2 {
+        font-size: 16px;
+        font-weight: 600;
+        margin: 25px 0 15px;
+        color: #003d82;
+        border-bottom: 2px solid $border-accent;
+        padding-bottom: 10px;
+    }
+
+    .info-section {
+        margin: 20px 0;
+        padding: 15px;
+        background-color: $bg-panel;
+        border-left: 4px solid $border-accent;
+        border-radius: 3px;
+
+        h3 {
+            margin: 0 0 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #003d82;
+        }
+
+        p {
+            margin: 0 0 10px;
+            color: $text;
+            font-size: 13px;
+            line-height: 1.5;
+
+            &:last-child {
+                margin-bottom: 0;
+            }
+        }
+
+        code {
+            background-color: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #d14;
+        }
+    }
+
+    fieldset {
+        margin: 0 0 25px;
+        padding: 0;
+        border: none;
+    }
+
+    .form-section-title {
+        margin: 20px 0 15px;
+        font-size: 16px;
+        font-weight: 600;
+        color: #003d82;
+        border-bottom: 2px solid $border-accent;
+        padding-bottom: 10px;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .form-label {
+        margin-bottom: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        color: $text;
+
+        .required {
+            color: $error;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+    }
+
+    .form-input,
+    input[type='text'],
+    input[type='password'],
+    textarea,
+    select {
+        padding: 8px;
+        border: 1px solid $border;
+        border-radius: 3px;
+        font-size: 13px;
+        color: $text;
+        background-color: #fff;
+        transition: border-color 0.15s, box-shadow 0.15s;
+
+        &:focus {
+            outline: none;
+            border-color: $primary;
+            box-shadow: 0 0 0 2px rgba(0, 112, 210, 0.1);
+        }
+
+        &:disabled,
+        &[readonly] {
+            background-color: $bg-light;
+            color: $text-light;
+            cursor: not-allowed;
+        }
+    }
+
+    textarea {
+        resize: vertical;
+        min-height: 100px;
+        font-family: 'Courier New', monospace;
+    }
+
+    select {
+        font-family: inherit;
+    }
+
+    .inputfield_en {
+        width: 440px;
+    }
+
+    .form-help {
+        margin: 6px 0 0;
+        color: $text-light;
+        font-size: 11px;
+        line-height: 1.4;
+    }
+
+    .form-code {
+        margin: 8px 0 0;
+        padding: 10px;
+        background-color: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        color: #333;
+        word-break: break-all;
+    }
+
+    .action-buttons {
+        margin-top: 25px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .button {
+        padding: 8px 16px;
+        background-color: $primary;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: background-color 0.2s ease;
+
+        &:hover {
+            background-color: darken($primary, 10%);
+        }
+
+        &:active {
+            background-color: darken($primary, 15%);
+        }
+
+        &:focus {
+            outline: 2px solid $primary;
+            outline-offset: 2px;
+        }
+
+        &:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    }
+
+    .alert {
+        padding: 12px 15px;
+        border-radius: 3px;
+        margin: 15px 0 20px;
+        font-size: 13px;
+        line-height: 1.5;
+        border-left: 4px solid $border-accent;
+
+        &.alert-success {
+            background-color: #efe;
+            border-color: $success;
+            color: #0a0;
+        }
+
+        &.alert-warning {
+            background-color: #fef5e6;
+            border-color: #ffc107;
+            color: #b8a000;
+        }
+
+        &.alert-error {
+            background-color: #fee;
+            border-color: $error;
+            color: $error;
+        }
+
+        &.alert-info {
+            background-color: #eef;
+            border-color: $primary;
+            color: $primary;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: underline;
+        }
+    }
+
+    .error_box {
+        background-color: #fee;
+        border: 1px solid $error;
+        color: $error;
+        padding: 8px;
+        border-radius: 3px;
+        font-size: 13px;
+        margin: 10px 0;
+    }
+
+    .success-message {
+        background-color: #efe;
+        border: 1px solid $success;
+        color: #0a0;
+        padding: 10px 12px;
+        border-radius: 3px;
+        margin: 10px 0;
+        font-size: 13px;
+    }
+
+    .certificate-output {
+        margin: 15px 0;
+        padding: 12px;
+        background-color: #f5f5f5;
+        border: 1px solid $border;
+        border-radius: 3px;
+
+        .copy-button {
+            float: right;
+            margin-left: 10px;
+            padding: 6px 12px;
+            font-size: 12px;
+            background-color: $primary;
+            color: #fff;
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+
+            &:hover {
+                background-color: #005cb8;
+            }
+
+            &:focus {
+                outline: 2px solid $primary;
+                outline-offset: 2px;
+            }
+        }
+
+        pre {
+            margin: 0;
+            padding: 8px;
+            background-color: #fff;
+            border: 1px solid $border;
+            border-radius: 2px;
+            overflow-x: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #333;
+        }
+    }
+
+    .hidden {
+        display: none;
+    }
+
+    .scope-hint {
+        margin: 4px 0 0;
+        color: $text-light;
+        font-size: 11px;
+    }
+
+    .info-content {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .fielditem {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+
+        label {
+            font-weight: 600;
+            color: #003d82;
+            font-size: 13px;
+
+            strong {
+                font-weight: 700;
+            }
+        }
+
+        div {
+            font-size: 13px;
+            color: $text;
+            padding: 4px 0;
+        }
+    }
+}

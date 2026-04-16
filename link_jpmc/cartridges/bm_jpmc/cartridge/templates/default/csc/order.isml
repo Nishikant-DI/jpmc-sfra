@@ -1,18 +1,18 @@
 <iscontent type="text/html" charset="UTF-8" />
 
-<div class="csc-order">
-    <link rel="stylesheet" href="${URLUtils.staticURL('/css/cscOrder.css')}" />
+<link rel="stylesheet" href="${URLUtils.staticURL('/css/cscOrder.css')}" />
 
+<div class="csc-order">
     <h1><isprint value="${Resource.msg('csc.title', 'jpmcbm', 'JPMC Payment Management')}" encoding="htmlcontent"/></h1>
 
     <isif condition="${pdict.error && pdict.error.isError}">
-        <div class="csc-banner csc-banner-error">
+        <div class="csc-banner csc-banner--error">
             <isprint value="${pdict.error.message}" encoding="htmlcontent" />
         </div>
     </isif>
 
     <isif condition="${pdict.successMessage}">
-        <div class="csc-banner csc-banner-success">
+        <div class="csc-banner csc-banner--success">
             <isprint value="${pdict.successMessage}" encoding="htmlcontent" />
         </div>
     </isif>
@@ -36,24 +36,17 @@
             </tr>
             <tr>
                 <td class="csc-label"><isprint value="${Resource.msg('csc.transaction.id', 'jpmcbm', 'Transaction ID')}" encoding="htmlcontent"/></td>
-                <td><isprint value="${pd.jpmcTransactionId}" encoding="htmlcontent"/></td>
-                <isif condition="${pd.cardNumber}">
-                    <td class="csc-label"><isprint value="${Resource.msg('csc.card.number', 'jpmcbm', 'Card')}" encoding="htmlcontent"/></td>
-                    <td><isprint value="${pd.cardType ? pd.cardType + ' ' + pd.cardNumber : pd.cardNumber}" encoding="htmlcontent"/></td>
-                <iselse/>
-                    <td class="csc-label"></td>
-                    <td></td>
-                </isif>
+                <td colspan="3"><isprint value="${pd.jpmcTransactionId}" encoding="htmlcontent"/></td>
             </tr>
             <tr>
                 <td class="csc-label"><isprint value="${Resource.msg('csc.capture.method', 'jpmcbm', 'Capture Method')}" encoding="htmlcontent"/></td>
                 <td>
                     <isif condition="${pd.captureMethod === 'MANUAL'}">
-                        <span class="csc-badge csc-badge-manual"><isprint value="${Resource.msg('csc.badge.manual', 'jpmcbm', 'MANUAL')}" encoding="htmlcontent"/></span>
+                        <span class="csc-badge csc-badge--manual"><isprint value="${Resource.msg('csc.badge.manual', 'jpmcbm', 'MANUAL')}" encoding="htmlcontent"/></span>
                     <iselseif condition="${pd.captureMethod === 'DELAYED'}"/>
-                        <span class="csc-badge csc-badge-delayed"><isprint value="${Resource.msg('csc.badge.delayed', 'jpmcbm', 'DELAYED')}" encoding="htmlcontent"/></span>
+                        <span class="csc-badge csc-badge--delayed"><isprint value="${Resource.msg('csc.badge.delayed', 'jpmcbm', 'DELAYED')}" encoding="htmlcontent"/></span>
                     <iselseif condition="${pd.captureMethod === 'NOW'}"/>
-                        <span class="csc-badge csc-badge-now"><isprint value="${Resource.msg('csc.badge.now', 'jpmcbm', 'NOW (Sale)')}" encoding="htmlcontent"/></span>
+                        <span class="csc-badge csc-badge--now"><isprint value="${Resource.msg('csc.badge.now', 'jpmcbm', 'NOW (Sale)')}" encoding="htmlcontent"/></span>
                     <iselse/>
                         <span><isprint value="${pd.captureMethod || Resource.msg('csc.na', 'jpmcbm', 'N/A')}" encoding="htmlcontent"/></span>
                     </isif>
@@ -65,14 +58,14 @@
 
         <isif condition="${pd.captureMethod === 'DELAYED' && pd.authTimestamp}">
             <isif condition="${pdict.delayedWindowRemaining > 0}">
-                <div class="csc-banner csc-banner-info">
+                <div class="csc-banner csc-banner--info">
                     <strong><isprint value="${Resource.msg('csc.info.delayed.window', 'jpmcbm', 'Delayed Capture Window')}" encoding="htmlcontent"/>:</strong>
                     <isprint value="${pdict.delayedWindowRemaining + ' ' + Resource.msg('csc.info.minutes.remaining', 'jpmcbm', 'minutes remaining')}" encoding="htmlcontent"/>
                     <isprint value="${'(' + pdict.delayedWindowMinutes + ' ' + Resource.msg('csc.info.min.total', 'jpmcbm', 'min total') + ').'}" encoding="htmlcontent"/>
                     <isprint value="${Resource.msg('csc.info.delayed.capture.hint', 'jpmcbm', 'Capture or void before this window closes, or the gateway will auto-capture.')}" encoding="htmlcontent"/>
                 </div>
             <iselse/>
-                <div class="csc-banner csc-banner-warn">
+                <div class="csc-banner csc-banner--warn">
                     <strong><isprint value="${Resource.msg('csc.info.delayed.expired', 'jpmcbm', 'Delayed Capture Window Expired')}" encoding="htmlcontent"/>.</strong>
                     <isprint value="${Resource.msg('csc.info.delayed.expired.hint', 'jpmcbm', 'The gateway has auto-captured or will shortly. Use Refund for adjustments.')}" encoding="htmlcontent"/>
                 </div>
@@ -131,7 +124,7 @@
                                 <input type="checkbox" id="isFinalCapture" name="isFinalCapture" value="true" />
                                 <isprint value="${Resource.msg('label.capture.final', 'jpmcbm', 'Mark as final capture (no more captures after this)')}" encoding="htmlcontent"/>
                             </label>
-                            <button type="submit" class="csc-btn csc-btn-capture"><isprint value="${Resource.msg('bm.order.capture.button', 'jpmcbm', 'Capture')}" encoding="htmlcontent"/></button>
+                            <button type="submit" class="csc-btn csc-btn--capture"><isprint value="${Resource.msg('bm.order.capture.button', 'jpmcbm', 'Capture')}" encoding="htmlcontent"/></button>
                         </div>
                         <isif condition="${pd.captureHistory && pd.captureHistory.length > 0}">
                             <div class="csc-multi-capture-info">
@@ -141,9 +134,9 @@
                         <span class="csc-inline-error hidden" id="captureError"></span>
                     </form>
                 <iselseif condition="${pdict.captureInfo.reason}"/>
-                    <div class="csc-action-form csc-action-disabled">
+                    <div class="csc-action-form csc-action-form--disabled">
                         <h3><isprint value="${Resource.msg('bm.order.capture.button', 'jpmcbm', 'Capture')}" encoding="htmlcontent"/></h3>
-                        <p class="csc-disabled-reason"><isprint value="${pdict.captureInfo.reason}" encoding="htmlcontent" /></p>
+                        <p class="csc-action-form__disabled-reason"><isprint value="${pdict.captureInfo.reason}" encoding="htmlcontent" /></p>
                     </div>
                 </isif>
 
@@ -153,7 +146,7 @@
                         <input type="hidden" name="${pdict.csrf.tokenName}" value="${pdict.csrf.token}"/>
                         <h3><isprint value="${Resource.msg('bm.order.refund.button', 'jpmcbm', 'Refund')}" encoding="htmlcontent"/></h3>
                         <isif condition="${pdict.refundInfo.delayedAutoCapture}">
-                            <p class="csc-banner csc-banner-info csc-banner-compact">
+                            <p class="csc-banner csc-banner--info csc-banner--compact">
                                 <isprint value="${Resource.msg('csc.info.refund.delayed.auto.captured', 'jpmcbm', 'The gateway auto-captured this order after the delayed window expired. Refunding against the full authorized amount.')}" encoding="htmlcontent"/>
                             </p>
                         </isif>
@@ -165,19 +158,19 @@
                                 <input type="checkbox" id="refundFullAmount" />
                                 <isprint value="${Resource.msg('label.refund.full.amount', 'jpmcbm', 'Refund Full Amount')}" encoding="htmlcontent"/>
                             </label>
-                            <button type="submit" class="csc-btn csc-btn-refund"><isprint value="${Resource.msg('bm.order.refund.button', 'jpmcbm', 'Refund')}" encoding="htmlcontent"/></button>
+                            <button type="submit" class="csc-btn csc-btn--refund"><isprint value="${Resource.msg('bm.order.refund.button', 'jpmcbm', 'Refund')}" encoding="htmlcontent"/></button>
                         </div>
                         <span class="csc-inline-error hidden" id="refundError"></span>
                     </form>
                 <iselseif condition="${pdict.refundInfo.allowed && pd.captureHistory && pd.captureHistory.length > 1}"/>
-                    <div class="csc-action-form csc-action-disabled">
+                    <div class="csc-action-form csc-action-form--disabled">
                         <h3><isprint value="${Resource.msg('bm.order.refund.button', 'jpmcbm', 'Refund')}" encoding="htmlcontent"/></h3>
-                        <p class="csc-disabled-reason"><isprint value="${Resource.msg('csc.info.refund.per.capture', 'jpmcbm', 'Use the Refund button next to each capture below.')}" encoding="htmlcontent"/></p>
+                        <p class="csc-action-form__disabled-reason"><isprint value="${Resource.msg('csc.info.refund.per.capture', 'jpmcbm', 'Use the Refund button next to each capture below.')}" encoding="htmlcontent"/></p>
                     </div>
                 <iselseif condition="${pdict.refundInfo.reason}"/>
-                    <div class="csc-action-form csc-action-disabled">
+                    <div class="csc-action-form csc-action-form--disabled">
                         <h3><isprint value="${Resource.msg('bm.order.refund.button', 'jpmcbm', 'Refund')}" encoding="htmlcontent"/></h3>
-                        <p class="csc-disabled-reason"><isprint value="${pdict.refundInfo.reason}" encoding="htmlcontent" /></p>
+                        <p class="csc-action-form__disabled-reason"><isprint value="${pdict.refundInfo.reason}" encoding="htmlcontent" /></p>
                     </div>
                 </isif>
 
@@ -190,13 +183,13 @@
                             <span class="csc-void-info">
                                 <isprint value="${Resource.msg('csc.void.remaining.label', 'jpmcbm', 'Amount to void') + ': '}" encoding="htmlcontent"/><strong><isprint value="${amounts.currency + ' ' + amounts.remainingAuth.toFixed(2)}" encoding="htmlcontent"/></strong>
                             </span>
-                            <button type="submit" class="csc-btn csc-btn-void"><isprint value="${Resource.msg('bm.order.void.button', 'jpmcbm', 'Void Authorization')}" encoding="htmlcontent"/></button>
+                            <button type="submit" class="csc-btn csc-btn--void"><isprint value="${Resource.msg('bm.order.void.button', 'jpmcbm', 'Void Authorization')}" encoding="htmlcontent"/></button>
                         </div>
                     </form>
                 <iselseif condition="${pdict.voidInfo.reason}"/>
-                    <div class="csc-action-form csc-action-disabled">
+                    <div class="csc-action-form csc-action-form--disabled">
                         <h3><isprint value="${Resource.msg('bm.order.void.button', 'jpmcbm', 'Void Authorization')}" encoding="htmlcontent"/></h3>
-                        <p class="csc-disabled-reason"><isprint value="${pdict.voidInfo.reason}" encoding="htmlcontent" /></p>
+                        <p class="csc-action-form__disabled-reason"><isprint value="${pdict.voidInfo.reason}" encoding="htmlcontent" /></p>
                     </div>
                 </isif>
             </div>
@@ -227,16 +220,16 @@
                                         <form method="post" class="csc-capture-refund-form"
                                             action="${URLUtils.url('JPMCPaymentCSC-ManagePayment', 'orderNo', pdict.orderId, 'refund', 'true', 'refundCaptureId', capture.transactionId)}">
                                             <input type="hidden" name="${pdict.csrf.tokenName}" value="${pdict.csrf.token}"/>
-                                            <div class="csc-capture-refund-row">
-                                                <input type="text" name="amountIntroduced" class="jpmc-input jpmc-input-sm"
+                                            <div class="csc-capture-refund-form__row">
+                                                <input type="text" name="amountIntroduced" class="jpmc-input jpmc-input--sm"
                                                        placeholder="<isprint value="${Resource.msgf('csc.amount.max', 'jpmcbm', null, capture.remainingRefundableDollars.toFixed(2))}" encoding="htmldoublequote"/>" />
-                                                <button type="submit" class="csc-btn csc-btn-refund csc-btn-sm"><isprint value="${Resource.msg('bm.order.refund.button', 'jpmcbm', 'Refund')}" encoding="htmlcontent"/></button>
+                                                <button type="submit" class="csc-btn csc-btn--refund csc-btn--sm"><isprint value="${Resource.msg('bm.order.refund.button', 'jpmcbm', 'Refund')}" encoding="htmlcontent"/></button>
                                             </div>
-                                            <label class="csc-checkbox-label csc-checkbox-sm">
-                                                <input type="checkbox" class="csc-capture-full-refund" />
+                                            <label class="csc-checkbox-label csc-checkbox-label--sm">
+                                                <input type="checkbox" class="csc-capture-refund-form__full-refund" />
                                                 <isprint value="${Resource.msg('label.refund.full.amount', 'jpmcbm', 'Refund Full Amount')}" encoding="htmlcontent"/>
                                             </label>
-                                            <span class="csc-inline-error hidden csc-capture-refund-error"></span>
+                                            <span class="csc-inline-error hidden csc-capture-refund-form__error"></span>
                                         </form>
                                     <iselse/>
                                         <span class="csc-text-muted"><isprint value="${Resource.msg('csc.info.refund.nothing.short', 'jpmcbm', 'Fully refunded')}" encoding="htmlcontent"/></span>

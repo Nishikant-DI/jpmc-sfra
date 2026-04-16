@@ -59,7 +59,10 @@ describe('int_jpmc_core/scripts/helpers/JPMCPayloadBuilder', function () {
                 FALLBACK_IP_ADDRESS: '0.0.0.0',
                 FALLBACK_USER_AGENT: 'Unknown',
                 ACCOUNT_NUMBER_TYPE_PIE: 'SAFETECH_PAGE_ENCRYPTION',
-                MULTI_CAPTURE_MAX_RECORD_COUNT: 99
+                MULTI_CAPTURE_MAX_RECORD_COUNT: 99,
+                DEFAULT_COMPANY_NAME: 'Salesforce Commerce Cloud',
+                DEFAULT_PRODUCT_NAME: 'SFCC',
+                DEFAULT_VERSION: '1.0.0'
             }
         });
     });
@@ -186,8 +189,8 @@ describe('int_jpmc_core/scripts/helpers/JPMCPayloadBuilder', function () {
 
             assert.isDefined(payload.merchant);
             assert.isDefined(payload.merchant.merchantSoftware);
-            assert.equal(payload.merchant.merchantSoftware.companyName, 'Test Company');
-            assert.equal(payload.merchant.merchantSoftware.productName, 'SFCC Plugin');
+            assert.equal(payload.merchant.merchantSoftware.companyName, 'Salesforce Commerce Cloud');
+            assert.equal(payload.merchant.merchantSoftware.productName, 'SFCC');
             assert.equal(payload.merchant.merchantSoftware.version, '1.0.0');
         });
     });
@@ -588,9 +591,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCPayloadBuilder', function () {
             assert.equal(payload.risk.transactionRiskScore, 50);
         });
 
-        // Note: The merchantOrderNumber logic checks if getOrderNo function exists
-        // In real SFCC, Orders have getOrderNo() and Baskets use getUUID()
-        // Testing the actual behavior where orderNo is present
+       
     });
 
     describe('buildApplePayPaymentPayload', function () {

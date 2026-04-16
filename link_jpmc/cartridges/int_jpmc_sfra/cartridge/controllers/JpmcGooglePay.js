@@ -4,18 +4,51 @@ var server = require('server');
 var csrfProtection = require('*/cartridge/scripts/middleware/csrf');
 var consentTracking = require('*/cartridge/scripts/middleware/consentTracking');
 
+
+function clearBasketState(basket, Transaction) {
+    try {
+        Transaction.wrap(function () {
+            basket.defaultShipment.createShippingAddress();
+            basket.createBillingAddress();
+            basket.removeAllPaymentInstruments();
+        });
+    } catch (e) {  }
+}
+
 /**
- * Returns Google Pay configuration and current basket total.
- * All config values come from Site Preferences — no hardcoded defaults.
+ * JpmcGooglePay-GetConfig : Returns Google Pay merchant configuration and current basket totals.
  */
 server.get('GetConfig',
     server.middleware.https,
     consentTracking.consent,
     function (req, res, next) {
-        var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
+        var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
         var BasketMgr = require('dw/order/BasketMgr');
 
-        var gpayConfig = JPMCConfig.getGooglePayConfig();
+        var resolvedConfig = JPMCMerchantResolver.resolve();
+        var gpayConfig;
+        var PaymentMgr = require('dw/order/PaymentMgr');
+        var googlePayMethod = PaymentMgr.getPaymentMethod('JPMC_GOOGLE_PAY');
+        if (!googlePayMethod || !googlePayMethod.isActive() || !resolvedConfig.googlePayGatewayMerchantId) {
+            gpayConfig = { enabled: false };
+        } else {
+            var allowedCards = resolvedConfig.googlePayAllowedCardNetworks
+                ? resolvedConfig.googlePayAllowedCardNetworks.split(',').map(function (n) { return n.trim(); }).filter(Boolean)
+                : [];
+            var allowedAuth = resolvedConfig.googlePayAllowedAuthMethods
+                ? resolvedConfig.googlePayAllowedAuthMethods.split(',').map(function (m) { return m.trim(); }).filter(Boolean)
+                : [];
+            gpayConfig = {
+                enabled: allowedCards.length > 0 && allowedAuth.length > 0,
+                environment: resolvedConfig.googlePayEnvironment || 'TEST',
+                gateway: resolvedConfig.googlePayGateway || '',
+                gatewayMerchantId: resolvedConfig.googlePayGatewayMerchantId,
+                googlePayMerchantId: resolvedConfig.googlePayMerchantId || '',
+                merchantName: resolvedConfig.googlePayMerchantName || '',
+                allowedCardNetworks: allowedCards,
+                allowedAuthMethods: allowedAuth
+            };
+        }
 
         if (!gpayConfig.enabled) {
             res.json({ error: false, enabled: false });
@@ -25,6 +58,9 @@ server.get('GetConfig',
         var currentBasket = BasketMgr.getCurrentBasket();
         var totalPrice = '0.00';
         var currencyCode = '';
+        var subtotal = '0.00';
+        var shippingCost = '0.00';
+        var totalTax = '0.00';
 
         if (currentBasket) {
             var totalGrossPrice = currentBasket.getTotalGrossPrice();
@@ -32,15 +68,42 @@ server.get('GetConfig',
                 totalPrice = totalGrossPrice.getValue().toFixed(2);
                 currencyCode = totalGrossPrice.getCurrencyCode();
             }
+            var subTotal = currentBasket.getAdjustedMerchandizeTotalPrice();
+            if (subTotal.available) {
+                subtotal = subTotal.getValue().toFixed(2);
+            }
+            var shippingTotal = currentBasket.getShippingTotalPrice();
+            if (shippingTotal.available) {
+                shippingCost = shippingTotal.getValue().toFixed(2);
+            }
+            var taxTotal = currentBasket.getTotalTax();
+            if (taxTotal.available) {
+                totalTax = taxTotal.getValue().toFixed(2);
+            }
         }
 
-        if (!currencyCode || totalPrice === '0.00') {
+        var basketEmpty = !currencyCode || totalPrice === '0.00';
+        if (basketEmpty && !resolvedConfig.JPMCGooglePayPDPEnabled) {
             res.json({ error: true, enabled: false });
             return next();
         }
 
+        if (basketEmpty) {
+            var Site = require('dw/system/Site');
+            currencyCode = Site.getCurrent().getDefaultCurrency() || '';
+        }
+
+        var countryCode = '';
+        if (req.locale && req.locale.id) {
+            var Locale = require('dw/util/Locale');
+            var localeObj = Locale.getLocale(req.locale.id);
+            countryCode = localeObj && localeObj.country ? localeObj.country : '';
+        }
+
+        var isGuest = !(req.currentCustomer && req.currentCustomer.profile);
+
         res.json({
-            error: false,
+            error: basketEmpty,
             enabled: true,
             environment: gpayConfig.environment,
             gateway: gpayConfig.gateway,
@@ -50,7 +113,14 @@ server.get('GetConfig',
             allowedCardNetworks: gpayConfig.allowedCardNetworks,
             allowedAuthMethods: gpayConfig.allowedAuthMethods,
             totalPrice: totalPrice,
-            currencyCode: currencyCode
+            currencyCode: currencyCode,
+            countryCode: countryCode,
+            subtotal: subtotal,
+            shippingCost: shippingCost,
+            totalTax: totalTax,
+            cartEnabled: resolvedConfig.JPMCGooglePayCartEnabled === true,
+            pdpEnabled: resolvedConfig.JPMCGooglePayPDPEnabled === true,
+            isGuest: isGuest
         });
 
         return next();
@@ -58,14 +128,12 @@ server.get('GetConfig',
 );
 
 /**
- * Receives the Google Pay token from the client and stores in session.privacy.
- * Full structural validation is performed in the Handle hook.
+ * JpmcGooglePay-StoreToken : Persists Google Pay payment token in session for checkout flow.
  */
 server.post('StoreToken',
     server.middleware.https,
     csrfProtection.validateAjaxRequest,
     function (req, res, next) {
-        var Logger = require('dw/system/Logger').getLogger('JPMC', 'googlepay');
 
         var token = req.form.token;
         if (!token) {
@@ -73,32 +141,476 @@ server.post('StoreToken',
             return next();
         }
 
-        // Basic JSON validation only — structural validation happens in Handle hook
         try {
             JSON.parse(token);
         } catch (e) {
-            Logger.error('StoreToken: Invalid token JSON');
             res.json({ error: true });
             return next();
         }
 
         session.privacy.jpmcGooglePayToken = token;
-
         res.json({ error: false });
         return next();
     }
 );
 
-/**
- * Clears Google Pay token from session. Called on payment method switch or navigation.
- */
 server.post('ClearToken',
     server.middleware.https,
     csrfProtection.validateAjaxRequest,
     function (req, res, next) {
         session.privacy.jpmcGooglePayToken = null;
-
         res.json({ error: false });
+        return next();
+    }
+);
+
+
+server.post('SelectShippingDetails',
+    server.middleware.https,
+    function (req, res, next) {
+        var BasketMgr = require('dw/order/BasketMgr');
+        var Transaction = require('dw/system/Transaction');
+        var ShippingMgr = require('dw/order/ShippingMgr');
+        var basketCalculationHelpers = require('*/cartridge/scripts/helpers/basketCalculationHelpers');
+
+        var currentBasket = BasketMgr.getCurrentBasket();
+        if (!currentBasket) {
+            res.json({ error: true });
+            return next();
+        }
+
+        var body;
+        try {
+            body = JSON.parse(req.body);
+        } catch (e) {
+            res.json({ error: true });
+            return next();
+        }
+
+        var address = body.address;
+        if (!address) {
+            res.json({ error: true });
+            return next();
+        }
+
+        var shipment = currentBasket.defaultShipment;
+        var shippingOptions = [];
+        var firstMethodId = null;
+
+        Transaction.wrap(function () {
+            var shippingAddress = shipment.shippingAddress;
+            if (!shippingAddress) {
+                shippingAddress = shipment.createShippingAddress();
+            }
+            shippingAddress.setCountryCode(address.countryCode || '');
+            shippingAddress.setStateCode(address.administrativeArea || '');
+            shippingAddress.setCity(address.locality || '');
+            shippingAddress.setPostalCode(address.postalCode || '');
+            var applicableMethods = ShippingMgr.getShipmentShippingModel(shipment).getApplicableShippingMethods();
+            var methodIterator = applicableMethods.iterator();
+
+            while (methodIterator.hasNext()) {
+                var method = methodIterator.next();
+                if (!firstMethodId) {
+                    firstMethodId = method.getID();
+                }
+                shippingOptions.push({
+                    id: method.getID(),
+                    label: method.getDisplayName(),
+                    description: method.getDescription() || ''
+                });
+            }
+
+            var ShippingHelper = require('*/cartridge/scripts/checkout/shippingHelpers');
+            if (firstMethodId) {
+                ShippingHelper.selectShippingMethod(shipment, firstMethodId);
+                basketCalculationHelpers.calculateTotals(currentBasket);
+            }
+        });
+
+        var totalGrossPrice = currentBasket.getTotalGrossPrice();
+        var totalTax = currentBasket.getTotalTax();
+        var shippingTotal = currentBasket.getShippingTotalPrice();
+        var subtotal = currentBasket.getAdjustedMerchandizeTotalPrice();
+
+        var totalPriceValue = totalGrossPrice.available ? totalGrossPrice.getValue().toFixed(2) : '0.00';
+        var totalTaxValue = totalTax.available ? totalTax.getValue().toFixed(2) : '0.00';
+        var shippingCostValue = shippingTotal.available ? shippingTotal.getValue().toFixed(2) : '0.00';
+        var subtotalValue = subtotal.available ? subtotal.getValue().toFixed(2) : '0.00';
+        var currencyCodeValue = totalGrossPrice.available ? totalGrossPrice.getCurrencyCode() : '';
+
+        var displayItems = [
+            { label: 'Subtotal', type: 'SUBTOTAL', price: subtotalValue },
+            { label: 'Shipping', type: 'SHIPPING_OPTION', price: shippingCostValue },
+            { label: 'Tax', type: 'TAX', price: totalTaxValue }
+        ];
+
+        res.json({
+            error: false,
+            shippingOptions: shippingOptions,
+            totalPrice: totalPriceValue,
+            totalTax: totalTaxValue,
+            shippingCost: shippingCostValue,
+            currencyCode: currencyCodeValue,
+            displayItems: displayItems
+        });
+
+        return next();
+    }
+);
+
+
+server.post('SelectShippingMethod',
+    server.middleware.https,
+    function (req, res, next) {
+        var BasketMgr = require('dw/order/BasketMgr');
+        var Transaction = require('dw/system/Transaction');
+        var basketCalculationHelpers = require('*/cartridge/scripts/helpers/basketCalculationHelpers');
+
+        var currentBasket = BasketMgr.getCurrentBasket();
+        if (!currentBasket) {
+            res.json({ error: true });
+            return next();
+        }
+
+        var body;
+        try {
+            body = JSON.parse(req.body);
+        } catch (e) {
+
+            res.json({ error: true });
+            return next();
+        }
+
+        var shippingMethodId = body.shippingMethodId;
+        if (!shippingMethodId) {
+            res.json({ error: true });
+            return next();
+        }
+
+        var shipment = currentBasket.defaultShipment;
+
+        Transaction.wrap(function () {
+            var ShippingHelper = require('*/cartridge/scripts/checkout/shippingHelpers');
+            ShippingHelper.selectShippingMethod(shipment, shippingMethodId);
+            basketCalculationHelpers.calculateTotals(currentBasket);
+        });
+
+        var totalGrossPrice = currentBasket.getTotalGrossPrice();
+        var totalTax = currentBasket.getTotalTax();
+        var shippingTotal = currentBasket.getShippingTotalPrice();
+        var subtotal = currentBasket.getAdjustedMerchandizeTotalPrice();
+
+        var totalPriceValue = totalGrossPrice.available ? totalGrossPrice.getValue().toFixed(2) : '0.00';
+        var totalTaxValue = totalTax.available ? totalTax.getValue().toFixed(2) : '0.00';
+        var shippingCostValue = shippingTotal.available ? shippingTotal.getValue().toFixed(2) : '0.00';
+        var subtotalValue = subtotal.available ? subtotal.getValue().toFixed(2) : '0.00';
+        var currencyCodeValue = totalGrossPrice.available ? totalGrossPrice.getCurrencyCode() : '';
+
+        var displayItems = [
+            { label: 'Subtotal', type: 'SUBTOTAL', price: subtotalValue },
+            { label: 'Shipping', type: 'SHIPPING_OPTION', price: shippingCostValue },
+            { label: 'Tax', type: 'TAX', price: totalTaxValue }
+        ];
+
+        res.json({
+            error: false,
+            totalPrice: totalPriceValue,
+            totalTax: totalTaxValue,
+            shippingCost: shippingCostValue,
+            subtotal: subtotalValue,
+            currencyCode: currencyCodeValue,
+            displayItems: displayItems
+        });
+
+        return next();
+    }
+);
+
+
+server.post('SubmitOrder',
+    server.middleware.https,
+    function (req, res, next) {
+        var BasketMgr = require('dw/order/BasketMgr');
+        var Transaction = require('dw/system/Transaction');
+        var Resource = require('dw/web/Resource');
+        var PaymentMgr = require('dw/order/PaymentMgr');
+        var HookMgr = require('dw/system/HookMgr');
+        var basketCalculationHelpers = require('*/cartridge/scripts/helpers/basketCalculationHelpers');
+        var COHelpers = require('*/cartridge/scripts/checkout/checkoutHelpers');
+        var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+        var collections = require('*/cartridge/scripts/util/collections');
+
+        var currentBasket = BasketMgr.getCurrentBasket();
+        if (!currentBasket) {
+            res.json({ error: true, errorMessage: Resource.msg('error.cart.expired', 'cart', null) });
+            return next();
+        }
+
+        var body;
+        try {
+            body = JSON.parse(req.body);
+        } catch (e) {
+            res.json({ error: true, errorMessage: Resource.msg('error.technical', 'checkout', null) });
+            return next();
+        }
+
+        var paymentData = body.paymentData;
+        if (!paymentData) {
+            res.json({ error: true, errorMessage: Resource.msg('error.technical', 'checkout', null) });
+            return next();
+        }
+
+        var token = paymentData.paymentMethodData
+            && paymentData.paymentMethodData.tokenizationData
+            && paymentData.paymentMethodData.tokenizationData.token;
+        if (!token) {
+            res.json({ error: true, errorMessage: Resource.msg('error.technical', 'checkout', null) });
+            return next();
+        }
+
+        session.privacy.jpmcGooglePayToken = token;
+
+        var email = '';
+        if (req.currentCustomer.profile && req.currentCustomer.profile.email) {
+            email = req.currentCustomer.profile.email;
+        } else if (paymentData.email) {
+            email = paymentData.email;
+        }
+        if (!email) {
+            session.privacy.jpmcGooglePayToken = null;
+            res.json({ error: true, errorMessage: Resource.msg('error.technical', 'checkout', null) });
+            return next();
+        }
+
+        var gpayShippingAddress = paymentData.shippingAddress || {};
+        var gpayBillingAddress = (paymentData.paymentMethodData
+            && paymentData.paymentMethodData.info
+            && paymentData.paymentMethodData.info.billingAddress) || {};
+        var shipment = currentBasket.defaultShipment;
+        var ShippingHelper = require('*/cartridge/scripts/checkout/shippingHelpers');
+        var ShippingMgr = require('dw/order/ShippingMgr');
+
+        try {
+            Transaction.wrap(function () {
+                currentBasket.setCustomerEmail(email);
+
+                var shippingAddress = shipment.shippingAddress || shipment.createShippingAddress();
+                var nameParts = (gpayShippingAddress.name || '').split(' ');
+                shippingAddress.setFirstName(nameParts[0] || '');
+                shippingAddress.setLastName(nameParts.slice(1).join(' ') || '');
+                shippingAddress.setAddress1(gpayShippingAddress.address1 || '');
+                shippingAddress.setAddress2(gpayShippingAddress.address2 || '');
+                shippingAddress.setCity(gpayShippingAddress.locality || '');
+                shippingAddress.setStateCode(gpayShippingAddress.administrativeArea || '');
+                shippingAddress.setPostalCode(gpayShippingAddress.postalCode || '');
+                shippingAddress.setCountryCode(gpayShippingAddress.countryCode || '');
+                shippingAddress.setPhone(gpayShippingAddress.phoneNumber || '');
+
+                var billingAddress = currentBasket.billingAddress || currentBasket.createBillingAddress();
+                var billingNameParts = (gpayBillingAddress.name || '').split(' ');
+                billingAddress.setFirstName(billingNameParts[0] || '');
+                billingAddress.setLastName(billingNameParts.slice(1).join(' ') || '');
+                billingAddress.setAddress1(gpayBillingAddress.address1 || '');
+                billingAddress.setAddress2(gpayBillingAddress.address2 || '');
+                billingAddress.setCity(gpayBillingAddress.locality || '');
+                billingAddress.setStateCode(gpayBillingAddress.administrativeArea || '');
+                billingAddress.setPostalCode(gpayBillingAddress.postalCode || '');
+                billingAddress.setCountryCode(gpayBillingAddress.countryCode || '');
+                billingAddress.setPhone(gpayBillingAddress.phoneNumber || '');
+
+                if (!shipment.shippingMethod) {
+                    var applicableMethods = ShippingMgr.getShipmentShippingModel(shipment).getApplicableShippingMethods();
+                    if (applicableMethods.iterator().hasNext()) {
+                        var firstMethod = applicableMethods.iterator().next();
+                        ShippingHelper.selectShippingMethod(shipment, firstMethod.getID());
+                    }
+                }
+
+                currentBasket.removeAllPaymentInstruments();
+                var paymentInstrument = currentBasket.createPaymentInstrument(
+                    jpmcConstants.JPMC_GOOGLE_PAY,
+                    currentBasket.totalGrossPrice
+                );
+                paymentInstrument.custom.jpmcWalletProvider = jpmcConstants.GOOGLE_PAY_WALLET_PROVIDER;
+
+                basketCalculationHelpers.calculateTotals(currentBasket);
+            });
+
+            var validationHelpers = require('*/cartridge/scripts/helpers/basketValidationHelpers');
+            var validatedProducts = validationHelpers.validateProducts(currentBasket);
+            if (validatedProducts.error) {
+                clearBasketState(currentBasket, Transaction);
+                session.privacy.jpmcGooglePayToken = null;
+                res.json({ error: true, errorMessage: Resource.msg('error.technical', 'checkout', null) });
+                return next();
+            }
+
+            var gpayMethod = PaymentMgr.getPaymentMethod(jpmcConstants.JPMC_GOOGLE_PAY);
+            var processor = gpayMethod && gpayMethod.getPaymentProcessor();
+            if (!processor) {
+                clearBasketState(currentBasket, Transaction);
+                session.privacy.jpmcGooglePayToken = null;
+                res.json({ error: true, errorMessage: Resource.msg('error.technical', 'checkout', null) });
+                return next();
+            }
+
+            var calculatedPaymentTransaction = COHelpers.calculatePaymentTransaction(currentBasket);
+            if (calculatedPaymentTransaction.error) {
+                clearBasketState(currentBasket, Transaction);
+                session.privacy.jpmcGooglePayToken = null;
+                res.json({ error: true, errorMessage: Resource.msg('error.technical', 'checkout', null) });
+                return next();
+            }
+
+            var handleResult;
+            var hookId = 'app.payment.processor.' + processor.ID.toLowerCase();
+            if (HookMgr.hasHook(hookId)) {
+                handleResult = HookMgr.callHook(
+                    hookId,
+                    'Handle',
+                    currentBasket,
+                    { googlePayToken: { value: token } },
+                    jpmcConstants.JPMC_GOOGLE_PAY,
+                    req
+                );
+            } else {
+                handleResult = HookMgr.callHook('app.payment.processor.default', 'Handle');
+            }
+
+            if (handleResult.error) {
+                clearBasketState(currentBasket, Transaction);
+                session.privacy.jpmcGooglePayToken = null;
+                res.json({ error: true, errorMessage: Resource.msg('error.technical', 'checkout', null) });
+                return next();
+            }
+
+            res.json({ error: false });
+
+        } catch (e) {
+            clearBasketState(currentBasket, Transaction);
+            session.privacy.jpmcGooglePayToken = null;
+            res.json({ error: true, errorMessage: Resource.msg('error.technical', 'checkout', null) });
+        }
+
+        return next();
+    }
+);
+
+
+server.post('PrepareBasket',
+    server.middleware.https,
+    function (req, res, next) {
+        var BasketMgr = require('dw/order/BasketMgr');
+        var Transaction = require('dw/system/Transaction');
+
+        try {
+            var currentBasket = BasketMgr.getCurrentBasket();
+            if (!currentBasket) {
+                res.json({
+                    error: true
+                });
+                return next();
+            }
+
+            Transaction.wrap(function () {
+                var lineItemsList = {};
+                var pliIterator = currentBasket.getProductLineItems().iterator();
+                while (pliIterator.hasNext()) {
+                    var pli = pliIterator.next();
+                    lineItemsList[pli.productID] = (lineItemsList[pli.productID] || 0) + pli.quantityValue;
+                }
+                session.privacy.allProductLineItems = JSON.stringify(lineItemsList);
+
+                currentBasket.removeAllPaymentInstruments();
+
+                var bonusItems = currentBasket.getBonusDiscountLineItems().iterator();
+                while (bonusItems.hasNext()) {
+                    currentBasket.removeBonusDiscountLineItem(bonusItems.next());
+                }
+
+                var couponItems = currentBasket.getCouponLineItems().iterator();
+                while (couponItems.hasNext()) {
+                    currentBasket.removeCouponLineItem(couponItems.next());
+                }
+
+                var giftItems = currentBasket.getGiftCertificateLineItems().iterator();
+                while (giftItems.hasNext()) {
+                    currentBasket.removeGiftCertificateLineItem(giftItems.next());
+                }
+
+                var priceAdjs = currentBasket.getPriceAdjustments().iterator();
+                while (priceAdjs.hasNext()) {
+                    currentBasket.removePriceAdjustment(priceAdjs.next());
+                }
+
+                var allPlis = currentBasket.getProductLineItems().iterator();
+                while (allPlis.hasNext()) {
+                    currentBasket.removeProductLineItem(allPlis.next());
+                }
+
+                currentBasket.updateTotals();
+            });
+
+            res.json({ error: false });
+        } catch (e) {
+            res.json({ error: true });
+        }
+
+        return next();
+    }
+);
+
+
+server.post('RestoreBasket',
+    server.middleware.https,
+    function (req, res, next) {
+        var BasketMgr = require('dw/order/BasketMgr');
+        var Transaction = require('dw/system/Transaction');
+
+        var snapshotStr = session.privacy.allProductLineItems;
+        if (!snapshotStr) {
+            res.json({ error: false });
+            return next();
+        }
+
+        var snapshot;
+        try {
+            snapshot = JSON.parse(snapshotStr);
+        } catch (e) {
+            res.json({ error: true });
+            return next();
+        }
+
+        try {
+            Transaction.wrap(function () {
+                var basket = BasketMgr.getCurrentOrNewBasket();
+
+                var existingPlis = basket.getProductLineItems().iterator();
+                while (existingPlis.hasNext()) {
+                    basket.removeProductLineItem(existingPlis.next());
+                }
+                basket.removeAllPaymentInstruments();
+
+                var defaultShipment = basket.getDefaultShipment();
+                var productIds = Object.keys(snapshot);
+                for (var i = 0; i < productIds.length; i++) {
+                    var productId = productIds[i];
+                    var qty = snapshot[productId];
+                    if (productId && qty > 0) {
+                        var newPli = basket.createProductLineItem(productId, defaultShipment);
+                        newPli.setQuantityValue(qty);
+                    }
+                }
+            });
+
+            session.privacy.allProductLineItems = null;
+            res.json({ error: false });
+        } catch (e) {
+
+            res.json({ error: true });
+        }
+
         return next();
     }
 );

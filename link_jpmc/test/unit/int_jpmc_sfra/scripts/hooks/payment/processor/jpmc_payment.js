@@ -30,7 +30,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
     });
 
     beforeEach(function () {
-        // Reset all mocks
+ 
         mockLogger = require('../../../../../../../test/mocks/dw/system/Logger');
         mockLogger.resetAllLoggers();
 
@@ -100,7 +100,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
             })
         };
 
-        // Create mock basket
+       
         var Order = require('../../../../../../../test/mocks/dw/order/Order');
         Order.resetMock();
         mockBasket = new Order();
@@ -113,7 +113,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
             countryCode: { value: 'US' }
         };
 
-        // Global session mock
+       
         global.session = {
             privacy: {},
             forms: {
@@ -126,13 +126,11 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
             }
         };
 
-        // Global request mock
         global.request = {
             getHttpRemoteAddress: sinon.stub().returns('127.0.0.1'),
             httpUserAgent: 'TestAgent/1.0'
         };
 
-        // Mock req object
         mockReq = {
             form: {
                 storedPaymentUUID: null,
@@ -146,7 +144,6 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
             geolocation: { countryCode: 'US' }
         };
 
-        // Mock payment form
         mockPaymentForm = {
             paymentMethod: { value: 'CREDIT_CARD' },
             creditCardFields: {
@@ -178,7 +175,6 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
             GOOGLE_PAY_WALLET_PROVIDER: 'GOOGLE_PAY'
         };
 
-        // Load module under test
         jpmcPayment = proxyquire(
             '../../../../../../../cartridges/int_jpmc_sfra/cartridge/scripts/hooks/payment/processor/jpmc_payment',
             {
@@ -219,7 +215,8 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
                         creditCardExpirationYear: 2028,
                         UUID: 'UUID-123',
                         creditCardNumber: '***1111',
-                        creditCardToken: 'SAFE_TOKEN_12345'
+                        creditCardToken: 'SAFE_TOKEN_12345',
+                        custom: {}
                     })
                 },
                 '*/cartridge/scripts/hooks/payment/processor/jpmc_googlepay': {
@@ -230,6 +227,12 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
                 '*/cartridge/scripts/helpers/jpmcTransactionHelpers': {
                     authorize: sinon.stub().returns({ error: false, serverErrors: [], transactionId: 'TXN-CC-001' }),
                     authorizeGooglePay: sinon.stub().returns({ error: false })
+                },
+                '*/cartridge/scripts/helpers/JPMCMerchantResolver': {
+                    resolve: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID' }),
+                    resolveForOrder: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID' }),
+                    toAccessTokenConfig: sinon.stub().returns({}),
+                    invalidateCache: sinon.stub()
                 }
             }
         );
@@ -243,9 +246,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
         mockPaymentMgr.resetMockPaymentMethods();
     });
 
-    // ==================================================================
-    // clearSensitivePaymentData
-    // ==================================================================
+    
     describe('clearSensitivePaymentData()', function () {
         it('should null-out all three session.privacy CVV/encrypted fields', function () {
             global.session.privacy.jpmcCvv = 'raw-cvv';
@@ -267,9 +268,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
         });
     });
 
-    // ==================================================================
-    // processForm
-    // ==================================================================
+ 
     describe('processForm()', function () {
         it('should extract card fields and encrypted data into viewData', function () {
             var result = jpmcPayment.processForm(mockReq, mockPaymentForm, {});
@@ -294,7 +293,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
             var mockCOHelpers = {
                 validateCreditCard: sinon.stub().returns({ cardNumber: 'Invalid' })
             };
-            // Reload module with validation failure
+    
             var modWithBadCard = proxyquire(
                 '../../../../../../../cartridges/int_jpmc_sfra/cartridge/scripts/hooks/payment/processor/jpmc_payment',
                 {
@@ -336,9 +335,6 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
         });
     });
 
-    // ==================================================================
-    // Handle — PCI & Security Tests
-    // ==================================================================
     describe('Handle()', function () {
         var paymentInfo;
 
@@ -360,12 +356,13 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
             assert.isFalse(result.error);
             var instruments = mockBasket.getPaymentInstruments('CREDIT_CARD');
             assert.isAbove(instruments.length, 0, 'Basket should contain a CREDIT_CARD PI');
+            assert.equal(instruments[0].custom.jpmcMerchantId, 'TEST_MERCHANT_ID', 'Basket PI should carry merchant ID');
         });
 
         it('should store PIE-encrypted data (NOT raw PAN) on session.privacy', function () {
             jpmcPayment.Handle(mockBasket, paymentInfo, 'CREDIT_CARD', mockReq);
 
-            // Encrypted CVV is stored, raw is nulled
+      
             assert.isNull(global.session.privacy.jpmcCvv, 'Raw CVV must NOT be in session for new cards');
             assert.equal(global.session.privacy.jpmcEncryptedCvv, 'PIE_ENCRYPTED_CVV');
             assert.isNotNull(global.session.privacy.jpmcEncryptedData);
@@ -412,8 +409,6 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
 
             jpmcPayment.Handle(mockBasket, paymentInfo, 'CREDIT_CARD', mockReq);
 
-            // After Handle, the token should be either null (no save) or fresh from verification
-            // When saveCard is false, it must remain null
             assert.isNull(global.session.privacy.jpmcCardSafeTechToken);
         });
 
@@ -433,7 +428,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
             var result = jpmcPayment.Handle(mockBasket, paymentInfo, 'CREDIT_CARD', mockReq);
 
             assert.isTrue(result.error);
-            // Session should be cleaned
+       
             assert.isNull(global.session.privacy.jpmcCvv);
             assert.isNull(global.session.privacy.jpmcEncryptedCvv);
             assert.isNull(global.session.privacy.jpmcEncryptedData);
@@ -481,9 +476,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
         });
     });
 
-    // ==================================================================
-    // Authorize
-    // ==================================================================
+
     describe('Authorize()', function () {
         var mockProcessor;
 
@@ -522,9 +515,6 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
         });
     });
 
-    // ==================================================================
-    // savePaymentInformation
-    // ==================================================================
     describe('savePaymentInformation()', function () {
         it('should save payment instrument to wallet when saveCard is true and SAFETECH token exists', function () {
             global.session.privacy.jpmcCardSafeTechToken = 'SAFE_TOKEN_12345';
@@ -542,6 +532,11 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
             jpmcPayment.savePaymentInformation(mockReq, mockBasket, billingData);
 
             assert.isAbove(mockReq.currentCustomer.wallet.paymentInstruments.length, 0);
+            var savedPI = mockReq.currentCustomer.wallet.paymentInstruments.find(function (pi) {
+                return pi.UUID === 'UUID-123';
+            });
+            assert.isDefined(savedPI, 'Saved PI should be in wallet');
+            assert.equal(savedPI.raw.custom.jpmcMerchantId, 'TEST_MERCHANT_ID', 'Wallet PI should carry merchant ID');
         });
 
         it('should NOT save when payment method is JPMC_GOOGLE_PAY', function () {
@@ -581,9 +576,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
         });
     });
 
-    // ==================================================================
-    // createToken (My Account card-save)
-    // ==================================================================
+  
     describe('createToken()', function () {
         beforeEach(function () {
             global.session.forms.creditCard = {
@@ -635,9 +628,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
         });
     });
 
-    // ==================================================================
-    // Module Exports
-    // ==================================================================
+ 
     describe('Module Exports', function () {
         it('should export all required hook functions', function () {
             assert.isFunction(jpmcPayment.processForm);

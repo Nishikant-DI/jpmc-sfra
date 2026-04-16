@@ -43,11 +43,12 @@ var JPMCConstants = {
     // Config Defaults
     DEFAULT_EXPIRES_IN: '5h',
     DEFAULT_JWT_EXPIRY_SECONDS: 8 * 60 * 60,
-    DEFAULT_COMPANY_NAME: 'Salesforce Commerce Cloud',
-    DEFAULT_PRODUCT_NAME: 'SFCC',
-    DEFAULT_VERSION: '1.0.0',
+    DEFAULT_COMPANY_NAME: 'JPMC Plugin',
+    DEFAULT_PRODUCT_NAME: 'JPMC SFCC B2C Cartridge',
+    DEFAULT_VERSION: '1.0',
     DEFAULT_TOKEN_TYPE: 'SAFETECH_TOKEN',
     DEFAULT_CAPTURE_METHOD: 'MANUAL',
+    CAPTURE_METHOD_NOW: 'NOW',
 
     // Fraud Detection
     FRAUD_REVIEW_NOTE_SUBJECT: 'Fraud Review',
@@ -68,6 +69,13 @@ var JPMCConstants = {
 
     // Order note subjects
     NOTE_SUBJECT_GPAY_PAYMENT: 'JPMC Google Pay Payment',
+    NOTE_SUBJECT_APPLEPAY_PAYMENT: 'JPMC Apple Pay Payment',
+
+    // Multi-MID
+    MERCHANT_CONFIG_CO_TYPE: 'JPMCMerchantConfig',
+    TOKEN_CACHE_KEY_PREFIX: 'jpmc_access_token_',
+    MERCHANT_CONFIG_CACHE_ID: 'jpmc_merchant_config_cache',
+    MERCHANT_CONFIG_CACHE_KEY_PREFIX: 'jpmc_merchant_cfg_',
 
     // Validation
     VALID_CAPTURE_METHODS: ['MANUAL', 'DELAYED', 'NOW'],
