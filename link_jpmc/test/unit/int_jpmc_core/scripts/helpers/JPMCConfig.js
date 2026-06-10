@@ -46,7 +46,7 @@ describe('JPMCConfig', function () {
 
             assert.equal(config.client_id, 'test-client-id');
             assert.equal(config.merchantId, 'test-merchant');
-            assert.equal(config.ida_url, 'https://test.jpmc.com/token');
+            assert.equal(config.ida_url, 'https://idag2.jpmorganchase.com/adfs/oauth2/token');
             assert.equal(config.resource_id, 'test-resource-id');
             assert.equal(config.audience, 'https://idag2.jpmorganchase.com/adfs/oauth2/token');
             assert.equal(config.kid, 'ABCDEF0123456789ABCDEF0123456789ABCDEF01');
@@ -118,7 +118,7 @@ describe('JPMCConfig', function () {
             var config = JPMCConfig.getConfig();
 
             assert.equal(config.merchantSoftware.companyName, 'JPMC Plugin');
-            assert.equal(config.merchantSoftware.productName, 'JPMC SFCC B2C Cartridge');
+            assert.equal(config.merchantSoftware.productName, 'JPMC SFCC SFRA Cartridge');
             assert.equal(config.merchantSoftware.version, '1.0');
             assert.equal(config.accountNumberType, 'SAFETECH_TOKEN');
         });

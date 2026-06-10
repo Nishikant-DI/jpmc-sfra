@@ -51,9 +51,13 @@ describe('int_jpmc_core/scripts/helpers/JPMCPayloadBuilder', function () {
         };
 
         // Load module with mocks
+        var mockSystem = require('../../../../../test/mocks/dw/system/System');
+        mockSystem.resetMockPreferences();
+
         JPMCPayloadBuilder = proxyquire('../../../../../cartridges/int_jpmc_core/cartridge/scripts/helpers/JPMCPayloadBuilder', {
             'dw/system/Logger': mockLogger,
             'dw/system/Site': mockSite,
+            'dw/system/System': mockSystem,
             '*/cartridge/scripts/helpers/JPMCConfig': mockJPMCConfig,
             '*/cartridge/scripts/helpers/JPMCConstants': {
                 FALLBACK_IP_ADDRESS: '0.0.0.0',

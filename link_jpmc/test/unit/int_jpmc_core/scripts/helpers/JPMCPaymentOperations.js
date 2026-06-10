@@ -415,22 +415,24 @@ describe('JPMCPaymentOperations', function () {
         });
 
         it('should save service error data to order when orderNo provided', function () {
-            var options = { orderNo: 'ORDER-12345' };
+           var options = { orderNo: 'ORDER-12345' };
 
             var errorData = { errorDetails: 'Service unavailable', errorCode: 503 };
 
-            mockJPMCServiceHelper.callWithTokenGeneration.returns({
+            var serviceResponse = {
                 success: false,
                 error: 'Service unavailable',
                 data: errorData
-            });
+            };
+
+            mockJPMCServiceHelper.callWithTokenGeneration.returns(serviceResponse);
 
             JPMCPaymentOperations.performFraudCheck(mockOrder, options);
 
             var transactionCallback = TransactionMock.wrap.firstCall.args[0];
             transactionCallback();
 
-            assert.equal(mockOrder.custom.jpmcFraudResponse, JSON.stringify(errorData));
+            assert.equal(mockOrder.custom.jpmcFraudResponse, JSON.stringify(serviceResponse));
             assert.instanceOf(mockOrder.custom.jpmcFraudCheckDate, Date);
         });
 

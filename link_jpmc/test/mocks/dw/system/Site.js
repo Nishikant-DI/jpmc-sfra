@@ -2,6 +2,7 @@
 
 var currentPreferences = {};
 var defaultCurrency = 'USD';
+var defaultLocale = 'en_US';
 var currentSite = null;
 
 /**
@@ -24,6 +25,9 @@ Site.getCurrent = function () {
             },
             getDefaultCurrency: function () {
                 return defaultCurrency;
+            },
+            getDefaultLocale: function () {
+                return defaultLocale;
             }
         };
     }
@@ -47,11 +51,21 @@ Site.setDefaultCurrency = function (currency) {
 };
 
 /**
+ * Helper to set default locale
+ * @param {String} locale - Locale code
+ */
+Site.setDefaultLocale = function (locale) {
+    defaultLocale = locale;
+    currentSite = null; // Reset current site to pick up new locale
+};
+
+/**
  * Helper to reset preferences
  */
 Site.resetMockPreferences = function () {
     currentPreferences = {};
     defaultCurrency = 'USD';
+    defaultLocale = 'en_US';
 };
 
 /**
@@ -60,6 +74,7 @@ Site.resetMockPreferences = function () {
 Site.reset = function () {
     currentPreferences = {};
     defaultCurrency = 'USD';
+    defaultLocale = 'en_US';
     currentSite = null;
 };
 

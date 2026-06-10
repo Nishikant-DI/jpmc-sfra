@@ -41,7 +41,7 @@ describe('jpmcConstants', function () {
 
     it('should export config defaults', function () {
         assert.equal(jpmcConstants.DEFAULT_COMPANY_NAME, 'JPMC Plugin');
-        assert.equal(jpmcConstants.DEFAULT_PRODUCT_NAME, 'JPMC SFCC B2C Cartridge');
+        assert.equal(jpmcConstants.DEFAULT_PRODUCT_NAME, 'JPMC SFCC SFRA Cartridge');
         assert.equal(jpmcConstants.DEFAULT_VERSION, '1.0');
         assert.equal(jpmcConstants.DEFAULT_TOKEN_TYPE, 'SAFETECH_TOKEN');
         assert.equal(jpmcConstants.DEFAULT_CAPTURE_METHOD, 'MANUAL');

@@ -139,6 +139,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_applepay', function
             '../../../../../../../cartridges/int_jpmc_sfra/cartridge/scripts/hooks/payment/processor/jpmc_applepay',
             {
                 'dw/system/Logger': mockLogger,
+                'dw/system/Site': require('../../../../../../../test/mocks/dw/system/Site'),
                 'dw/system/Transaction': mockTransaction,
                 'dw/system/Status': MockStatus,
                 'dw/order/PaymentInstrument': PaymentInstrumentMock,
@@ -448,7 +449,10 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_applepay', function
     describe('getRequest (lines 192-205)', function () {
         beforeEach(function () {
             global.session = { privacy: {}, custom: {} };
-            global.request = { locale: 'en_US' };
+            global.request = {
+                locale: 'en_US',
+                getLocale: sinon.stub().returns('en_US')
+            };
         });
 
         afterEach(function () {

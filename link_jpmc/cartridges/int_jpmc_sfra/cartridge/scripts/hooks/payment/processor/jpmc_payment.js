@@ -405,10 +405,10 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
                 && verifyResult.data.paymentMethodType
                 && verifyResult.data.paymentMethodType.card
                 && verifyResult.data.paymentMethodType.card.cardTypeName;
-            var cardType = verifyResult.data
+            var cardType = verifyResult.data // eslint-disable-line no-redeclare
                 && verifyResult.data.paymentMethodType
                 && verifyResult.data.paymentMethodType.card
-                && verifyResult.data.paymentMethodType.card.cardType;
+                && verifyResult.data.paymentMethodType.card.cardType; 
             var cardTypeValue = cardTypeName || cardType || jpmcConstants.PAYMENT_METHOD_DISPLAY_UNKNOWN;
         
             Transaction.wrap(function () {

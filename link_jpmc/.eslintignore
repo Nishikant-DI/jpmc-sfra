@@ -3,4 +3,5 @@ cartridges/**/cartridge/static/
 coverage/
 doc/
 bin/
-codecept.conf.js
+codecept.conf.js/
+test/
