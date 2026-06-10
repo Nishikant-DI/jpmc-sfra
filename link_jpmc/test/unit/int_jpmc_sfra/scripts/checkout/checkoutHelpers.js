@@ -80,11 +80,7 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
             'dw/order/PaymentInstrument': require('../../../../../test/mocks/dw/order/PaymentInstrument'),
             '*/cartridge/scripts/checkout/checkoutHelpers': baseMock,
             '*/cartridge/scripts/helpers/JPMCConfig': {
-                isAccountUpdaterNotificationsEnabled: function () { return false; },
                 isAccountUpdaterRTAUEnabled: function () { return false; }
-            },
-            '*/cartridge/scripts/helpers/AccountUpdaterHelper': {
-                registerCard: function () { return { success: true }; }
             },
             '*/cartridge/scripts/helpers/JPMCMerchantResolver': {
                 resolve: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID' }),
@@ -415,90 +411,6 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
         });
     });
 
-    describe('Account Updater registration paths', function () {
-        var resolverStub;
-        var registerCardStub;
-
-        beforeEach(function () {
-            resolverStub = {
-                resolve: sinon.stub().returns({ merchantId: 'MERCHANT-123' })
-            };
-            registerCardStub = sinon.stub().returns({ success: false, error: 'registration failed' });
-
-            mockStoredPaymentInstrument.getUUID = sinon.stub().returns('pi-uuid-1');
-            mockProfile.getCustomerNo = sinon.stub().returns('CUST-1');
-
-            checkoutHelpers = proxyquire('../../../../../cartridges/int_jpmc_sfra/cartridge/scripts/checkout/checkoutHelpers', {
-                'dw/system/Transaction': mockTransaction,
-                'dw/order/PaymentInstrument': require('../../../../../test/mocks/dw/order/PaymentInstrument'),
-                'dw/system/Logger': mockLogger,
-                '*/cartridge/scripts/checkout/checkoutHelpers': {},
-                '*/cartridge/scripts/helpers/JPMCConfig': {
-                    isAccountUpdaterNotificationsEnabled: function () { return true; }
-                },
-                '*/cartridge/scripts/helpers/AccountUpdaterHelper': {
-                    registerCard: registerCardStub
-                },
-                '*/cartridge/scripts/helpers/JPMCMerchantResolver': resolverStub
-            });
-        });
-
-        it('should set merchant id and warn when account updater registration fails', function () {
-            var result = checkoutHelpers.savePaymentInstrumentToWallet(
-                billingData,
-                mockBasket,
-                mockCustomer
-            );
-
-            assert.equal(result.custom.jpmcMerchantId, 'MERCHANT-123');
-            assert.equal(result.custom.jpmcMerchantRecordIdentifier, 'pi-uuid-1-CN-CUST-1');
-            assert.isTrue(registerCardStub.calledOnce);
-
-            var logger = mockLogger.getLogger('JPMC', 'checkoutHelpers');
-            assert.isAtLeast(logger.warnMessages.length, 1);
-        });
-
-        it('should warn when account updater throws', function () {
-            registerCardStub.throws(new Error('network down'));
-
-            checkoutHelpers.savePaymentInstrumentToWallet(
-                billingData,
-                mockBasket,
-                mockCustomer
-            );
-
-            var logger = mockLogger.getLogger('JPMC', 'checkoutHelpers');
-            assert.isAtLeast(logger.warnMessages.length, 1);
-        });
-
-        it('should not set merchant id when resolver returns no merchantId', function () {
-            resolverStub.resolve.returns({});
-
-            var result = checkoutHelpers.savePaymentInstrumentToWallet(
-                billingData,
-                mockBasket,
-                mockCustomer
-            );
-
-            assert.isUndefined(result.custom.jpmcMerchantId);
-        });
-
-        it('should use String(e) fallback when thrown error has no message property', function () {
-            registerCardStub.callsFake(function () {
-                throw { code: 'NO_MESSAGE' };
-            });
-
-            checkoutHelpers.savePaymentInstrumentToWallet(
-                billingData,
-                mockBasket,
-                mockCustomer
-            );
-
-            var logger = mockLogger.getLogger('JPMC', 'checkoutHelpers');
-            assert.isAtLeast(logger.warnMessages.length, 1);
-        });
-    });
-
     describe('handlePayments()', function () {
         var mockOrderMgr;
         var mockPaymentMgr;
@@ -662,7 +574,6 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
             assert.equal(result.transactionId, 'txn-3ds-1');
             assert.equal(result.captureMethod, 'NOW');
             assert.equal(global.session.privacy.jpmc3DSOrchestrationUrl, 'https://example.com/3ds');
-            assert.isTrue(mockLoggerWithInfo.info.calledOnce);
         });
     });
 });

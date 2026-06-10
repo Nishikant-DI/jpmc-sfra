@@ -86,7 +86,6 @@ When the JPMorgan Chase payment service is unavailable, the cartridge handles fa
 - **Authorization Failure**: If the payment authorization call fails or times out, the order is not placed. The customer sees a payment error message and can retry or choose a different payment method.
 - **3DS Authentication**: If the 3DS orchestration service is unreachable, the authentication step fails gracefully and the customer is returned to checkout with an error message.
 - **Capture/Refund/Void (BM Operations)**: If a post-authorization operation fails, the CSC agent sees an error banner in Business Manager. The operation can be retried once the service recovers.
-- **Account Updater Job**: If the Account Updater service is unavailable during a scheduled job run, failed notifications are queued in `AccountUpdater_Notification_Queue` and retried on the next job execution (up to 5 retries).
 - **Fraud Check (Kount)**: If the fraud check service is unreachable, the payment proceeds without a fraud score (configurable behavior via Site Preferences).
 - **Logging**: All service failures are logged with error-level severity to `customerror_*` log files for monitoring and alerting.
 

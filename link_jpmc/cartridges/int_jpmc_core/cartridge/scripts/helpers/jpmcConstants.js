@@ -82,53 +82,13 @@ var JPMCConstants = {
 
     // Account Updater
     ACCOUNT_UPDATER: {
-        // Custom Object Types
-        QUEUE_CO_TYPE: 'AccountUpdater_Notification_Queue',
-
         // Mode (driven by Site Preference jpmcAccountUpdaterMode)
         MODE_NONE: 'NONE',
-        MODE_NOTIFICATIONS: 'NOTIFICATIONS',
         MODE_REAL_TIME: 'REAL_TIME',
-        MODE_BOTH: 'BOTH',
-
-        // Queue Statuses
-        STATUS_NEW: 'NEW',
-        STATUS_PROCESSING: 'PROCESSING',
-        STATUS_ERROR: 'ERROR',
-
-        // Card Account Actions
-        ACTION_REGISTER: 'REGISTER',
-        ACTION_UNREGISTER: 'UNREGISTER',
-
-        // Registration Response Statuses
-        REGISTERED: 'REGISTERED',
-        REGISTRATION_PENDING: 'REGISTRATION_PENDING',
-
-        // Reason Messages (from provider)
-        REASON_CLOSED_ACCOUNT: 'CLOSED_ACCOUNT',
-        REASON_CONTACT_CARDHOLDER: 'CONTACT_CARDHOLDER',
-        REASON_NEW_ACCOUNT: 'NEW_ACCOUNT',
-        REASON_NEW_EXPIRY: 'NEW_EXPIRY',
-        REASON_NEW_ACCOUNT_AND_EXPIRY: 'NEW_ACCOUNT_AND_EXPIRY',
-
-        ACTIONABLE_REASONS: {
-            NEW_ACCOUNT: true,
-            NEW_ACCOUNT_AND_EXPIRY: true,
-            NEW_EXPIRY: true
-        },
-
-        // Webhook Event Types
-        EVENT_TYPE: 'accountUpdateNotification',
-        EVENT_SUBTYPE: 'AccountUpdaterStatus',
 
         // Logger Category
         LOGGER_CATEGORY: 'AccountUpdater',
 
-        // Max records per job run (safety limit)
-        MAX_RECORDS_PER_RUN: 500,
-
-        // Subscription storage
-        SUBSCRIPTION_PREF_KEY: 'jpmcWebhookSubscriptionId',
         // Site preference key for the mode dropdown
         MODE_PREF_KEY: 'jpmcAccountUpdaterMode',
 

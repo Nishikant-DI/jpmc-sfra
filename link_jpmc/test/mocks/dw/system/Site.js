@@ -56,7 +56,6 @@ Site.setDefaultCurrency = function (currency) {
  */
 Site.setDefaultLocale = function (locale) {
     defaultLocale = locale;
-    currentSite = null; // Reset current site to pick up new locale
 };
 
 /**

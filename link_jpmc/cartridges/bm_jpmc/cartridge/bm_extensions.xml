@@ -43,14 +43,4 @@
         </sub-pipelines>
     </menuaction>
 
-    <menuaction id="jpmc_webhook_management" menupath="jpmc_tools" position="30" site="true">
-        <name xml:lang="x-default">JPMC Webhook Management</name>
-        <short_description xml:lang="x-default">Manage JPMC Account Updater Webhooks</short_description>
-        <description xml:lang="x-default">Subscribe, update, or delete JPMC Account Updater webhook subscriptions per merchant configuration</description>
-        <exec pipeline="JPMCWebhookManager" node="List"/>
-        <sub-pipelines>
-            <pipeline name="JPMCWebhookManager"/>
-        </sub-pipelines>
-    </menuaction>
-
 </extensions>

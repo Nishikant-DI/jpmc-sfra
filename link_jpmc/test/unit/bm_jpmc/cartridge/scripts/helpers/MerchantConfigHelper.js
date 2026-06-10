@@ -132,14 +132,6 @@ describe('bm_jpmc/scripts/helpers/MerchantConfigHelper', function () {
             assert.equal(cfg.kid, 'real-kid');
         });
 
-        it('should mask accountUpdaterWebhookSecret when isMasked=true', function () {
-            var co = {
-                custom: { jpmcAccountUpdaterWebhookSecret: 'my-secret' }
-            };
-            var cfg = helper.buildEditConfig(co, true);
-            assert.equal(cfg.accountUpdaterWebhookSecret, '***********');
-        });
-
         it('should not mask empty clientId even when isMasked=true', function () {
             var co = { custom: { clientId: '' } };
             var cfg = helper.buildEditConfig(co, true);
@@ -165,21 +157,9 @@ describe('bm_jpmc/scripts/helpers/MerchantConfigHelper', function () {
         });
 
         it('should extract accountUpdaterMode from jpmcAccountUpdaterMode', function () {
-            var co = { custom: { jpmcAccountUpdaterMode: { value: 'NOTIFICATIONS' } } };
+            var co = { custom: { jpmcAccountUpdaterMode: { value: 'REAL_TIME' } } };
             var cfg = helper.buildEditConfig(co, false);
-            assert.equal(cfg.accountUpdaterMode, 'NOTIFICATIONS');
-        });
-
-        it('should extract accountUpdaterWebhookUser from jpmcAccountUpdaterWebhookUser', function () {
-            var co = { custom: { jpmcAccountUpdaterWebhookUser: 'my-webhook-user' } };
-            var cfg = helper.buildEditConfig(co, false);
-            assert.equal(cfg.accountUpdaterWebhookUser, 'my-webhook-user');
-        });
-
-        it('should default accountUpdaterWebhookUser to empty string when not set', function () {
-            var co = { custom: {} };
-            var cfg = helper.buildEditConfig(co, false);
-            assert.equal(cfg.accountUpdaterWebhookUser, '');
+            assert.equal(cfg.accountUpdaterMode, 'REAL_TIME');
         });
 
         it('should fall back to defaultVal in safeEnumString when val has no value property', function () {
@@ -261,9 +241,7 @@ describe('bm_jpmc/scripts/helpers/MerchantConfigHelper', function () {
                 applePayMerchantId: makeParam('apple-mid'),
                 kountClientId: makeParam('kount-cid'),
                 kountEnvironment: makeParam('PROD'),
-                accountUpdaterMode: makeParam('BOTH'),
-                accountUpdaterWebhookUser: makeParam('webhook-user-123'),
-                accountUpdaterWebhookSecret: makeParam('wh-secret-123')
+                accountUpdaterMode: makeParam('REAL_TIME')
             };
 
             var cfg = helper.buildFromParams(params);
@@ -278,9 +256,7 @@ describe('bm_jpmc/scripts/helpers/MerchantConfigHelper', function () {
             assert.equal(cfg.googlePayEnvironment, 'PRODUCTION');
             assert.isTrue(cfg.JPMCGooglePayCartEnabled);
             assert.isFalse(cfg.JPMCGooglePayPDPEnabled);
-            assert.equal(cfg.accountUpdaterMode, 'BOTH');
-            assert.equal(cfg.accountUpdaterWebhookUser, 'webhook-user-123');
-            assert.equal(cfg.accountUpdaterWebhookSecret, 'wh-secret-123');
+            assert.equal(cfg.accountUpdaterMode, 'REAL_TIME');
         });
 
         it('should handle enabled=false', function () {
@@ -297,9 +273,7 @@ describe('bm_jpmc/scripts/helpers/MerchantConfigHelper', function () {
                 googlePayAllowedCardNetworks: { stringValue: '' }, googlePayAllowedAuthMethods: { stringValue: '' },
                 JPMCGooglePayCartEnabled: { stringValue: 'false' }, JPMCGooglePayPDPEnabled: { stringValue: 'false' },
                 applePayMerchantId: { stringValue: '' }, kountClientId: { stringValue: '' },
-                kountEnvironment: { stringValue: '' }, accountUpdaterMode: { stringValue: 'NONE' },
-                accountUpdaterWebhookUser: { stringValue: '' },
-                accountUpdaterWebhookSecret: { stringValue: '' }
+                kountEnvironment: { stringValue: '' }, accountUpdaterMode: { stringValue: 'NONE' }
             };
             var cfg = helper.buildFromParams(baseParams);
             assert.isFalse(cfg.enabled);
@@ -319,36 +293,11 @@ describe('bm_jpmc/scripts/helpers/MerchantConfigHelper', function () {
                 googlePayAllowedCardNetworks: { stringValue: '' }, googlePayAllowedAuthMethods: { stringValue: '' },
                 JPMCGooglePayCartEnabled: { stringValue: 'false' }, JPMCGooglePayPDPEnabled: { stringValue: 'false' },
                 applePayMerchantId: { stringValue: '' }, kountClientId: { stringValue: '' },
-                kountEnvironment: { stringValue: '' }, accountUpdaterMode: { stringValue: 'NONE' },
-                accountUpdaterWebhookUser: { stringValue: '' },
-                accountUpdaterWebhookSecret: { stringValue: '' }
+                kountEnvironment: { stringValue: '' }, accountUpdaterMode: { stringValue: 'NONE' }
             };
             assert.isTrue(helper.buildFromParams(params).enableAVS);
         });
 
-        it('should default accountUpdaterWebhookUser and secret to empty string when stringValue is null', function () {
-            var fn = function (v) { return { stringValue: v }; };
-            var params = {
-                configKey: fn(''), locale: fn(''), enabled: fn('true'),
-                merchantId: fn(''), clientId: fn(''), resourceId: fn(''),
-                certAlias: fn(''),
-                privateKeyAlias: fn(''), kid: fn(''), pieGetKeyUrl: fn(''), pieEncryptionUrl: fn(''),
-                pieKey: fn(''),
-                captureMethod: fn('MANUAL'), platformId: fn(''), tokenizationType: fn('SAFETECH_TOKEN'),
-                enableAVS: fn('true'), enableFraudCheck: fn('false'), enableFraudCheckAtAuth: fn('false'),
-                googlePayEnvironment: fn(''), googlePayGateway: fn(''), googlePayGatewayMerchantId: fn(''),
-                googlePayMerchantId: fn(''), googlePayMerchantName: fn(''),
-                googlePayAllowedCardNetworks: fn(''), googlePayAllowedAuthMethods: fn(''),
-                JPMCGooglePayCartEnabled: fn('false'), JPMCGooglePayPDPEnabled: fn('false'),
-                applePayMerchantId: fn(''), kountClientId: fn(''), kountEnvironment: fn(''),
-                accountUpdaterMode: fn('NONE'),
-                accountUpdaterWebhookUser: { stringValue: null },
-                accountUpdaterWebhookSecret: { stringValue: null }
-            };
-            var cfg = helper.buildFromParams(params);
-            assert.equal(cfg.accountUpdaterWebhookUser, '');
-            assert.equal(cfg.accountUpdaterWebhookSecret, '');
-        });
     });
 
     // ─── assignToCustomObject ─────────────────────────────────────────────────
@@ -390,9 +339,7 @@ describe('bm_jpmc/scripts/helpers/MerchantConfigHelper', function () {
                 applePayMerchantId: 'ap-mid-2',
                 kountClientId: 'kount-2',
                 kountEnvironment: 'PROD',
-                accountUpdaterMode: 'REAL_TIME',
-                accountUpdaterWebhookUser: 'webhook-user',
-                accountUpdaterWebhookSecret: 'my-webhook-secret'
+                accountUpdaterMode: 'REAL_TIME'
             };
 
             helper.assignToCustomObject(co, config);
@@ -407,8 +354,6 @@ describe('bm_jpmc/scripts/helpers/MerchantConfigHelper', function () {
             assert.isTrue(co.custom.enableFraudCheck);
             assert.isTrue(co.custom.JPMCGooglePayCartEnabled);
             assert.equal(co.custom.jpmcAccountUpdaterMode, 'REAL_TIME');
-            assert.equal(co.custom.jpmcAccountUpdaterWebhookUser, 'webhook-user');
-            assert.equal(co.custom.jpmcAccountUpdaterWebhookSecret, 'my-webhook-secret');
         });
 
         it('should NOT overwrite clientId when value is masked', function () {
@@ -425,7 +370,7 @@ describe('bm_jpmc/scripts/helpers/MerchantConfigHelper', function () {
                 googlePayMerchantId: '', googlePayMerchantName: '', googlePayAllowedCardNetworks: '',
                 googlePayAllowedAuthMethods: '', JPMCGooglePayCartEnabled: false, JPMCGooglePayPDPEnabled: false,
                 applePayMerchantId: '', kountClientId: '', kountEnvironment: 'TEST',
-                accountUpdaterMode: 'NONE', accountUpdaterWebhookUser: '', accountUpdaterWebhookSecret: ''
+                accountUpdaterMode: 'NONE'
             });
             assert.equal(co.custom.clientId, 'original-client-id');
         });
@@ -444,7 +389,7 @@ describe('bm_jpmc/scripts/helpers/MerchantConfigHelper', function () {
                 googlePayMerchantId: '', googlePayMerchantName: '', googlePayAllowedCardNetworks: '',
                 googlePayAllowedAuthMethods: '', JPMCGooglePayCartEnabled: false, JPMCGooglePayPDPEnabled: false,
                 applePayMerchantId: '', kountClientId: '', kountEnvironment: 'TEST',
-                accountUpdaterMode: 'NONE', accountUpdaterWebhookUser: '', accountUpdaterWebhookSecret: ''
+                accountUpdaterMode: 'NONE'
             });
             assert.equal(co.custom.resourceId, 'new-resource-id');
         });
@@ -462,28 +407,11 @@ describe('bm_jpmc/scripts/helpers/MerchantConfigHelper', function () {
                 googlePayMerchantId: '', googlePayMerchantName: '', googlePayAllowedCardNetworks: '',
                 googlePayAllowedAuthMethods: '', JPMCGooglePayCartEnabled: false, JPMCGooglePayPDPEnabled: false,
                 applePayMerchantId: '', kountClientId: '', kountEnvironment: 'TEST',
-                accountUpdaterMode: 'NONE', accountUpdaterWebhookUser: '', accountUpdaterWebhookSecret: ''
+                accountUpdaterMode: 'NONE'
             });
             assert.equal(co.custom.kid, 'original-kid');
         });
 
-        it('should NOT overwrite accountUpdaterWebhookSecret when value is masked', function () {
-            var co = makeCO();
-            co.custom.jpmcAccountUpdaterWebhookSecret = 'original-secret';
-            helper.assignToCustomObject(co, {
-                configKey: 'k', enabled: true, merchantId: 'm', clientId: 'cid',
-                resourceId: 'rid', certAlias: '',
-                privateKeyAlias: '', kid: '', pieGetKeyUrl: '', pieEncryptionUrl: '', pieKey: '',
-                captureMethod: 'MANUAL', platformId: '', tokenizationType: 'SAFETECH_TOKEN',
-                enableAVS: true, enableFraudCheck: false, enableFraudCheckAtAuth: false,
-                googlePayEnvironment: 'TEST', googlePayGateway: '', googlePayGatewayMerchantId: '',
-                googlePayMerchantId: '', googlePayMerchantName: '', googlePayAllowedCardNetworks: '',
-                googlePayAllowedAuthMethods: '', JPMCGooglePayCartEnabled: false, JPMCGooglePayPDPEnabled: false,
-                applePayMerchantId: '', kountClientId: '', kountEnvironment: 'TEST',
-                accountUpdaterMode: 'NONE', accountUpdaterWebhookUser: '', accountUpdaterWebhookSecret: '***********'
-            });
-            assert.equal(co.custom.jpmcAccountUpdaterWebhookSecret, 'original-secret');
-        });
     });
 
     // ─── module exports ──────────────────────────────────────────────────────

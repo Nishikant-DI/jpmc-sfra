@@ -1,8 +1,6 @@
 'use strict';
 
-var systemPreferences = {
-    jpmcRealmId: undefined
-};
+var currentPreferences = {};
 
 /**
  * Mock for dw.system.System
@@ -12,7 +10,7 @@ function System() {}
 System.getPreferences = function () {
     return {
         getCustom: function () {
-            return systemPreferences;
+            return currentPreferences;
         }
     };
 };
@@ -22,16 +20,14 @@ System.getPreferences = function () {
  * @param {Object} prefs - Preferences object
  */
 System.setMockPreferences = function (prefs) {
-    systemPreferences = prefs || {};
+    currentPreferences = prefs || {};
 };
 
 /**
  * Helper to reset preferences
  */
 System.resetMockPreferences = function () {
-    systemPreferences = {
-        jpmcRealmId: undefined
-    };
+    currentPreferences = {};
 };
 
 module.exports = System;

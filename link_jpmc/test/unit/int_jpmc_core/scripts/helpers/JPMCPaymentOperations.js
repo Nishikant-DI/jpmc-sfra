@@ -415,7 +415,7 @@ describe('JPMCPaymentOperations', function () {
         });
 
         it('should save service error data to order when orderNo provided', function () {
-           var options = { orderNo: 'ORDER-12345' };
+            var options = { orderNo: 'ORDER-12345' };
 
             var errorData = { errorDetails: 'Service unavailable', errorCode: 503 };
 

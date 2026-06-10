@@ -239,10 +239,10 @@ function isGooglePayOnPDPEnabled() {
 }
 
 /**
- * @returns {string} One of NONE | NOTIFICATIONS | REAL_TIME | BOTH
+ * @returns {string} One of NONE | REAL_TIME
  */
 function getAccountUpdaterMode() {
-    var ALLOWED = ['NONE', 'NOTIFICATIONS', 'REAL_TIME', 'BOTH'];
+    var ALLOWED = ['NONE', 'REAL_TIME'];
     try {
         var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
         var resolvedConfig = JPMCMerchantResolver.resolve();
@@ -260,19 +260,10 @@ function getAccountUpdaterMode() {
 }
 
 /**
- * @returns {boolean} true when async webhook notifications are enabled.
- */
-function isAccountUpdaterNotificationsEnabled() {
-    var mode = getAccountUpdaterMode();
-    return mode === 'NOTIFICATIONS' || mode === 'BOTH';
-}
-
-/**
  * @returns {boolean} true when Real-Time Account Updater is enabled in checkout.
  */
 function isAccountUpdaterRTAUEnabled() {
-    var mode = getAccountUpdaterMode();
-    return mode === 'REAL_TIME' || mode === 'BOTH';
+    return getAccountUpdaterMode() === 'REAL_TIME';
 }
 
 /**
@@ -296,7 +287,6 @@ module.exports = {
     isFraudCheckEnabledAtAuth: isFraudCheckEnabledAtAuth,
     isAVSEnabled: isAVSEnabled,
     getAccountUpdaterMode: getAccountUpdaterMode,
-    isAccountUpdaterNotificationsEnabled: isAccountUpdaterNotificationsEnabled,
     isAccountUpdaterRTAUEnabled: isAccountUpdaterRTAUEnabled,
     is3DSEnabled: is3DSEnabled
 };

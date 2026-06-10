@@ -6,8 +6,7 @@ var baseCheckoutHelpers = module.superModule
     || require('*/cartridge/scripts/checkout/checkoutHelpers');
 
 /**
- * Saves a payment instrument to the customer's wallet and registers it with
- * Account Updater when notifications are enabled.
+ * Saves a payment instrument to the customer's wallet.
  *
  * @param {Object} billingData - billing form data with card info
  * @param {dw.order.Basket} currentBasket - active basket
@@ -21,7 +20,6 @@ baseCheckoutHelpers.savePaymentInstrumentToWallet = function savePaymentInstrume
 ) {
     var PaymentInstrument = require('dw/order/PaymentInstrument');
     var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
-    var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
     var wallet = customer.getProfile().getWallet();
 
     return Transaction.wrap(function () {
@@ -41,31 +39,6 @@ baseCheckoutHelpers.savePaymentInstrumentToWallet = function savePaymentInstrume
         var resolvedConfig = JPMCMerchantResolver.resolve();
         if (resolvedConfig.merchantId) {
             storedPaymentInstrument.custom.jpmcMerchantId = resolvedConfig.merchantId;
-        }
-
-        if (JPMCConfig.isAccountUpdaterNotificationsEnabled() && storedPaymentInstrument.getCreditCardToken()) {
-            try {
-                var accountUpdaterHelper = require('*/cartridge/scripts/helpers/AccountUpdaterHelper');
-                var mri = storedPaymentInstrument.getUUID() + '-CN-' + customer.getProfile().getCustomerNo();
-                storedPaymentInstrument.custom.jpmcMerchantRecordIdentifier = mri;
-
-                var registerResult = accountUpdaterHelper.registerCard(
-                    storedPaymentInstrument.getCreditCardToken(),
-                    storedPaymentInstrument.getCreditCardExpirationMonth(),
-                    storedPaymentInstrument.getCreditCardExpirationYear(),
-                    mri
-                );
-
-                if (!registerResult.success) {
-                    var Logger = require('dw/system/Logger').getLogger('JPMC', 'checkoutHelpers');
-                    Logger.warn('Account Updater registration failed for merchant {0}: {1}',
-                        resolvedConfig.merchantId, registerResult.error);
-                }
-            } catch (e) {
-                var AULogger = require('dw/system/Logger').getLogger('JPMC', 'checkoutHelpers');
-                AULogger.warn('Account Updater registration error for merchant {0}: {1}',
-                    resolvedConfig.merchantId, e.message || String(e));
-            }
         }
 
         delete session.privacy.jpmcCardSafeTechToken;
@@ -130,9 +103,6 @@ baseCheckoutHelpers.handlePayments = function (order, orderNumber) {
                     // ========== JPMC 3DS INTEGRATION ==========
                     // Pass through 3DS orchestration data if present
                     if (authorizationResult.requires3DS) {
-                        var Logger = require('dw/system/Logger');
-                        Logger.info('JPMC 3DS: handlePayments detected 3DS requirement - URL: {0}', authorizationResult.authenticationOrchestrationUrl);
-                        
                         result.requires3DS = authorizationResult.requires3DS;
                         result.authenticationOrchestrationUrl = authorizationResult.authenticationOrchestrationUrl;
                         result.transactionId = authorizationResult.transactionId;

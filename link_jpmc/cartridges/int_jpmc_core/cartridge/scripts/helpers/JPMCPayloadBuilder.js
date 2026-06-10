@@ -860,7 +860,7 @@ function buildCreatePaymentMethodTypeObject(paymentInstrument, options) {
         }
 
         // Real-Time Account Updater (RTAU): include the flag for eligible saved cards.
-        // Eligibility: stored card (token present) and RTAU mode is REAL_TIME or BOTH.
+        // Eligibility: stored card (token present) and RTAU mode is REAL_TIME.
         try {
             if (options.requestAccountUpdater === true) {
                 paymentMethodType.card.accountUpdater = {

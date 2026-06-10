@@ -306,23 +306,9 @@
                 </value-definitions>
                 <default-value>TEST</default-value>
             </attribute-definition>
-            <attribute-definition attribute-id="jpmcAccountUpdaterWebhookUser">
-                <display-name xml:lang="x-default">Account Updater Webhook Username</display-name>
-                <description xml:lang="x-default">Username (client ID) used in the Authorization: Basic header for authenticating incoming webhook requests from the JPMC Account Updater provider. Combined with the webhook secret as base64(username:secret).</description>
-                <type>string</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>false</externally-managed-flag>
-            </attribute-definition>
-            <attribute-definition attribute-id="jpmcAccountUpdaterWebhookSecret">
-                <display-name xml:lang="x-default">Account Updater Webhook Secret</display-name>
-                <description xml:lang="x-default">Password used in the Authorization: Basic header for authenticating incoming webhook requests from the JPMC Account Updater provider. Combined with the webhook username as base64(username:secret). Encrypted and securely stored.</description>
-                <type>password</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>false</externally-managed-flag>
-            </attribute-definition>
             <attribute-definition attribute-id="jpmcAccountUpdaterMode">
                 <display-name xml:lang="x-default">Account Updater Mode</display-name>
-                <description xml:lang="x-default">Controls which Account Updater flows are active. NONE disables the feature. NOTIFICATIONS enables the asynchronous webhook flow only. REAL_TIME enables Real-Time Account Updater (RTAU) on stored-card authorization only. BOTH enables both flows. Default: NONE</description>
+                <description xml:lang="x-default">Controls which Account Updater flows are active. NONE disables the feature. REAL_TIME enables Real-Time Account Updater (RTAU) on stored-card authorization only. Default: NONE</description>
                 <type>enum-of-string</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>false</externally-managed-flag>
@@ -332,26 +318,11 @@
                         <value>NONE</value>
                     </value-definition>
                     <value-definition>
-                        <display xml:lang="x-default">Notifications (Async Webhook Only)</display>
-                        <value>NOTIFICATIONS</value>
-                    </value-definition>
-                    <value-definition>
                         <display xml:lang="x-default">Real-Time (RTAU on Authorization Only)</display>
                         <value>REAL_TIME</value>
                     </value-definition>
-                    <value-definition>
-                        <display xml:lang="x-default">Both (Notifications + Real-Time)</display>
-                        <value>BOTH</value>
-                    </value-definition>
                 </value-definitions>
                 <default-value>NONE</default-value>
-            </attribute-definition>
-            <attribute-definition attribute-id="jpmcWebhookSubscriptionId">
-                <display-name xml:lang="x-default">Account Updater Webhook Subscription ID</display-name>
-                <description xml:lang="x-default">Identifier of the active Account Updater webhook subscription returned by JPMC. Populated automatically by the BM Webhook Manager when a subscription is created and cleared when deleted. Do not edit manually.</description>
-                <type>string</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
             </attribute-definition>
         </custom-attribute-definitions>
         <group-definitions>
@@ -401,8 +372,6 @@
             <attribute-group group-id="JPMC_AccountUpdater_SFRA">
                 <display-name xml:lang="x-default">JPMC Account Updater</display-name>
                 <attribute attribute-id="jpmcAccountUpdaterMode"/>
-                <attribute attribute-id="jpmcAccountUpdaterWebhookUser"/>
-                <attribute attribute-id="jpmcAccountUpdaterWebhookSecret"/>
             </attribute-group>
             <attribute-group group-id="JPMC_PWA">
                 <display-name xml:lang="x-default">JPMC PWA Configurations</display-name>
@@ -769,7 +738,7 @@
             </attribute-definition>
             <attribute-definition attribute-id="jpmcMerchantRecordIdentifier">
                 <display-name xml:lang="x-default">JPMC Merchant Record Identifier</display-name>
-                <description xml:lang="x-default">Stable merchant-side identifier registered with JPMC Account Updater for this saved card. Sent on the registration call and echoed back on webhook notifications and Real-Time Account Updater (RTAU) responses so the correct CustomerPaymentInstrument can be located and updated. Populated automatically — do not edit.</description>
+                <description xml:lang="x-default">Stable merchant-side identifier registered with JPMC Account Updater for this saved card. Echoed back on Real-Time Account Updater (RTAU) responses so the correct CustomerPaymentInstrument can be located and updated. Populated automatically — do not edit.</description>
                 <type>string</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>true</externally-managed-flag>

@@ -30,40 +30,4 @@
             </run-recurring>
         </triggers>
     </job>
-    <job job-id="JPMCProcessNotificationsUpdateQueue">
-        <description/>
-        <parameters/>
-        <flow>
-            <context site-id="RefArch"/>
-            <step step-id="JPMCClearCustomObjectItems" type="custom.JPMCClearExhaustedUpdateQueue" enforce-restart="false">
-                <description/>
-                <parameters>
-                    <parameter name="maxRetries">5</parameter>
-                </parameters>
-            </step>
-            <step step-id="JPMCProcessNotificationsUpdateQueue" type="custom.JPMCProcessUpdateQueue" enforce-restart="false">
-                <description/>
-                <parameters/>
-            </step>
-        </flow>
-        <rules/>
-        <triggers>
-            <run-recurring enabled="true">
-                <recurrence>
-                    <date-from>2026-05-16Z</date-from>
-                    <start-time>00:00:00.000Z</start-time>
-                    <interval>1h</interval>
-                    <day-of-week>
-                        <weekday>Monday</weekday>
-                        <weekday>Tuesday</weekday>
-                        <weekday>Wednesday</weekday>
-                        <weekday>Thursday</weekday>
-                        <weekday>Friday</weekday>
-                        <weekday>Saturday</weekday>
-                        <weekday>Sunday</weekday>
-                    </day-of-week>
-                </recurrence>
-            </run-recurring>
-        </triggers>
-    </job>
 </jobs>

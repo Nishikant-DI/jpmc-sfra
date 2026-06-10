@@ -449,7 +449,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_applepay', function
     describe('getRequest (lines 192-205)', function () {
         beforeEach(function () {
             global.session = { privacy: {}, custom: {} };
-            global.request = {
+            global.request = { 
                 locale: 'en_US',
                 getLocale: sinon.stub().returns('en_US')
             };

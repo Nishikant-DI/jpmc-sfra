@@ -123,10 +123,7 @@ function extractCOData(co) {
         kountClientId: co.custom.kountClientId || null,
         kountEnvironment: getEnumValue(co.custom.kountEnvironment, null),
         applePayMerchantId: co.custom.applePayMerchantId || null,
-        accountUpdaterMode: getEnumValue(co.custom.jpmcAccountUpdaterMode, null),
-        accountUpdaterWebhookUser: co.custom.jpmcAccountUpdaterWebhookUser || null,
-        accountUpdaterWebhookSecret: co.custom.jpmcAccountUpdaterWebhookSecret || null,
-        jpmcWebhookSubscriptionId: co.custom.jpmcWebhookSubscriptionId || null
+        accountUpdaterMode: getEnumValue(co.custom.jpmcAccountUpdaterMode, null)
     };
 }
 
@@ -184,13 +181,7 @@ function mergeConfigWithSPFallback(coData, fallbackConfig) {
         kountEnvironment: getFieldWithFallback(c.kountEnvironment, fb.kountEnvironment, 'TEST', true),
         applePayMerchantId: getFieldWithFallback(c.applePayMerchantId, fb.applePayMerchantId, null, false),
         
-        accountUpdaterMode: getFieldWithFallback(c.accountUpdaterMode, fb.accountUpdaterMode, 'NONE', false),
-        accountUpdaterWebhookUser: getFieldWithFallback(c.accountUpdaterWebhookUser,
-            fb.accountUpdaterWebhookUser, null, false),
-        accountUpdaterWebhookSecret: getFieldWithFallback(c.accountUpdaterWebhookSecret,
-            fb.accountUpdaterWebhookSecret, null, false),
-        jpmcWebhookSubscriptionId: getFieldWithFallback(c.jpmcWebhookSubscriptionId,
-            fb.jpmcWebhookSubscriptionId, null, false)
+        accountUpdaterMode: getFieldWithFallback(c.accountUpdaterMode, fb.accountUpdaterMode, 'NONE', false)
     };
 }
 
@@ -238,10 +229,7 @@ function buildSitePrefsConfig() {
         kountEnvironment: getEnumValue(prefs.jpmcKountEnvironment, 'TEST'),
         applePayMerchantId: null,
         
-        accountUpdaterMode: getEnumValue(prefs.jpmcAccountUpdaterMode, 'NONE'),
-        accountUpdaterWebhookUser: prefs.jpmcAccountUpdaterWebhookUser || null,
-        accountUpdaterWebhookSecret: prefs.jpmcAccountUpdaterWebhookSecret || null,
-        jpmcWebhookSubscriptionId: prefs.jpmcWebhookSubscriptionId || null
+        accountUpdaterMode: getEnumValue(prefs.jpmcAccountUpdaterMode, 'NONE')
     };
 }
 
@@ -484,50 +472,6 @@ function toAccessTokenConfig(resolvedConfig) {
     };
 }
 
-/**
- * @param {string} subscriptionId - The subscription ID returned by JPMC POST /subscriptions.
- * @param {string} [configKey] - Optional CO key for multi-MID write target.
- * @returns {boolean} true on success, false on failure.
- */
-function saveWebhookSubscriptionId(subscriptionId, configKey) {
-    var Transaction = require('dw/system/Transaction');
-    try {
-        if (isMultiMerchantEnabled() && configKey) {
-            var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
-            var CustomObjectMgr = require('dw/object/CustomObjectMgr');
-            var co = CustomObjectMgr.getCustomObject(constants.MERCHANT_CONFIG_CO_TYPE, configKey);
-            if (!co) {
-                Logger.warn('saveWebhookSubscriptionId: CO not found for configKey={0}', configKey);
-                return false;
-            }
-            Transaction.wrap(function () {
-                co.custom.jpmcWebhookSubscriptionId = subscriptionId || null;
-            });
-            invalidateCache(configKey, co.custom.merchantId);
-            return true;
-        }
-        // Single-MID: site preference
-        var SiteW = require('dw/system/Site');
-        Transaction.wrap(function () {
-            SiteW.getCurrent().setCustomPreferenceValue('jpmcWebhookSubscriptionId', subscriptionId || null);
-        });
-        return true;
-    } catch (e) {
-        Logger.error('saveWebhookSubscriptionId failed: {0}', e instanceof Error ? e.message : String(e));
-        return false;
-    }
-}
-
-/**
- * Clears the persisted webhook subscription ID for the given target.
- *
- * @param {string} [configKey] - Optional CO key for multi-MID setups.
- * @returns {boolean} true on success, false on failure.
- */
-function clearWebhookSubscriptionId(configKey) {
-    return saveWebhookSubscriptionId(null, configKey);
-}
-
 // Export public API
 module.exports = {
     resolve: resolve,
@@ -536,7 +480,5 @@ module.exports = {
     toAccessTokenConfig: toAccessTokenConfig,
     invalidateCache: invalidateCache,
     isMultiMerchantEnabled: isMultiMerchantEnabled,
-    mergeConfigWithSPFallback: mergeConfigWithSPFallback,
-    saveWebhookSubscriptionId: saveWebhookSubscriptionId,
-    clearWebhookSubscriptionId: clearWebhookSubscriptionId
+    mergeConfigWithSPFallback: mergeConfigWithSPFallback
 };

@@ -71,109 +71,6 @@
         </group-definitions>
     </custom-type>
 
-    <custom-type type-id="AccountUpdater_Notification_Queue">
-        <display-name xml:lang="x-default">Account Updater Notification Queue</display-name>
-        <description xml:lang="x-default">Durable queue for incoming Account Updater webhook notifications. Records are processed by the ProcessUpdateQueue_Job and deleted on success. Contains no card data — the unmasked tokens are fetched at processing time via the JPMC GET API.</description>
-        <staging-mode>no-staging</staging-mode>
-        <storage-scope>site</storage-scope>
-        <key-definition attribute-id="notificationID">
-            <type>string</type>
-            <min-length>1</min-length>
-        </key-definition>
-        <attribute-definitions>
-            <attribute-definition attribute-id="transactionId">
-                <display-name xml:lang="x-default">Transaction ID</display-name>
-                <description xml:lang="x-default">JPMC transactionId used for the GET /account-updates/{transactionId} call to retrieve unmasked card data.</description>
-                <type>string</type>
-                <mandatory-flag>true</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
-            </attribute-definition>
-            <attribute-definition attribute-id="merchantId">
-                <display-name xml:lang="x-default">Merchant ID</display-name>
-                <description xml:lang="x-default">Top-level merchantId from the webhook payload. Used to resolve merchant config for the GET API call.</description>
-                <type>string</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
-            </attribute-definition>
-            <attribute-definition attribute-id="reasonMessage">
-                <display-name xml:lang="x-default">Reason Message</display-name>
-                <description xml:lang="x-default">Provider reasonMessage that triggered the queue entry (e.g. NEW_ACCOUNT, NEW_EXPIRY, NEW_ACCOUNT_AND_EXPIRY).</description>
-                <type>string</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
-            </attribute-definition>
-            <attribute-definition attribute-id="merchantRecordIdentifier">
-                <display-name xml:lang="x-default">Merchant Record Identifier</display-name>
-                <description xml:lang="x-default">Composite identifier in the format {paymentInstrumentUUID}-CN-{customerNumber} used to locate the wallet PaymentInstrument.</description>
-                <type>string</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
-            </attribute-definition>
-            <attribute-definition attribute-id="status">
-                <display-name xml:lang="x-default">Processing Status</display-name>
-                <description xml:lang="x-default">Current processing state: NEW (awaiting), PROCESSING (locked), ERROR (failed)</description>
-                <type>string</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
-                <value-definitions>
-                    <value-definition>
-                        <display xml:lang="x-default">New</display>
-                        <value>NEW</value>
-                    </value-definition>
-                    <value-definition>
-                        <display xml:lang="x-default">Processing</display>
-                        <value>PROCESSING</value>
-                    </value-definition>
-                    <value-definition>
-                        <display xml:lang="x-default">Error</display>
-                        <value>ERROR</value>
-                    </value-definition>
-                </value-definitions>
-                <default-value>NEW</default-value>
-            </attribute-definition>
-            <attribute-definition attribute-id="retryCount">
-                <display-name xml:lang="x-default">Retry Count</display-name>
-                <description xml:lang="x-default">Number of failed processing attempts for this notification. Reserved for future retry logic.</description>
-                <type>int</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
-                <default-value>0</default-value>
-            </attribute-definition>
-            <attribute-definition attribute-id="receivedTimestamp">
-                <display-name xml:lang="x-default">Received Timestamp</display-name>
-                <description xml:lang="x-default">Server timestamp when the webhook was received</description>
-                <type>datetime</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
-            </attribute-definition>
-            <attribute-definition attribute-id="lastError">
-                <display-name xml:lang="x-default">Last Error</display-name>
-                <description xml:lang="x-default">Error message from the last failed processing attempt. Does not contain PII.</description>
-                <type>text</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
-            </attribute-definition>
-        </attribute-definitions>
-        <group-definitions>
-            <attribute-group group-id="AccountUpdater_Queue">
-                <display-name xml:lang="x-default">Account Updater Queue</display-name>
-                <attribute attribute-id="notificationID"/>
-                <attribute attribute-id="transactionId"/>
-                <attribute attribute-id="merchantId"/>
-                <attribute attribute-id="reasonMessage"/>
-                <attribute attribute-id="merchantRecordIdentifier"/>
-                <attribute attribute-id="status"/>
-                <attribute attribute-id="retryCount"/>
-                <attribute attribute-id="receivedTimestamp"/>
-                <attribute attribute-id="lastError"/>
-                <attribute attribute-id="creationDate" system="true"/>
-                <attribute attribute-id="lastModified" system="true"/>
-            </attribute-group>
-        </group-definitions>
-    </custom-type>
-
-
-            
     <custom-type type-id="JPMCMerchantConfig">
         <display-name xml:lang="x-default">JPMC Merchant Configuration</display-name>
         <description xml:lang="x-default">Stores per-merchant JPMC payment configuration. Keyed by siteID::localeID (e.g. SiteA::en_CA) or siteID::default for site-wide config. Resolution order: locale-specific → site-default → site preferences fallback.</description>
@@ -464,23 +361,9 @@
                 <default-value>false</default-value>
             </attribute-definition>
 
-            <attribute-definition attribute-id="jpmcAccountUpdaterWebhookUser">
-                <display-name xml:lang="x-default">Account Updater Webhook Username</display-name>
-                <description xml:lang="x-default">Username (client ID) used in the Authorization: Basic header for authenticating incoming webhook requests. Combined with the webhook secret as base64(username:secret).</description>
-                <type>string</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
-            </attribute-definition>
-            <attribute-definition attribute-id="jpmcAccountUpdaterWebhookSecret">
-                <display-name xml:lang="x-default">Account Updater Webhook Secret</display-name>
-                <description xml:lang="x-default">Password used in the Authorization: Basic header for authenticating incoming webhook requests. Combined with the webhook username as base64(username:secret).</description>
-                <type>password</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
-            </attribute-definition>
             <attribute-definition attribute-id="jpmcAccountUpdaterMode">
                 <display-name xml:lang="x-default">Account Updater Mode</display-name>
-                <description xml:lang="x-default">Controls which Account Updater flows are active for this merchant configuration. NONE disables the feature. NOTIFICATIONS enables the asynchronous webhook flow only. REAL_TIME enables Real-Time Account Updater (RTAU) on stored-card authorization only. BOTH enables both flows. If blank, falls back to the site preference value. Default: NONE</description>
+                <description xml:lang="x-default">Controls which Account Updater flows are active for this merchant configuration. NONE disables the feature. REAL_TIME enables Real-Time Account Updater (RTAU) on stored-card authorization only. If blank, falls back to the site preference value. Default: NONE</description>
                 <type>enum-of-string</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>true</externally-managed-flag>
@@ -490,25 +373,10 @@
                         <value>NONE</value>
                     </value-definition>
                     <value-definition>
-                        <display xml:lang="x-default">Notifications (Async Webhook Only)</display>
-                        <value>NOTIFICATIONS</value>
-                    </value-definition>
-                    <value-definition>
                         <display xml:lang="x-default">Real-Time (RTAU on Authorization Only)</display>
                         <value>REAL_TIME</value>
                     </value-definition>
-                    <value-definition>
-                        <display xml:lang="x-default">Both (Notifications + Real-Time)</display>
-                        <value>BOTH</value>
-                    </value-definition>
                 </value-definitions>
-            </attribute-definition>
-            <attribute-definition attribute-id="jpmcWebhookSubscriptionId">
-                <display-name xml:lang="x-default">Account Updater Webhook Subscription ID</display-name>
-                <description xml:lang="x-default">Identifier of the active Account Updater webhook subscription returned by JPMC. Populated automatically by the BM Webhook Manager when a subscription is created and cleared when deleted. Do not edit manually.</description>
-                <type>string</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
             </attribute-definition>
             <attribute-definition attribute-id="jpmc3DSEnabled">
                 <display-name xml:lang="x-default">Enable 3D Secure</display-name>
@@ -603,9 +471,6 @@
             <attribute-group group-id="JPMCMerchantAccountUpdaterSFRA">
                 <display-name xml:lang="x-default">Account Updater (SFRA)</display-name>
                 <attribute attribute-id="jpmcAccountUpdaterMode"/>
-                <attribute attribute-id="jpmcAccountUpdaterWebhookUser"/>
-                <attribute attribute-id="jpmcAccountUpdaterWebhookSecret"/>
-                <attribute attribute-id="jpmcWebhookSubscriptionId"/>
             </attribute-group>
             <attribute-group group-id="JPMCMerchantPWA">
                 <display-name xml:lang="x-default">PWA Configuration</display-name>

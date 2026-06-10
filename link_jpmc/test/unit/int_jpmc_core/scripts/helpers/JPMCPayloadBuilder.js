@@ -27,6 +27,9 @@ describe('int_jpmc_core/scripts/helpers/JPMCPayloadBuilder', function () {
         mockSite = require('../../../../../test/mocks/dw/system/Site');
         mockSite.resetMockPreferences();
 
+        var mockSystem = require('../../../../../test/mocks/dw/system/System');
+        mockSystem.resetMockPreferences();
+
         Order = require('../../../../../test/mocks/dw/order/Order');
         Order.resetMock();
 
@@ -51,9 +54,6 @@ describe('int_jpmc_core/scripts/helpers/JPMCPayloadBuilder', function () {
         };
 
         // Load module with mocks
-        var mockSystem = require('../../../../../test/mocks/dw/system/System');
-        mockSystem.resetMockPreferences();
-
         JPMCPayloadBuilder = proxyquire('../../../../../cartridges/int_jpmc_core/cartridge/scripts/helpers/JPMCPayloadBuilder', {
             'dw/system/Logger': mockLogger,
             'dw/system/Site': mockSite,

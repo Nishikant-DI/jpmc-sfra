@@ -47,8 +47,6 @@ var defaultConfig = {
     kountClientId: '',
     kountEnvironment: 'TEST',
     accountUpdaterMode: 'NONE',
-    accountUpdaterWebhookUser: '',
-    accountUpdaterWebhookSecret: '',
     jpmc3DSEnabled: false
 };
 Object.freeze(defaultConfig);
@@ -95,8 +93,6 @@ function buildEditConfig(co, isMasked) {
     config.kountClientId = String(co.custom.kountClientId || '');
     config.kountEnvironment = safeEnumString(co.custom.kountEnvironment, 'TEST');
     config.accountUpdaterMode = safeEnumString(co.custom.jpmcAccountUpdaterMode, 'NONE');
-    config.accountUpdaterWebhookUser = String(co.custom.jpmcAccountUpdaterWebhookUser || '');
-    config.accountUpdaterWebhookSecret = isMasked && co.custom.jpmcAccountUpdaterWebhookSecret ? MASKED_VALUE : String(co.custom.jpmcAccountUpdaterWebhookSecret || '');
     config.jpmc3DSEnabled = co.custom.jpmc3DSEnabled === true;
 
     return config;
@@ -140,8 +136,6 @@ function buildFromParams(params) {
         kountClientId: String(params.kountClientId.stringValue || ''),
         kountEnvironment: String(params.kountEnvironment.stringValue || 'TEST'),
         accountUpdaterMode: String(params.accountUpdaterMode.stringValue || 'NONE'),
-        accountUpdaterWebhookUser: String(params.accountUpdaterWebhookUser.stringValue || ''),
-        accountUpdaterWebhookSecret: String(params.accountUpdaterWebhookSecret.stringValue || ''),
         jpmc3DSEnabled: !!params.jpmc3DSEnabled && params.jpmc3DSEnabled.stringValue === 'true'
     };
 }
@@ -194,10 +188,6 @@ function assignToCustomObject(co, config) {
     co.custom.kountClientId = config.kountClientId;
     co.custom.kountEnvironment = config.kountEnvironment;
     co.custom.jpmcAccountUpdaterMode = config.accountUpdaterMode;
-    co.custom.jpmcAccountUpdaterWebhookUser = config.accountUpdaterWebhookUser;
-    if (!isMaskedValue(config.accountUpdaterWebhookSecret)) {
-        co.custom.jpmcAccountUpdaterWebhookSecret = config.accountUpdaterWebhookSecret;
-    }
     co.custom.jpmc3DSEnabled = config.jpmc3DSEnabled;
 }
 

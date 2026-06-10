@@ -464,46 +464,14 @@ describe('JPMCConfig', function () {
             assert.equal(JPMCConfig.getAccountUpdaterMode(), 'NONE');
         });
 
-        it('should return NOTIFICATIONS when set', function () {
-            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'NOTIFICATIONS' } });
-            assert.equal(JPMCConfig.getAccountUpdaterMode(), 'NOTIFICATIONS');
-        });
-
         it('should return REAL_TIME when set', function () {
             SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'REAL_TIME' } });
             assert.equal(JPMCConfig.getAccountUpdaterMode(), 'REAL_TIME');
         });
 
-        it('should return BOTH when set', function () {
-            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'BOTH' } });
-            assert.equal(JPMCConfig.getAccountUpdaterMode(), 'BOTH');
-        });
-
         it('should return NONE for invalid value', function () {
             SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'INVALID' } });
             assert.equal(JPMCConfig.getAccountUpdaterMode(), 'NONE');
-        });
-    });
-
-    describe('isAccountUpdaterNotificationsEnabled', function () {
-        it('should return false when mode is NONE', function () {
-            SiteMock.setMockPreferences({});
-            assert.isFalse(JPMCConfig.isAccountUpdaterNotificationsEnabled());
-        });
-
-        it('should return true when mode is NOTIFICATIONS', function () {
-            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'NOTIFICATIONS' } });
-            assert.isTrue(JPMCConfig.isAccountUpdaterNotificationsEnabled());
-        });
-
-        it('should return true when mode is BOTH', function () {
-            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'BOTH' } });
-            assert.isTrue(JPMCConfig.isAccountUpdaterNotificationsEnabled());
-        });
-
-        it('should return false when mode is REAL_TIME', function () {
-            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'REAL_TIME' } });
-            assert.isFalse(JPMCConfig.isAccountUpdaterNotificationsEnabled());
         });
     });
 
@@ -516,16 +484,6 @@ describe('JPMCConfig', function () {
         it('should return true when mode is REAL_TIME', function () {
             SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'REAL_TIME' } });
             assert.isTrue(JPMCConfig.isAccountUpdaterRTAUEnabled());
-        });
-
-        it('should return true when mode is BOTH', function () {
-            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'BOTH' } });
-            assert.isTrue(JPMCConfig.isAccountUpdaterRTAUEnabled());
-        });
-
-        it('should return false when mode is NOTIFICATIONS', function () {
-            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'NOTIFICATIONS' } });
-            assert.isFalse(JPMCConfig.isAccountUpdaterRTAUEnabled());
         });
     });
 

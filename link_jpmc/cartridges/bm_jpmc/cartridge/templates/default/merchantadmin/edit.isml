@@ -283,28 +283,11 @@
             <label for="accountUpdaterModeSelect" class="form-label">${Resource.msg('label.aumode','jpmcbm', null)}</label>
             <select id="accountUpdaterModeSelect" name="accountUpdaterMode">
                 <option value="NONE" <isif condition="${pdict.config.accountUpdaterMode === 'NONE'}">selected</isif>>${Resource.msg('opt.au.none','jpmcbm', null)}</option>
-                <option value="NOTIFICATIONS" <isif condition="${pdict.config.accountUpdaterMode === 'NOTIFICATIONS'}">selected</isif>>${Resource.msg('opt.au.notifications','jpmcbm', null)}</option>
                 <option value="REAL_TIME" <isif condition="${pdict.config.accountUpdaterMode === 'REAL_TIME'}">selected</isif>>${Resource.msg('opt.au.realtime','jpmcbm', null)}</option>
-                <option value="BOTH" <isif condition="${pdict.config.accountUpdaterMode === 'BOTH'}">selected</isif>>${Resource.msg('opt.au.both','jpmcbm', null)}</option>
             </select>
             <p class="form-help">${Resource.msg('help.aumode','jpmcbm', null)}</p>
         </div>
 
-        <div class="form-group">
-            <label for="accountUpdaterWebhookUserInput" class="form-label">${Resource.msg('label.auwebhookuser','jpmcbm', null)}</label>
-            <input type="text" id="accountUpdaterWebhookUserInput" name="accountUpdaterWebhookUser" class="form-input" value="<isprint value="${pdict.config.accountUpdaterWebhookUser}" encoding="htmlcontent"/>" autocomplete="off" />
-            <p class="form-help">
-                ${Resource.msg('help.auwebhookuser','jpmcbm', null)}
-            </p>
-        </div>
-
-        <div class="form-group">
-            <label for="accountUpdaterWebhookSecretInput" class="form-label">${Resource.msg('label.auwebhooksecret','jpmcbm', null)}</label>
-            <input type="password" id="accountUpdaterWebhookSecretInput" name="accountUpdaterWebhookSecret" class="form-input" value="<isprint value="${pdict.config.accountUpdaterWebhookSecret}" encoding="htmlcontent"/>" autocomplete="off" />
-            <p class="form-help">
-                ${Resource.msg('help.auwebhooksecret','jpmcbm', null)}
-            </p>
-        </div>
     </fieldset>
 
     <fieldset>
