@@ -17,19 +17,28 @@ var gpayContext = 'checkout';
 
 var isLoadingPaymentData = false;
 
+/**
+ * validateUrl
+ * @param {string} url - url to validate
+ * @returns {boolean} result
+ */
 function validateUrl(url) {
     if (!url || typeof url !== 'string') {
         return false;
     }
-    if (url.charAt(0) === '/') {
+    if (url.startsWith('/')) {
         return true;
     }
-    if (url.indexOf('https://') === 0) {
+    if (url.startsWith('https://')) {
         return true;
     }
     return false;
 }
 
+/**
+ * baseCardPaymentMethod
+  * @returns {Object} result
+ */
 function baseCardPaymentMethod() {
     return {
         type: 'CARD',
@@ -45,6 +54,10 @@ function baseCardPaymentMethod() {
     };
 }
 
+/**
+ * tokenizedCardPaymentMethod
+  * @returns {Object} result
+ */
 function tokenizedCardPaymentMethod() {
     return Object.assign({}, baseCardPaymentMethod(), {
         tokenizationSpecification: {
@@ -57,6 +70,10 @@ function tokenizedCardPaymentMethod() {
     });
 }
 
+/**
+ * getCallbackIntents
+  * @returns {Object} result
+ */
 function getCallbackIntents() {
     if (gpayContext === 'cart' || gpayContext === 'pdp') {
         return ['SHIPPING_ADDRESS', 'SHIPPING_OPTION', 'PAYMENT_AUTHORIZATION'];
@@ -64,6 +81,10 @@ function getCallbackIntents() {
     return ['PAYMENT_AUTHORIZATION'];
 }
 
+/**
+ * buildPaymentDataRequest
+ * @returns {Object} payment data request
+ */
 function buildPaymentDataRequest() {
     var callbackIntents = getCallbackIntents();
     var transactionInfo = {
@@ -73,13 +94,13 @@ function buildPaymentDataRequest() {
         countryCode: gpayConfig.countryCode,
         totalPriceLabel : (gpayContext === 'cart' || gpayContext === 'pdp') ? 'Est. Total' : 'Total'
     };
-      if (gpayConfig.subtotal && gpayConfig.totalTax) {
-            transactionInfo.displayItems = [
-                { label: 'Subtotal', type: 'SUBTOTAL', price: gpayConfig.subtotal.toString() },
-                { label: 'Shipping', type: 'SHIPPING_OPTION', price: gpayConfig.shippingCost.toString()},
-                { label: 'Tax', type: 'TAX', price: gpayConfig.totalTax.toString() }
-            ];
-        }
+    if (gpayConfig.subtotal && gpayConfig.totalTax) {
+        transactionInfo.displayItems = [
+            { label: 'Subtotal', type: 'SUBTOTAL', price: gpayConfig.subtotal.toString() },
+            { label: 'Shipping', type: 'SHIPPING_OPTION', price: gpayConfig.shippingCost.toString()},
+            { label: 'Tax', type: 'TAX', price: gpayConfig.totalTax.toString() }
+        ];
+    }
 
     var request = Object.assign({}, GPAY_API_VERSION, {
         allowedPaymentMethods: [tokenizedCardPaymentMethod()],
@@ -111,6 +132,10 @@ function buildPaymentDataRequest() {
     return request;
 }
 
+/**
+ * getPaymentDataCallbacks
+  * @returns {Object} result
+ */
 function getPaymentDataCallbacks() {
     var callbacks = {
         onPaymentAuthorized: onPaymentAuthorized
@@ -121,6 +146,10 @@ function getPaymentDataCallbacks() {
     return callbacks;
 }
 
+/**
+ * getPaymentsClient
+ * @returns {Object} payments client
+ */
 function getPaymentsClient() {
     if (!paymentsClient) {
         paymentsClient = new google.payments.api.PaymentsClient({
@@ -131,6 +160,10 @@ function getPaymentsClient() {
     return paymentsClient;
 }
 
+/**
+ * showStatus
+ * @param {string} state - one of 'none', 'authorized', or 'error' to control which messages/buttons are shown
+ */
 function showStatus(state) {
     var $error = $('#googlepay-error');
     var $message = $('.googlepay-message');
@@ -152,6 +185,8 @@ function showStatus(state) {
 
 /**
  * Stores the Google Pay token in the server session, then triggers SFRA submit-payment.
+ * @param {string} token - payment token
+ * @param {Function} resolve - promise resolve function to call with the result of the authorization attempt
  */
 function storeTokenOnServer(token, resolve) {
     var $wrapper = $('#googlepay-button-wrapper');
@@ -178,6 +213,11 @@ function storeTokenOnServer(token, resolve) {
     });
 }
 
+/**
+ * onPaymentDataChanged
+ * @param {Object} intermediatePaymentData - intermediate payment data
+ * @returns {Promise} result
+ */
 function onPaymentDataChanged(intermediatePaymentData) {
     return new Promise(function (resolve) {
         var $wrapper = $('#googlepay-button-wrapper');
@@ -346,6 +386,11 @@ function restoreBasketForPDP() {
     }
 }
 
+/**
+ * onPaymentAuthorized
+ * @param {Object} paymentData - payment data
+ * @returns {Promise} result
+ */
 function onPaymentAuthorized(paymentData) {
     return new Promise(function (resolve) {
         try {
@@ -429,6 +474,9 @@ function onPaymentAuthorized(paymentData) {
     });
 }
 
+/**
+ * onGooglePayButtonClicked
+ */
 function onGooglePayButtonClicked() {
     showStatus('none');
 
@@ -525,6 +573,9 @@ function onGooglePayButtonClicked() {
     }
 }
 
+/**
+ * clearGooglePayState
+ */
 function clearGooglePayState() {
     if (!paymentsClient) return;
     paymentsClient = null;
@@ -536,6 +587,10 @@ function clearGooglePayState() {
     }
 }
 
+/**
+ * renderButton - Renders the Google Pay button
+ * @returns {void}
+ */
 function renderButton() {
     var $wrapper = $('#googlepay-button-wrapper');
 
@@ -550,9 +605,13 @@ function renderButton() {
         });
         $wrapper.empty().append(button);
         if (gpayContext === 'pdp') { syncPDPButtonState(); }
-    } catch (e) { }
+    } catch (e) { /* intentionally empty */ }
 }
 
+/**
+ * loadScript
+ * @param {Function} callback - callback function
+ */
 function loadScript(callback) {
     if (typeof google !== 'undefined' && google.payments) { callback(); return; }
     var script = document.createElement('script');
@@ -563,6 +622,9 @@ function loadScript(callback) {
     document.head.appendChild(script);
 }
 
+/**
+ * initGooglePay
+ */
 function initGooglePay() {
     var $wrapper = $('#googlepay-button-wrapper');
     if (!$wrapper.length || $wrapper.hasClass('d-none')) {
@@ -615,7 +677,7 @@ function initGooglePay() {
                         .then(function (response) {
                             if (response.result) { renderButton(); }
                         })
-                        .catch(function (err) {});
+                        .catch(function (err) {}); // eslint-disable-line no-unused-vars
                 } catch (e) { throw new Error(e);}
             });
         },
@@ -623,6 +685,9 @@ function initGooglePay() {
     });
 }
 
+/**
+ * refreshBasketTotal
+ */
 function refreshBasketTotal() {
     var configUrl = $('#googlepay-button-wrapper').data('config-url');
     if (!configUrl || !gpayConfig) return;
@@ -642,6 +707,9 @@ function refreshBasketTotal() {
     });
 }
 
+/**
+ * setupCheckoutEventListeners
+ */
 function setupCheckoutEventListeners() {
     $('body').on('click', '.payment-options .nav-item', function () {
         if ($(this).data('method-id') === 'JPMC_GOOGLE_PAY') {
@@ -680,6 +748,9 @@ function setupCheckoutEventListeners() {
     });
 }
 
+/**
+ * setupCartEventListeners
+ */
 function setupCartEventListeners() {
     $('body').on('cart:update', function () {
         var $wrapper = $('#googlepay-button-wrapper');
@@ -692,6 +763,9 @@ function setupCartEventListeners() {
     });
 }
 
+/**
+ * syncPDPButtonState
+ */
 function syncPDPButtonState() {
     var $addToCart = $('.add-to-cart');
     var $wrapper = $('#googlepay-button-wrapper');
@@ -703,6 +777,9 @@ function syncPDPButtonState() {
     }
 }
 
+/**
+ * setupPDPEventListeners
+ */
 function setupPDPEventListeners() {
     syncPDPButtonState();
 
@@ -720,6 +797,9 @@ function setupPDPEventListeners() {
     });
 }
 
+/**
+ * setupEventListeners
+ */
 function setupEventListeners() {
     var $wrapper = $('#googlepay-button-wrapper');
     var ctx = $wrapper.length ? $wrapper.data('gpay-context') : '';

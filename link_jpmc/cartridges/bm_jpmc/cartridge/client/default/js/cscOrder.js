@@ -5,8 +5,8 @@
 
     /**
      * Parse a dollar string to a float.
-     * @param {string} val
-     * @returns {number}
+     * @param {string} val - dollar amount string
+     * @returns {number} parsed amount
      */
     function parseDollars(val) {
         var n = parseFloat(val);
@@ -15,8 +15,8 @@
 
     /**
      * Extract max amount from placeholder text.
-     * @param {HTMLInputElement} input
-     * @returns {number}
+     * @param {HTMLInputElement} input - amount input element
+     * @returns {number} max amount from placeholder
      */
     function getMaxFromPlaceholder(input) {
         var placeholder = input.getAttribute('placeholder') || '';
@@ -25,9 +25,9 @@
 
     /**
      * Display inline error message with visual indicator.
-     * @param {HTMLInputElement} input
-     * @param {HTMLElement} errorEl
-     * @param {string} msg
+     * @param {HTMLInputElement} input - input element to highlight
+     * @param {HTMLElement} errorEl - error message container
+     * @param {string} msg - error message text
      */
     function showError(input, errorEl, msg) {
         input.style.borderColor = 'red';
@@ -37,8 +37,8 @@
 
     /**
      * Clear inline error message and visual indicator.
-     * @param {HTMLInputElement} input
-     * @param {HTMLElement} errorEl
+     * @param {HTMLInputElement} input - input element to clear
+     * @param {HTMLElement} errorEl - error message container
      */
     function clearError(input, errorEl) {
         input.style.borderColor = '';
@@ -48,12 +48,12 @@
 
     /**
      * Validate amount form input: format, positive, within max.
-     * @param {HTMLFormElement} form
-     * @param {string} inputId
-     * @param {string} errorId
-     * @param {string} checkboxId
-     * @param {string} exceedsLabel
-     * @returns {boolean}
+     * @param {HTMLFormElement} form - form containing the amount input
+     * @param {string} inputId - ID of the amount input field
+     * @param {string} errorId - ID of the error display element
+     * @param {string} checkboxId - ID of the full-amount checkbox
+     * @param {string} exceedsLabel - error message when amount exceeds maximum
+     * @returns {boolean} true if valid
      */
     function validateAmountForm(form, inputId, errorId, checkboxId, exceedsLabel) {
         var input = form.querySelector('#' + inputId);
@@ -93,9 +93,9 @@
 
     /**
      * Wire full-amount checkbox to toggle amount input enabled state.
-     * @param {string} checkboxId
-     * @param {string} inputId
-     * @param {string} errorId
+     * @param {string} checkboxId - ID of the full-amount checkbox
+     * @param {string} inputId - ID of the amount input field
+     * @param {string} errorId - ID of the error display element
      */
     function wireCheckbox(checkboxId, inputId, errorId) {
         var checkbox = document.getElementById(checkboxId);
@@ -117,7 +117,7 @@
 
     /**
      * Disable submit button to prevent double-submit after validation.
-     * @param {HTMLFormElement} form
+     * @param {HTMLFormElement} form - form containing the submit button
      */
     function preventDoubleSubmit(form) {
         var btn = form.querySelector('button[type="submit"]');
@@ -129,8 +129,8 @@
 
     /**
      * Wire full-amount checkbox to auto-check final-capture checkbox.
-     * @param {HTMLElement} fullCb
-     * @param {HTMLElement} finalCb
+     * @param {HTMLElement} fullCb - full-amount checkbox element
+     * @param {HTMLElement} finalCb - final-capture checkbox element
      */
     function wireFullAmountToFinalCapture(fullCb, finalCb) {
         if (!fullCb || !finalCb) return;
@@ -199,11 +199,11 @@
 
     /**
      * Validate per-capture refund amount.
-     * @param {string} value
-     * @param {HTMLElement} input
-     * @param {HTMLElement} errorEl
-     * @param {string} maxStr
-     * @returns {boolean}
+     * @param {string} value - amount string to validate
+     * @param {HTMLElement} input - amount input element
+     * @param {HTMLElement} errorEl - error message container
+     * @param {string} maxStr - maximum refundable amount string
+     * @returns {boolean} true if valid
      */
     function validateCaptureRefundAmount(value, input, errorEl, maxStr) {
         value = (value || '').trim();

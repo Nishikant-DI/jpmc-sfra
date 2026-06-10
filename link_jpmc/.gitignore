@@ -20,7 +20,6 @@ coverage/
 dw.json
 test/appium/webdriver/config.json
 test/integration/config.json
-package-lock.json
 
 # Data & Reports
 sitegenesisdata/

@@ -16,25 +16,25 @@
 
 // Typography
 .csc-order h1 {
-    font-size: 24px;
+    font-size: 1.5rem;
     font-weight: 700;
-    margin: 0 0 20px;
+    margin: 0 0 1.25rem;
     color: $text;
 }
 
 .csc-order h2 {
-    font-size: 16px;
+    font-size: 1rem;
     font-weight: 600;
-    margin: 25px 0 15px;
+    margin: 1.5625rem 0 0.9375rem;
     color: #003d82;
-    border-bottom: 2px solid $border-accent;
-    padding-bottom: 10px;
+    border-bottom: 0.125rem solid $border-accent;
+    padding-bottom: 0.625rem;
 }
 
 .csc-order h3 {
-    font-size: 13px;
+    font-size: 0.8125rem;
     font-weight: 600;
-    margin: 0 0 10px;
+    margin: 0 0 0.625rem;
     color: $text;
 }
 
@@ -42,20 +42,20 @@
 .csc-order table {
     width: 100%;
     border-collapse: collapse;
-    margin-bottom: 15px;
+    margin-bottom: 0.9375rem;
     table-layout: auto;
-    border: 1px solid $border;
-    border-radius: 3px;
+    border: 0.0625rem solid $border;
+    border-radius: 0.1875rem;
     overflow: hidden;
 }
 
 .csc-order th,
 .csc-order td {
-    border: 1px solid $border;
-    padding: 10px 12px;
+    border: 0.0625rem solid $border;
+    padding: 0.625rem 0.75rem;
     text-align: left;
     vertical-align: middle;
-    font-size: 13px;
+    font-size: 0.8125rem;
 }
 
 .csc-order th {
@@ -66,12 +66,12 @@
 
 // Alert Banners
 .csc-banner {
-    padding: 12px 15px;
-    margin-bottom: 15px;
-    border-radius: 3px;
-    font-size: 13px;
+    padding: 0.75rem 0.9375rem;
+    margin-bottom: 0.9375rem;
+    border-radius: 0.1875rem;
+    font-size: 0.8125rem;
     line-height: 1.5;
-    border-left: 4px solid $border-accent;
+    border-left: 0.25rem solid $border-accent;
 }
 
 .csc-banner--error {
@@ -83,7 +83,7 @@
 .csc-banner--success {
     background-color: #efe;
     border-color: $success;
-    color: #0a0;
+    color: #155724;
 }
 
 .csc-banner--info {
@@ -95,25 +95,25 @@
 .csc-banner--warn {
     background-color: #fef5e6;
     border-color: #ffc107;
-    color: #b8a000;
+    color: #856404;
 }
 
 .csc-banner--compact {
-    padding: 8px 10px;
-    margin: 0 0 10px;
-    font-size: 12px;
+    padding: 0.5rem 0.625rem;
+    margin: 0 0 0.625rem;
+    font-size: 0.75rem;
 }
 
 // Badges
 .csc-badge {
     display: inline-block;
-    padding: 4px 8px;
-    border-radius: 3px;
-    font-size: 11px;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.1875rem;
+    font-size: 0.6875rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    border: 1px solid;
+    letter-spacing: 0.0313rem;
+    border: 0.0625rem solid;
 }
 
 .csc-badge--manual {
@@ -124,13 +124,13 @@
 
 .csc-badge--delayed {
     background-color: #fef5e6;
-    color: #b8a000;
+    color: #856404;
     border-color: #ffc107;
 }
 
 .csc-badge--now {
     background-color: #efe;
-    color: #0a0;
+    color: #155724;
     border-color: $success;
 }
 
@@ -154,7 +154,7 @@
 }
 
 .csc-history-table {
-    font-size: 12px;
+    font-size: 0.75rem;
 }
 
 .csc-history-table td:nth-child(3) {
@@ -165,18 +165,18 @@
 // Action Forms & Controls
 .csc-actions {
     display: flex;
-    gap: 15px;
+    gap: 0.9375rem;
     flex-wrap: wrap;
-    margin: 20px 0;
+    margin: 1.25rem 0;
 }
 
 .csc-action-form {
     flex: 1;
-    min-width: 280px;
+    min-width: 17.5rem;
     max-width: 100%;
-    border: 1px solid $border;
-    border-radius: 3px;
-    padding: 12px 15px;
+    border: 0.0625rem solid $border;
+    border-radius: 0.1875rem;
+    padding: 0.75rem 0.9375rem;
     background-color: $bg-light;
     box-sizing: border-box;
 }
@@ -189,9 +189,9 @@
 
 .csc-action-form__disabled-reason {
     color: $text-light;
-    font-size: 12px;
+    font-size: 0.75rem;
     font-style: italic;
-    margin: 4px 0 0;
+    margin: 0.25rem 0 0;
 }
 
 // Form Elements
@@ -199,8 +199,8 @@
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 10px;
+    gap: 0.5rem;
+    margin-bottom: 0.625rem;
 
     &:last-child {
         margin-bottom: 0;
@@ -208,7 +208,7 @@
 
     label {
         white-space: nowrap;
-        font-size: 13px;
+        font-size: 0.8125rem;
         font-weight: 500;
         color: $text;
     }
@@ -217,43 +217,43 @@
 .csc-checkbox-label {
     display: inline-flex;
     align-items: flex-start;
-    gap: 6px;
+    gap: 0.375rem;
     font-weight: 400;
     cursor: pointer;
     user-select: none;
     white-space: normal;
     line-height: 1.4;
-    font-size: 12px;
+    font-size: 0.75rem;
     color: $text;
 
     input[type='checkbox'] {
-        margin-top: 2px;
+        margin-top: 0.125rem;
         flex-shrink: 0;
         cursor: pointer;
     }
 }
 
 .csc-checkbox-label--sm {
-    font-size: 11px;
-    margin-top: 2px;
+    font-size: 0.6875rem;
+    margin-top: 0.125rem;
     white-space: nowrap;
 }
 
 // Input Fields
 .jpmc-input {
-    border: 1px solid $border;
-    padding: 6px 8px;
-    border-radius: 3px;
-    min-width: 100px;
+    border: 0.0625rem solid $border;
+    padding: 0.375rem 0.5rem;
+    border-radius: 0.1875rem;
+    min-width: 6.25rem;
     font-family: inherit;
-    font-size: 13px;
+    font-size: 0.8125rem;
     color: $text;
     background-color: #fff;
     transition: border-color 0.15s, box-shadow 0.15s;
 
     &:focus {
         border-color: $primary;
-        box-shadow: 0 0 0 2px rgba(0, 112, 210, 0.1);
+        box-shadow: 0 0 0 0.125rem rgba(0, 112, 210, 0.1);
         outline: none;
     }
 
@@ -270,27 +270,27 @@
 }
 
 .jpmc-input--sm {
-    min-width: 80px;
+    min-width: 5rem;
     width: auto;
-    padding: 4px 6px;
-    font-size: 12px;
+    padding: 0.25rem 0.375rem;
+    font-size: 0.75rem;
 }
 
 // Buttons
 .csc-btn {
     font-family: inherit;
-    font-size: 12px;
+    font-size: 0.75rem;
     font-weight: 600;
-    padding: 6px 12px;
-    border-radius: 3px;
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.1875rem;
     border: none;
     cursor: pointer;
     transition: all 0.15s;
     white-space: nowrap;
 
     &:focus {
-        outline: 2px solid $primary;
-        outline-offset: 2px;
+        outline: 0.125rem solid $primary;
+        outline-offset: 0.125rem;
     }
 
     &:disabled {
@@ -327,8 +327,8 @@
 }
 
 .csc-btn--sm {
-    padding: 4px 8px;
-    font-size: 11px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.6875rem;
 }
 
 // Messages & Info
@@ -336,24 +336,24 @@
     display: block;
     color: $error;
     font-weight: 600;
-    font-size: 12px;
-    margin-top: 4px;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
 }
 
 .csc-void-info {
-    font-size: 13px;
+    font-size: 0.8125rem;
     color: $text;
-    margin: 10px 0;
-    padding: 10px 12px;
+    margin: 0.625rem 0;
+    padding: 0.625rem 0.75rem;
     background-color: $bg-light;
-    border: 1px solid $border;
-    border-radius: 3px;
+    border: 0.0625rem solid $border;
+    border-radius: 0.1875rem;
 }
 
 .csc-multi-capture-info {
-    font-size: 12px;
+    font-size: 0.75rem;
     color: $text-light;
-    margin-top: 6px;
+    margin-top: 0.375rem;
 }
 
 // Capture Options
@@ -361,10 +361,10 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 8px;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px solid $border;
+    gap: 0.5rem;
+    margin-top: 0.625rem;
+    padding-top: 0.625rem;
+    border-top: 0.0625rem solid $border;
 }
 
 .csc-capture-options .csc-btn {
@@ -378,14 +378,14 @@
 }
 
 .csc-capture-refund-form {
-    margin: 8px 0 0;
+    margin: 0.5rem 0 0;
 }
 
 .csc-capture-refund-form__row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
+    gap: 0.5rem;
+    margin-bottom: 0.375rem;
 
     &:last-child {
         margin-bottom: 0;
@@ -393,21 +393,21 @@
 }
 
 .csc-capture-refund-form__error {
-    font-size: 11px;
-    margin-top: 4px;
+    font-size: 0.6875rem;
+    margin-top: 0.25rem;
     color: $error;
 }
 
 .csc-capture-refund-form__full-refund {
-    font-size: 11px;
-    margin-top: 4px;
+    font-size: 0.6875rem;
+    margin-top: 0.25rem;
     white-space: nowrap;
     color: $text-light;
 }
 
 .csc-text-muted {
     color: $text-light;
-    font-size: 12px;
+    font-size: 0.75rem;
     font-style: italic;
 }
 

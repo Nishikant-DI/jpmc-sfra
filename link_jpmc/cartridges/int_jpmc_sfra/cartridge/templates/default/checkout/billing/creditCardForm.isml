@@ -4,6 +4,7 @@
 <input type="hidden" class="encryptedData" id="encryptedData" name="${creditFields.encryptedData.htmlName}" value="" />
 
 <isinclude template="checkout/billing/kountConfig" />
+<isinclude template="jpmc/jpmc3DSConfig" />
 
 <div class="row">
     <div class="col-12">

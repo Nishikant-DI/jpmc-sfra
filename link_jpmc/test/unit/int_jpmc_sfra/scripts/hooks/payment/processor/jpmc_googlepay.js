@@ -109,9 +109,9 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_googlepay', functio
                 'dw/system/Transaction': mockTransaction,
                 'dw/order/PaymentMgr': mockPaymentMgr,
                 'dw/web/Resource': mockResource,
-                '*/cartridge/scripts/helpers/jpmcConstants': jpmcConstantsModule,
+                '*/cartridge/scripts/helpers/JPMCConstants': jpmcConstantsModule,
                 '*/cartridge/scripts/util/collections': collectionsModule,
-                '*/cartridge/scripts/helpers/jpmcTransactionHelpers': mockJPMCTransactionHelpers,
+                '*/cartridge/scripts/helpers/JPMCTransactionHelpers': mockJPMCTransactionHelpers,
                 '*/cartridge/scripts/helpers/JPMCMerchantResolver': {
                     resolve: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID' })
                 }

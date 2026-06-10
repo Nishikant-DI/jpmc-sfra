@@ -1,4 +1,5 @@
 'use strict';
+
 var Status = require('dw/system/Status');
 
 /**
@@ -6,9 +7,9 @@ var Status = require('dw/system/Status');
  *
  * @param {Object} parameters    - BM job step parameters
  * @param {dw.job.JobStepExecution} stepExecution - Execution context
- * @returns {dw.system.Status}
+ * @returns {dw.system.Status} result
  */
-exports.execute = function (parameters, stepExecution) {
+exports.execute = function (parameters, stepExecution) { // eslint-disable-line no-unused-vars
     try {
         var Site = require('dw/system/Site');
         var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');

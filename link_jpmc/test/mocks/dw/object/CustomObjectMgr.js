@@ -42,6 +42,40 @@ CustomObjectMgr.getAllCustomObjects = function (type) {
 };
 
 /**
+ * Mock for queryCustomObjects - supports basic status filtering
+ * @param {string} type - Custom Object type ID
+ * @param {string} queryString - Query string (e.g., 'custom.status = {0}')
+ * @param {string} sortString - Sort string (e.g., 'creationDate asc')
+ * @param {...*} args - Query parameters
+ * @returns {Object} SeekableIterator-like object
+ */
+CustomObjectMgr.queryCustomObjects = function (type, queryString, sortString) {
+    var filterValues = Array.prototype.slice.call(arguments, 3);
+    var hasStatusFilter = filterValues.length > 0 && queryString && queryString.indexOf('custom.status') > -1;
+    var results = [];
+    Object.keys(customObjects).forEach(function (key) {
+        var co = customObjects[key];
+        if (co.type === type) {
+            if (hasStatusFilter) {
+                if (co.custom && filterValues.indexOf(co.custom.status) > -1) {
+                    results.push(co);
+                }
+            } else {
+                results.push(co);
+            }
+        }
+    });
+    var index = 0;
+    return {
+        count: results.length,
+        hasNext: function () { return index < results.length; },
+        next: function () { return results[index++]; },
+        close: function () { index = results.length; },
+        getCount: function () { return results.length; }
+    };
+};
+
+/**
  * Helper to reset all custom objects
  */
 CustomObjectMgr.resetAllCustomObjects = function () {

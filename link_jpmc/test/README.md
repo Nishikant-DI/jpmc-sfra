@@ -161,7 +161,7 @@ Comprehensive fraud detection hook integration:
 - Fraud check enabled/disabled behavior
 - Fraud rule action handling (A=Accept, D=Decline, E=Review, R=Review)
 - Risk score & risk level extraction
-- Kount session ID capture
+- Safetech Fraud session ID capture
 - Service failure handling (fail-open pattern)
 - Exception handling & logging
 - Result structure validation

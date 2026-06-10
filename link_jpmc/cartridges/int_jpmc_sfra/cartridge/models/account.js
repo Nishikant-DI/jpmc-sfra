@@ -1,11 +1,12 @@
 'use strict';
+
 var baseAccount = module.superModule;
 var URLUtils = require('dw/web/URLUtils');
 var Customer = require('dw/customer/Customer');
 
 /**
  * @param {Object} pi - payment instrument
- * @returns {string|null}
+ * @returns {string|null} result
  */
 function getMerchantId(pi) {
     if (pi.custom && pi.custom.jpmcMerchantId) {
@@ -18,9 +19,9 @@ function getMerchantId(pi) {
 }
 
 /**
- * @param {Array} paymentInstruments
- * @param {string|null} currentMerchantId
- * @returns {Array}
+ * @param {Array} paymentInstruments - customer payment instruments
+ * @param {string|null} currentMerchantId - active merchant ID for filtering
+ * @returns {Array} filtered payment instruments
  */
 function filterByMerchant(paymentInstruments, currentMerchantId) {
     if (!currentMerchantId || !paymentInstruments || !paymentInstruments.length) {
@@ -35,7 +36,7 @@ function filterByMerchant(paymentInstruments, currentMerchantId) {
 /**
  * Builds a plain payment-summary object from the first matching instrument.
  * @param {Array} instruments - already-filtered payment instruments
- * @returns {Object|null}
+ * @returns {Object|null} result
  */
 function getPayment(instruments) {
     if (!instruments || !instruments.length) {
@@ -53,7 +54,7 @@ function getPayment(instruments) {
 /**
  * Maps raw/wrapped payment instruments into plain objects for templates.
  * @param {Array} instruments - already-filtered payment instruments
- * @returns {Array}
+ * @returns {Array} result
  */
 function mapPaymentInstruments(instruments) {
     if (!instruments || !instruments.length) {

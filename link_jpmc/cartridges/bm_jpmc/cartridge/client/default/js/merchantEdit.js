@@ -12,7 +12,7 @@ var MerchantEditForm = (function() {
 
     var fields = [
         'enabled', 'merchantId', 'clientId', 'resourceId', 'audience',
-        'tokenUri', 'expiresIn', 'certAlias', 'privateKeyAlias', 'kid',
+        'expiresIn', 'certAlias', 'privateKeyAlias', 'kid',
         'pieGetKeyUrl', 'pieEncryptionUrl', 'captureMethod', 'platformId',
         'tokenizationType', 'enableAVS',
         'enableFraudCheck', 'enableFraudCheckAtAuth', 'googlePayEnvironment',
@@ -23,6 +23,9 @@ var MerchantEditForm = (function() {
         'kountEnvironment'
     ];
 
+    /**
+     * Handle locale dropdown changes by loading and applying config data.
+     */
     function onLocaleChange() {
         var localeSelect = document.querySelector(CONFIG.locale.selector);
         var configKeyInput = document.querySelector(CONFIG.locale.configKeyInput);
@@ -44,6 +47,12 @@ var MerchantEditForm = (function() {
         fetchLocaleConfig(url, locale, configKeyInput);
     }
 
+    /**
+     * fetchLocaleConfig
+     * @param {string} baseUrl - base url
+     * @param {string} locale - locale
+     * @param {HTMLElement} configKeyInput - config key input
+     */
     function fetchLocaleConfig(baseUrl, locale, configKeyInput) {
         var xhr = new XMLHttpRequest();
         var url = baseUrl + encodeURIComponent(locale);
@@ -70,6 +79,11 @@ var MerchantEditForm = (function() {
         xhr.send();
     }
 
+    /**
+     * handleConfigResponse
+     * @param {string} responseText - response text
+     * @param {HTMLElement} configKeyInput - config key input
+     */
     function handleConfigResponse(responseText, configKeyInput) {
         try {
             var resp = JSON.parse(responseText);
@@ -82,10 +96,17 @@ var MerchantEditForm = (function() {
         }
     }
 
+    /**
+     * handleConfigError
+     */
     function handleConfigError() {
-        return;
+        
     }
 
+    /**
+     * populateFormFields
+     * @param {Object} data - form field data
+     */
     function populateFormFields(data) {
         if (!data || typeof data !== 'object') {
             return;
@@ -114,6 +135,9 @@ var MerchantEditForm = (function() {
         });
     }
 
+    /**
+     * init
+     */
     function init() {
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', initForm);
@@ -122,6 +146,9 @@ var MerchantEditForm = (function() {
         }
     }
 
+    /**
+     * initForm
+     */
     function initForm() {
         var localeSelect = document.querySelector(CONFIG.locale.selector);
         if (localeSelect) {

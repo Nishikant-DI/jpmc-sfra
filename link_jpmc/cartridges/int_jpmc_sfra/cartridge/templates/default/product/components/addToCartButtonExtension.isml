@@ -11,15 +11,15 @@
     <div class="mt-2 pdp-googlepay-container">
         <div id="googlepay-button-wrapper"
              class="text-center"
-             data-config-url="${URLUtils.https('JpmcGooglePay-GetConfig')}"
-             data-store-url="${URLUtils.https('JpmcGooglePay-StoreToken')}"
-             data-clear-url="${URLUtils.https('JpmcGooglePay-ClearToken')}"
-             data-shipping-details-url="${URLUtils.https('JpmcGooglePay-SelectShippingDetails')}"
-             data-shipping-method-url="${URLUtils.https('JpmcGooglePay-SelectShippingMethod')}"
-             data-submit-order-url="${URLUtils.https('JpmcGooglePay-SubmitOrder')}"
+             data-config-url="${URLUtils.https('JPMCGooglePay-GetConfig')}"
+             data-store-url="${URLUtils.https('JPMCGooglePay-StoreToken')}"
+             data-clear-url="${URLUtils.https('JPMCGooglePay-ClearToken')}"
+             data-shipping-details-url="${URLUtils.https('JPMCGooglePay-SelectShippingDetails')}"
+             data-shipping-method-url="${URLUtils.https('JPMCGooglePay-SelectShippingMethod')}"
+             data-submit-order-url="${URLUtils.https('JPMCGooglePay-SubmitOrder')}"
              data-place-order-url="${URLUtils.https('CheckoutServices-PlaceOrder')}"
-             data-prepare-basket-url="${URLUtils.https('JpmcGooglePay-PrepareBasket')}"
-             data-restore-basket-url="${URLUtils.https('JpmcGooglePay-RestoreBasket')}"
+             data-prepare-basket-url="${URLUtils.https('JPMCGooglePay-PrepareBasket')}"
+             data-restore-basket-url="${URLUtils.https('JPMCGooglePay-RestoreBasket')}"
              data-gpay-context="pdp">
         </div>
         <div id="googlepay-error" class="googlepay-error text-center mt-2 text-danger d-none">

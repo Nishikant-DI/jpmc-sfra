@@ -56,7 +56,7 @@ function getSessionId() {
  */
 function generateUUID() {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-        var r = Math.random() * 16 | 0;
+        var r = Math.trunc(Math.random() * 16);
         var v = c === 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
     });
@@ -132,6 +132,7 @@ function updateSessionIdField(sessionId) {
  * Re-initializes Kount with new session ID
  * Call this when navigating between checkout stages in SPA
  * @param {string} newSessionId - New session ID (optional)
+ * @returns {Object} kount instance
  */
 function refreshKount(newSessionId) {
     if (!kountInstance) {

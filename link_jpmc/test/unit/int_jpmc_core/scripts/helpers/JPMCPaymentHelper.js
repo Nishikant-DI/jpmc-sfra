@@ -108,7 +108,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCPaymentHelper', function () {
             '*/cartridge/scripts/services/JPMCServiceHelper': mockJPMCServiceHelper,
             '*/cartridge/scripts/helpers/JPMCPayloadBuilder': mockJPMCPayloadBuilder,
             '*/cartridge/scripts/helpers/JPMCPaymentOperations': mockJPMCPaymentOperations,
-            '*/cartridge/scripts/helpers/jpmcTransactionHelpers': mockJpmcTransactionHelpers,
+            '*/cartridge/scripts/helpers/JPMCTransactionHelpers': mockJpmcTransactionHelpers,
             '*/cartridge/scripts/helpers/JPMCMerchantResolver': mockJPMCMerchantResolver
         });
     });
@@ -307,19 +307,72 @@ describe('int_jpmc_core/scripts/helpers/JPMCPaymentHelper', function () {
             assert.include(result.error, 'No payment instruments found');
         });
 
-        it('should return error when no authorization transaction found', function () {
+        it('should return error when transaction context cannot be resolved for capture', function () {
             mockPaymentInstrument.paymentTransaction = null;
+            mockJpmcTransactionHelpers.resolveJpmcTransactionId.returns(null);
 
             var result = JPMCPaymentHelper.capturePayment(mockOrder, {});
 
             assert.isFalse(result.success);
-            assert.equal(result.error, 'No authorization transaction found');
+            assert.equal(result.error, 'JPMC transaction ID not found');
         });
 
-        // Note: "JPMC transaction ID not found" error is unreachable in practice because
-        // the fallback is paymentTransaction.getTransactionID(), and if that's empty,
-        // the earlier check "!paymentTransaction.getTransactionID()" catches it first.
-        // Skipping this test case as it represents unreachable code.
+        it('should return error when JPMC transaction ID not found (lines 177-179)', function () {
+            mockJpmcTransactionHelpers.resolveJpmcTransactionId.returns(null);
+
+            var result = JPMCPaymentHelper.capturePayment(mockOrder, {});
+
+            assert.isFalse(result.success);
+            assert.equal(result.error, 'JPMC transaction ID not found');
+        });
+
+        it('should return error when merchant ID not configured for capture (lines 197-199)', function () {
+            mockJPMCMerchantResolver.resolveForOrder.returns({ merchantId: null });
+
+            var result = JPMCPaymentHelper.capturePayment(mockOrder, {});
+
+            assert.isFalse(result.success);
+            assert.equal(result.error, 'Merchant ID not configured');
+        });
+
+        it('should set PAYMENT_STATUS_PARTPAID when partial capture (line 261)', function () {
+            mockJPMCServiceHelper.callWithTokenGeneration.returns({
+                success: true,
+                data: {
+                    responseStatus: 'SUCCESS',
+                    transactionState: 'CLOSED',
+                    transactionId: 'CAP-PARTIAL'
+                }
+            });
+
+            // Capture less than total (100.00); pass 50.00
+            var result = JPMCPaymentHelper.capturePayment(mockOrder, { amount: 50.00 });
+
+            assert.isTrue(result.success);
+            assert.equal(mockOrder.paymentStatus, mockOrder.PAYMENT_STATUS_PARTPAID);
+        });
+
+        it('should log warn when jpmcCaptureHistory is invalid JSON (line 261)', function () {
+            mockPaymentTxn.custom.jpmcCaptureHistory = 'INVALID_JSON{{{';
+
+            mockJPMCServiceHelper.callWithTokenGeneration.returns({
+                success: true,
+                data: {
+                    responseStatus: 'SUCCESS',
+                    transactionState: 'CLOSED',
+                    transactionId: 'CAP-BADHIST'
+                }
+            });
+
+            var result = JPMCPaymentHelper.capturePayment(mockOrder, {});
+
+            assert.isTrue(result.success);
+            var logger = mockLogger.getLogger('JPMC', 'payment');
+            var warned = logger.warnMessages.some(function (args) {
+                return args.join(' ').indexOf('jpmcCaptureHistory') > -1;
+            });
+            assert.isTrue(warned, 'Should have warned about bad captureHistory');
+        });
 
         it('should successfully capture payment with default amount', function () {
             mockJPMCServiceHelper.callWithTokenGeneration.returns({
@@ -508,8 +561,200 @@ describe('int_jpmc_core/scripts/helpers/JPMCPaymentHelper', function () {
             assert.include(result.error, 'No payment instruments found');
         });
 
-        // Note: "JPMC transaction ID not found" error is unreachable in refundPayment
-        // for the same reason as in capturePayment - skipping this test case.
+        it('should return error when transaction context cannot be resolved for refund', function () {
+            // Make getTransactionID return null so the !paymentTransaction.getTransactionID() check fires
+            mockPaymentTxn.getTransactionID = sinon.stub().returns(null);
+            mockJpmcTransactionHelpers.resolveJpmcTransactionId.returns(null);
+
+            var result = JPMCPaymentHelper.refundPayment(mockOrder, {});
+
+            assert.isFalse(result.success);
+            assert.equal(result.error, 'JPMC transaction ID not found');
+        });
+
+        it('should return error when jpmcTransactionId is null (lines 365-367)', function () {
+            mockJpmcTransactionHelpers.resolveJpmcTransactionId.returns(null);
+
+            var result = JPMCPaymentHelper.refundPayment(mockOrder, {});
+
+            assert.isFalse(result.success);
+            assert.equal(result.error, 'JPMC transaction ID not found');
+        });
+
+        it('should return error when merchantId not configured for refund (lines 374-376)', function () {
+            mockJPMCMerchantResolver.resolveForOrder.returns({ merchantId: null });
+
+            var result = JPMCPaymentHelper.refundPayment(mockOrder, {});
+
+            assert.isFalse(result.success);
+            assert.equal(result.error, 'Merchant ID not configured');
+        });
+
+        it('should handle multi-capture with refundHistory per-capture tracking (lines 392-402)', function () {
+            mockPaymentTxn.custom.jpmcCaptureHistory = JSON.stringify([
+                { transactionId: 'CAP001', amount: 5000 },
+                { transactionId: 'CAP002', amount: 5000 }
+            ]);
+            // Invalid JSON for refundHistory → hits catch at line 402
+            mockPaymentTxn.custom.jpmcRefundHistory = 'INVALID_JSON{{{';
+
+            mockJPMCServiceHelper.callWithTokenGeneration.returns({
+                success: true,
+                data: {
+                    responseStatus: 'SUCCESS',
+                    transactionId: 'REF-MC-001',
+                    transactionState: 'CLOSED',
+                    amount: 3000
+                }
+            });
+
+            var result = JPMCPaymentHelper.refundPayment(mockOrder, { amount: 30.00 });
+
+            assert.isTrue(result.success);
+        });
+
+        it('should handle single-capture history using captureHistory[0].transactionId (line 402)', function () {
+            mockPaymentTxn.custom.jpmcCaptureHistory = JSON.stringify([
+                { transactionId: 'CAP-ONLY-ONE', amount: 10000 }
+            ]);
+
+            mockJPMCServiceHelper.callWithTokenGeneration.returns({
+                success: true,
+                data: {
+                    responseStatus: 'SUCCESS',
+                    transactionId: 'REF-SINGLE',
+                    transactionState: 'CLOSED',
+                    amount: 10000
+                }
+            });
+
+            var result = JPMCPaymentHelper.refundPayment(mockOrder, {});
+
+            assert.isTrue(result.success);
+            var buildArgs = mockJPMCPayloadBuilder.buildRefundPayload.firstCall.args[0];
+            assert.equal(buildArgs.transactionReferenceId, 'CAP-ONLY-ONE');
+        });
+
+        it('should warn and fall back when jpmcCaptureHistory is invalid JSON (line 425)', function () {
+            mockPaymentTxn.custom.jpmcCaptureHistory = 'BAD_JSON{{';
+
+            mockJPMCServiceHelper.callWithTokenGeneration.returns({
+                success: true,
+                data: {
+                    responseStatus: 'SUCCESS',
+                    transactionId: 'REF-BADCAP',
+                    transactionState: 'CLOSED',
+                    amount: 10000
+                }
+            });
+
+            var result = JPMCPaymentHelper.refundPayment(mockOrder, {});
+
+            assert.isTrue(result.success);
+        });
+
+        it('should warn when existing jpmcRefundHistory is invalid JSON (line 517)', function () {
+            // Set existing invalid refundHistory to trigger the catch when writing
+            mockPaymentTxn.custom.jpmcRefundHistory = 'BAD_REFUND_JSON{{';
+
+            mockJPMCServiceHelper.callWithTokenGeneration.returns({
+                success: true,
+                data: {
+                    responseStatus: 'SUCCESS',
+                    transactionId: 'REF-BADHIST',
+                    transactionState: 'CLOSED',
+                    amount: 10000
+                }
+            });
+
+            var result = JPMCPaymentHelper.refundPayment(mockOrder, {});
+
+            assert.isTrue(result.success);
+        });
+
+        it('should handle cents conversion and reject refund exceeding remaining (lines 421-425,441)', function () {
+            // capturedDollarsForValidation=15000 > authDollars*2 (50*2=100 < 15000) → /100 = 150
+            // refundedDollarsForValidation=2000 > 100 → /100 = 20
+            // remainingRefundable = 150-20 = 130
+            // refundAmount=200 > 130 → reject
+            mockPaymentTxn.custom.jpmcCapturedAmount = 15000;
+            mockPaymentTxn.custom.jpmcRefundedAmount = 2000;
+            mockPaymentTxn.amount = { value: 50.00 };
+
+            var result = JPMCPaymentHelper.refundPayment(mockOrder, { amount: 200.00 });
+
+            assert.isFalse(result.success);
+            assert.include(result.error, 'exceeds remaining refundable amount');
+        });
+
+        it('should return error when refund response is not SUCCESS (lines 514-517)', function () {
+            mockJPMCServiceHelper.callWithTokenGeneration.returns({
+                success: true,
+                data: {
+                    responseStatus: 'DECLINED',
+                    responseMessage: 'Card declined'
+                }
+            });
+
+            var result = JPMCPaymentHelper.refundPayment(mockOrder, {});
+
+            assert.isFalse(result.success);
+            assert.include(result.error, 'Card declined');
+        });
+
+        it('should append reason to refund note (line 544)', function () {
+            mockJPMCServiceHelper.callWithTokenGeneration.returns({
+                success: true,
+                data: {
+                    responseStatus: 'SUCCESS',
+                    transactionId: 'REF-REASON',
+                    transactionState: 'CLOSED',
+                    amount: 10000
+                }
+            });
+
+            var result = JPMCPaymentHelper.refundPayment(mockOrder, { reason: 'Customer requested' });
+
+            assert.isTrue(result.success);
+        });
+
+        it('should append remainingRefundableAmount to note (line 548)', function () {
+            mockJPMCServiceHelper.callWithTokenGeneration.returns({
+                success: true,
+                data: {
+                    responseStatus: 'SUCCESS',
+                    transactionId: 'REF-REMAIN',
+                    transactionState: 'CLOSED',
+                    amount: 5000,
+                    remainingRefundableAmount: 5000
+                }
+            });
+
+            var result = JPMCPaymentHelper.refundPayment(mockOrder, { amount: 50.00 });
+
+            assert.isTrue(result.success);
+        });
+
+        it('should set PAYMENT_STATUS_PARTPAID when partial refund (line 458-460)', function () {
+            mockPaymentTxn.custom.jpmcCapturedAmount = 100.00;
+            mockPaymentTxn.custom.jpmcRefundedAmount = 0;
+
+            mockJPMCServiceHelper.callWithTokenGeneration.returns({
+                success: true,
+                data: {
+                    responseStatus: 'SUCCESS',
+                    transactionId: 'REF-PART',
+                    transactionState: 'CLOSED',
+                    amount: 5000
+                }
+            });
+
+            // After this refund: jpmcRefundedAmount = 0 + 50 = 50, capturedAmount=100 → partial
+            var result = JPMCPaymentHelper.refundPayment(mockOrder, { amount: 50.00 });
+
+            assert.isTrue(result.success);
+            assert.equal(mockOrder.paymentStatus, mockOrder.PAYMENT_STATUS_PARTPAID);
+        });
 
         it('should successfully refund full payment', function () {
             mockJPMCServiceHelper.callWithTokenGeneration.returns({

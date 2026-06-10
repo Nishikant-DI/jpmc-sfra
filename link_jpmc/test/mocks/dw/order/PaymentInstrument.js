@@ -12,6 +12,7 @@ function PaymentInstrument() {
     this.creditCardExpirationYear = null;
     this.creditCardType = null;
     this.creditCardHolder = null;
+    this.lineItemCtnr = null;
     this.custom = {};
 }
 
@@ -78,6 +79,10 @@ PaymentInstrument.prototype.setCreditCardHolder = function (holder) {
 
 PaymentInstrument.prototype.getCreditCardHolder = function () {
     return this.creditCardHolder;
+};
+
+PaymentInstrument.prototype.getLineItemCtnr = function () {
+    return this.lineItemCtnr;
 };
 
 /**

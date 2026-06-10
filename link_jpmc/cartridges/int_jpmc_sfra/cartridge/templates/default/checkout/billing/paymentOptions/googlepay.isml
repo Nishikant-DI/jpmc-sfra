@@ -7,9 +7,9 @@
 
         <div class="googlepay-button-container">
             <div id="googlepay-button-wrapper" class="text-center"
-                 data-config-url="${URLUtils.https('JpmcGooglePay-GetConfig')}"
-                 data-store-url="${URLUtils.https('JpmcGooglePay-StoreToken')}"
-                 data-clear-url="${URLUtils.https('JpmcGooglePay-ClearToken')}"
+                 data-config-url="${URLUtils.https('JPMCGooglePay-GetConfig')}"
+                 data-store-url="${URLUtils.https('JPMCGooglePay-StoreToken')}"
+                 data-clear-url="${URLUtils.https('JPMCGooglePay-ClearToken')}"
                  data-gpay-context="checkout">
             </div>
 

@@ -1,13 +1,13 @@
 'use strict';
 
 var Logger = require('dw/system/Logger').getLogger('JPMC', 'config');
-var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
+var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
 /**
- * @param {dw.system.SitePreferences} prefs
- * @param {string} key
- * @param {boolean} [required]
- * @returns {*}
+ * @param {dw.system.SitePreferences} prefs - site preferences custom attributes
+ * @param {string} key - preference attribute name
+ * @param {boolean} [required] - whether to log error if missing
+ * @returns {string|boolean|number|Object|null} preference value
  */
 function getSitePreference(prefs, key, required) {
     if (!prefs) {
@@ -29,30 +29,33 @@ function getSitePreference(prefs, key, required) {
 }
 
 /**
- * @returns {Object}
+ * @returns {Object} result
  * @throws {Error}
  */
 function getAccessTokenConfig() {
     var Site = require('dw/system/Site');
     var prefs = Site.getCurrent().getPreferences();
 
+    var resourceIdPref = getSitePreference(prefs, 'JPMCResourceID', true);
+    var resourceId = (resourceIdPref && typeof resourceIdPref === 'object' && resourceIdPref.value)
+        ? resourceIdPref.value : resourceIdPref;
+
     return {
         client_id: getSitePreference(prefs, 'JPMCClientID', true),
         merchantId: getSitePreference(prefs, 'JPMC_MerchantCode', true),
         certAlias: getSitePreference(prefs, 'JPMCCertAlias', false) || constants.DEFAULT_CERT_ALIAS,
         privateKeyAlias: getSitePreference(prefs, 'JPMCPrivateKeyAlias', false) || constants.DEFAULT_KEY_ALIAS,
-        expiresIn: getSitePreference(prefs, 'JPMCExpiresIn', false) || constants.DEFAULT_EXPIRES_IN,
-        audience: getSitePreference(prefs, 'JPMCAudience', true),
-        resource_id: getSitePreference(prefs, 'JPMCResourceID', true),
-        ida_url: getSitePreference(prefs, 'JPMCTokenURI', true),
+        audience: 'https://idag2.jpmorganchase.com/adfs/oauth2/token',
+        resource_id: resourceId,
+        ida_url: 'https://idag2.jpmorganchase.com/adfs/oauth2/token',
         kid: getSitePreference(prefs, 'jpmc_kid', false)
     };
 }
 
 /**
- * @param {string} key
- * @param {boolean} [required]
- * @returns {*}
+ * @param {string} key - preference attribute name
+ * @param {boolean} [required] - whether to log error if missing
+ * @returns {string|boolean|number|Object|null} preference value
  */
 function getPreference(key, required) {
     var Site = require('dw/system/Site');
@@ -60,7 +63,7 @@ function getPreference(key, required) {
 }
 
 /**
- * @returns {Object}
+ * @returns {Object} result
  * @throws {Error}
  */
 function getConfig() {
@@ -82,7 +85,7 @@ function getConfig() {
 }
 
 /**
- * @returns {string}
+ * @returns {string} result
  */
 function getCaptureMethod() {
     var methodPref = getPreference('JPMCCaptureMethod', false);
@@ -99,7 +102,7 @@ function getCaptureMethod() {
 }
 
 /**
- * @returns {boolean}
+ * @returns {boolean} result
  */
 function isFraudCheckEnabled() {
     var val = getPreference('JPMCEnableFraudCheck', false);
@@ -107,7 +110,7 @@ function isFraudCheckEnabled() {
 }
 
 /**
- * @returns {boolean}
+ * @returns {boolean} result
  */
 function isFraudCheckEnabledAtAuth() {
     var val = getPreference('JPMCEnableFraudCheckAtAuth', false);
@@ -117,7 +120,7 @@ function isFraudCheckEnabledAtAuth() {
 /**
  * Checks if Address Verification Service (AVS) is enabled
  * When enabled, billing address is included in Verify and Auth API payloads
- * @returns {boolean}
+ * @returns {boolean} result
  */
 function isAVSEnabled() {
     var val = getPreference('JPMCEnableAVS', false);
@@ -127,7 +130,7 @@ function isAVSEnabled() {
 /**
  * Gets Google Pay configuration from site preferences.
  * All values must come from Site Preferences — no hardcoded defaults.
- * @returns {Object}
+ * @returns {Object} result
  */
 function getGooglePayConfig() {
     var Site = require('dw/system/Site');
@@ -219,7 +222,7 @@ function getGooglePayConfig() {
 /**
  * Returns whether Google Pay should be shown on the cart page.
  * Checkout always shows Google Pay; this flag additionally enables it on the cart.
- * @returns {boolean}
+ * @returns {boolean} result
  */
 function isGooglePayOnCartEnabled() {
     var val = getPreference('JPMCGooglePayCartEnabled', false);
@@ -228,10 +231,56 @@ function isGooglePayOnCartEnabled() {
 
 /**
  * Returns whether Google Pay should be shown on the product detail page.
- * @returns {boolean}
+ * @returns {boolean} result
  */
 function isGooglePayOnPDPEnabled() {
     var val = getPreference('JPMCGooglePayPDPEnabled', false);
+    return val === true || val === 'true';
+}
+
+/**
+ * @returns {string} One of NONE | NOTIFICATIONS | REAL_TIME | BOTH
+ */
+function getAccountUpdaterMode() {
+    var ALLOWED = ['NONE', 'NOTIFICATIONS', 'REAL_TIME', 'BOTH'];
+    try {
+        var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+        var resolvedConfig = JPMCMerchantResolver.resolve();
+        var raw = resolvedConfig && resolvedConfig.accountUpdaterMode;
+        if (raw && typeof raw === 'object' && raw.value) {
+            raw = raw.value;
+        }
+        if (typeof raw === 'string' && ALLOWED.indexOf(raw) !== -1) {
+            return raw;
+        }
+    } catch (e) {
+        Logger.warn('getAccountUpdaterMode: Resolver failed: {0}', e instanceof Error ? e.message : String(e));
+    }
+    return 'NONE';
+}
+
+/**
+ * @returns {boolean} true when async webhook notifications are enabled.
+ */
+function isAccountUpdaterNotificationsEnabled() {
+    var mode = getAccountUpdaterMode();
+    return mode === 'NOTIFICATIONS' || mode === 'BOTH';
+}
+
+/**
+ * @returns {boolean} true when Real-Time Account Updater is enabled in checkout.
+ */
+function isAccountUpdaterRTAUEnabled() {
+    var mode = getAccountUpdaterMode();
+    return mode === 'REAL_TIME' || mode === 'BOTH';
+}
+
+/**
+ * Checks if 3D Secure authentication is enabled
+ * @returns {boolean} result
+ */
+function is3DSEnabled() {
+    var val = getPreference('jpmc3DSEnabled', false);
     return val === true || val === 'true';
 }
 
@@ -245,5 +294,9 @@ module.exports = {
     isGooglePayOnPDPEnabled: isGooglePayOnPDPEnabled,
     isFraudCheckEnabled: isFraudCheckEnabled,
     isFraudCheckEnabledAtAuth: isFraudCheckEnabledAtAuth,
-    isAVSEnabled: isAVSEnabled
+    isAVSEnabled: isAVSEnabled,
+    getAccountUpdaterMode: getAccountUpdaterMode,
+    isAccountUpdaterNotificationsEnabled: isAccountUpdaterNotificationsEnabled,
+    isAccountUpdaterRTAUEnabled: isAccountUpdaterRTAUEnabled,
+    is3DSEnabled: is3DSEnabled
 };

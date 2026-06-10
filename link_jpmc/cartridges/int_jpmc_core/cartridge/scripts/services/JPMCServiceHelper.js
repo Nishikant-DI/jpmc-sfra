@@ -12,16 +12,16 @@ var Logger = require('dw/system/Logger').getLogger('JPMC', 'service');
 var SENSITIVE_FIELDS = [
     'accountNumber', 'cardNumber', 'maskedAccountNumber',
     'cvv', 'encryptionIntegrityCheck', 'tokenNumber',
-    'expirationMonth', 'expirationYear',
-    'lastName', 'line1', 'fullName', 'email', 'phoneNumber',
-    'accessToken', 'access_token', 'client_assertion', 'client_id'
+    'expirationMonth', 'expirationYear', 'cardExpirationMonthYearNumber',
+    'lastName', 'line1', 'fullName', 'email', 'phoneNumber', 'Authorization', 'authorization', 'headerFields',
+    'accessToken', 'access_token', 'client_assertion', 'client_id', 'client_assertion_type', 'client-assertion-type', 'resource', 'grant_type'
 ];
 
 /**
  * Masks sensitive fields in a log message string (for filterLogMessage callback)
  * @private
- * @param {string} msg
- * @returns {string}
+ * @param {string} msg - log message to sanitize
+ * @returns {string} message with sensitive values masked
  */
 function maskSensitiveData(msg) {
     var masked = msg;
@@ -45,8 +45,8 @@ function maskSensitiveData(msg) {
 
 /**
  * @private
- * @param {Object} obj
- * @returns {string}
+ * @param {Object} obj - key-value pairs to encode
+ * @returns {string} URL-encoded form data
  */
 function encodeFormData(obj) {
     var parts = [];
@@ -64,8 +64,8 @@ function encodeFormData(obj) {
 /**
  * Validates URL suffix
  * @private
- * @param {string} urlSuffix
- * @returns {string|null}
+ * @param {string} urlSuffix - path to append to service URL
+ * @returns {string|null} result
  */
 function validateUrlSuffix(urlSuffix) {
     if (!urlSuffix) {
@@ -84,8 +84,8 @@ function validateUrlSuffix(urlSuffix) {
 /**
  * Validates placeholder ID for injection attacks (whitelist)
  * @private
- * @param {string} placeHolderId
- * @returns {string|null}
+ * @param {string} placeHolderId - service credential placeholder identifier
+ * @returns {string|null} validated ID or null
  */
 function validatePlaceHolderId(placeHolderId) {
     if (!placeHolderId) {
@@ -100,9 +100,9 @@ function validatePlaceHolderId(placeHolderId) {
 
 /**
  * Calls a service using SFCC Service Framework
- * @param {string} serviceId
- * @param {Object} params
- * @returns {Object}
+ * @param {string} serviceId - SFCC service identifier
+ * @param {Object} params - service call parameters
+ * @returns {Object} service call result with ok, data, statusCode, errorMessage
  */
 function callService(serviceId, params) {
     var LocalServiceRegistry = require('dw/svc/LocalServiceRegistry');
@@ -199,8 +199,8 @@ function callService(serviceId, params) {
 
 /**
  * Generates token and calls service in one operation
- * @param {Object} options
- * @returns {Object}
+ * @param {Object} options - token generation and service call options
+ * @returns {Object} service call result
  */
 function callWithTokenGeneration(options) {
     if (!options || !options.tokenServiceId || !options.serviceId || !options.method) {
@@ -267,5 +267,6 @@ function callWithTokenGeneration(options) {
 }
 
 module.exports = {
-    callWithTokenGeneration: callWithTokenGeneration
+    callWithTokenGeneration: callWithTokenGeneration,
+    maskSensitiveData: maskSensitiveData
 };

@@ -7,6 +7,9 @@
 
     var $genBtnEarly = document.getElementById('genBtn');
 
+    /**
+     * abortInit
+     */
     function abortInit() {
         if ($genBtnEarly) { $genBtnEarly.disabled = true; }
     }
@@ -81,7 +84,7 @@
 
     /**
      * Returns the configKey for the currently selected scope from the server-rendered data attribute.
-     * @returns {string}
+     * @returns {string} config key for selected locale
      */
     function resolveConfigKey() {
         var opt = $locale.options[$locale.selectedIndex];
@@ -112,7 +115,7 @@
         } else if (hasCO) {
             $hint.textContent = 'Scope: ' + configKey +
                 (hasKid ? ' \u2014 KID already configured. Generating will overwrite it.'
-                        : ' \u2014 KID not yet set for this config.');
+                    : ' \u2014 KID not yet set for this config.');
         } else {
             $hint.textContent = 'No merchant config exists for locale "' + locale +
                 '" yet. A new Custom Object (' + siteId + '::' + locale +
@@ -126,8 +129,8 @@
     }
 
     /**
-     * @param {string} text
-     * @param {string} type
+     * @param {string} text - message text to display
+     * @param {string} type - message type (error or info)
      */
     function showMsg(text, type) {
         $msgContent.textContent = text;
@@ -135,14 +138,17 @@
         $msgTable.className = 'info-section ' + ((type === 'error') ? 'error_box' : 'alert alert-info');
     }
 
+    /**
+     * hideMsg
+     */
     function hideMsg() {
         $msgBox.className = 'hidden';
     }
 
     /**
-     * @param {string} url
-     * @param {string} data
-     * @param {Function} cb
+     * @param {string} url - endpoint URL
+     * @param {string} data - URL-encoded POST body
+     * @param {Function} cb - success callback
      */
     function post(url, data, cb) {
         var xhr = new XMLHttpRequest();

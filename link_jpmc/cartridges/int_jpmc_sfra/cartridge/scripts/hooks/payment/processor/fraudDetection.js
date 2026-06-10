@@ -7,12 +7,12 @@ var Logger = require('dw/system/Logger').getLogger('JPMC', 'fraud');
  * Performs fraud detection check for JPMC SAFETECH
  * Hook: app.safetech.fraud.detection
  * 
- * @param {dw.order.Basket|dw.order.Order} basketOrOrder
- * @param {dw.order.PaymentInstrument} paymentInstrument
- * @param {Object} [options]
- * @param {String} [options.accountNumberType]
- * @param {String} [options.orderNo]
- * @returns {Object}
+ * @param {dw.order.Basket|dw.order.Order} basketOrOrder - basket or order to check
+ * @param {dw.order.PaymentInstrument} paymentInstrument - payment instrument with card data
+ * @param {Object} [options] - fraud detection options
+ * @param {string} [options.accountNumberType] - card number encryption type
+ * @param {string} [options.orderNo] - order number for logging
+ * @returns {Object} fraud detection result
  */
 function fraudDetection(basketOrOrder, paymentInstrument, options) {
     var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
@@ -54,7 +54,7 @@ function fraudDetection(basketOrOrder, paymentInstrument, options) {
         var kountSessionId = (paymentInstrument.custom && paymentInstrument.custom.kountSessionId) 
             ? paymentInstrument.custom.kountSessionId 
             : null;
-        var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+        var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
         var accountNumberType = jpmcConstants.ACCOUNT_NUMBER_TYPE_PIE;
         if (options && options.accountNumberType) {
             accountNumberType = options.accountNumberType;
@@ -138,6 +138,7 @@ function fraudDetection(basketOrOrder, paymentInstrument, options) {
             result.errorCode = 'FRAUD_SERVICE_ERROR';
             result.errorMessage = fraudResult.error || 'Fraud check service error';
             result.action = 'FAIL_OPEN';
+            result.captureMethod = 'MANUAL';
             
             if (orderNo) {
                 Logger.error('FRAUD_FAIL_OPEN - Order: {0} - Fraud service unavailable, proceeding with order', orderNo);
@@ -164,6 +165,7 @@ function fraudDetection(basketOrOrder, paymentInstrument, options) {
         result.errorCode = 'FRAUD_EXCEPTION';
         result.errorMessage = 'Fraud check exception: ' + errorMsg;
         result.action = 'FAIL_OPEN';
+        result.captureMethod = 'MANUAL';
         
         return result;
     }

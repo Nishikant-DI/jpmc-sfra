@@ -16,11 +16,11 @@ $border-accent: #0070d2;
 
 @mixin jpmc-shared-components {
     .btn {
-        padding: 8px 14px;
+        padding: 0.5rem 0.875rem;
         text-decoration: none;
-        border-radius: 3px;
+        border-radius: 0.1875rem;
         font-weight: 600;
-        font-size: 13px;
+        font-size: 0.8125rem;
         display: inline-block;
         cursor: pointer;
         border: none;
@@ -38,7 +38,7 @@ $border-accent: #0070d2;
         &.btn-secondary {
             background: #fff;
             color: $text;
-            border: 1px solid $border;
+            border: 0.0625rem solid $border;
 
             &:hover {
                 background: $secondary;
@@ -48,7 +48,7 @@ $border-accent: #0070d2;
         &.btn-link {
             background: none;
             color: $text;
-            padding: 8px 14px;
+            padding: 0.5rem 0.875rem;
             border: none;
 
             &:hover {
@@ -58,11 +58,11 @@ $border-accent: #0070d2;
     }
 
     .error-message {
-        margin: 15px 0 20px;
-        padding: 12px 15px;
+        margin: 0.9375rem 0 1.25rem;
+        padding: 0.75rem 0.9375rem;
         background-color: #fee;
-        border-left: 4px solid $error;
-        border-radius: 3px;
+        border-left: 0.25rem solid $error;
+        border-radius: 0.1875rem;
         color: $error;
         font-weight: 500;
     }

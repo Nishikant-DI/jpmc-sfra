@@ -4,8 +4,10 @@ var ISML = require('dw/template/ISML');
 var Transaction = require('dw/system/Transaction');
 var Resource = require('dw/web/Resource');
 var OrderMgr = require('dw/order/OrderMgr');
+var Order = require('dw/order/Order');
 var PaymentTransaction = require('dw/order/PaymentTransaction');
 var csrfProtection = require('dw/web/CSRFProtection');
+var Logger = require('dw/system/Logger').getLogger('JPMC', 'jpmc_payment_csc');
 
 var CSCHelper = require('~/cartridge/scripts/helpers/CSCPaymentHelpers');
 
@@ -15,7 +17,7 @@ var AMOUNT_REGEX = CSCHelper.AMOUNT_REGEX;
 var DELAYED_CAPTURE_WINDOW_MINUTES = CSCHelper.DELAYED_CAPTURE_WINDOW_MINUTES;
 
 /**
- * @returns {{tokenName: string, token: string}}
+ * @returns {Object} csrf block
  */
 function buildCsrfBlock() {
     return {
@@ -25,7 +27,7 @@ function buildCsrfBlock() {
 }
 
 /**
- * @param {Object} viewData
+ * @param {Object} viewData - template view data
  */
 function renderOrder(viewData) {
     viewData.csrf = buildCsrfBlock();
@@ -33,9 +35,28 @@ function renderOrder(viewData) {
 }
 
 /**
- * @param {string|null} amountParam
- * @param {number} fallback
- * @returns {{amount: number|null, error: string|null}}
+ * @param {dw.order.Order} order - order to update
+ * @param {number} status - order status constant
+ */
+function setOrderStatus(order, status) {
+    if (!order || typeof status !== 'number') {
+        return;
+    }
+
+    try {
+        order.setStatus(status);
+    } catch (e) {
+        Logger.warn('setOrderStatus: unable to set order {0} to status {1}: {2}',
+            order.orderNo,
+            status,
+            String(e));
+    }
+}
+
+/**
+ * @param {string|null} amountParam - amount string from request parameter
+ * @param {number} fallback - fallback amount
+ * @returns {Object} parsed amount result
  */
 function validateAndParseAmount(amountParam, fallback) {
     if (!amountParam) return { amount: fallback, error: null };
@@ -50,11 +71,11 @@ function validateAndParseAmount(amountParam, fallback) {
 }
 
 /**
- * @param {dw.order.PaymentTransaction} paymentTransaction
- * @param {number} authorizedAmount
- * @param {number} capturedAmount
- * @param {number} refundedAmount
- * @returns {{paymentStatus: string, capturedAmount: number, remainingAuthAmount: number, remainingRefundableAmount: number}}
+ * @param {dw.order.PaymentTransaction} paymentTransaction - order payment transaction
+ * @param {number} authorizedAmount - total authorized amount in cents
+ * @param {number} capturedAmount - total captured amount in cents
+ * @param {number} refundedAmount - total refunded amount in cents
+ * @returns {Object} payment status details
  */
 function derivePaymentStatus(paymentTransaction, authorizedAmount, capturedAmount, refundedAmount) {
     var custom = paymentTransaction.custom;
@@ -103,8 +124,8 @@ function derivePaymentStatus(paymentTransaction, authorizedAmount, capturedAmoun
 }
 
 /**
- * @param {Array} captureHistory
- * @param {Array} refundHistory
+ * @param {Array} captureHistory - list of capture records
+ * @param {Array} refundHistory - list of refund records
  */
 function enrichCaptureHistory(captureHistory, refundHistory) {
     if (!captureHistory.length || !refundHistory) return;
@@ -129,8 +150,8 @@ function enrichCaptureHistory(captureHistory, refundHistory) {
 }
 
 /**
- * @param {dw.order.Order} order
- * @returns {Object}
+ * @param {dw.order.Order} order - order to query
+ * @returns {Object} payment details for CSC display
  */
 function getOrderPaymentDetails(order) {
     var instruments = order.getPaymentInstruments();
@@ -206,10 +227,10 @@ function getOrderPaymentDetails(order) {
 }
 
 /**
- * @param {dw.order.Order} order
- * @param {Object} paymentDetails
- * @param {Object} params
- * @returns {{error: Object, successMessage: string|null, paymentDetails: Object}}
+ * @param {dw.order.Order} order - order to capture
+ * @param {Object} paymentDetails - payment details
+ * @param {Object} params - request params
+ * @returns {Object} capture result
  */
 function handleCapture(order, paymentDetails, params) {
     var JPMCPaymentHelper = require('*/cartridge/scripts/helpers/JPMCPaymentHelper');
@@ -268,6 +289,11 @@ function handleCapture(order, paymentDetails, params) {
         var txCustom = paymentDetails.paymentInstrument.paymentTransaction.custom;
         txCustom.jpmcPaymentStatus = isFinalCapture ? PAYMENT_STATUS.CAPTURED : PAYMENT_STATUS.PARTIAL_CAPTURED;
         if (isFinalCapture) txCustom.jpmcRemainingAuthAmount = 0;
+        if (isFinalCapture) {
+            setOrderStatus(order, Order.ORDER_STATUS_COMPLETED);
+        } else {
+            setOrderStatus(order, Order.ORDER_STATUS_OPEN);
+        }
     });
 
     return {
@@ -278,10 +304,10 @@ function handleCapture(order, paymentDetails, params) {
 }
 
 /**
- * @param {dw.order.Order} order
- * @param {Object} paymentDetails
- * @param {Object} params
- * @returns {{error: Object, successMessage: string|null, paymentDetails: Object}}
+ * @param {dw.order.Order} order - order to refund
+ * @param {Object} paymentDetails - payment details
+ * @param {Object} params - request params
+ * @returns {Object} refund result
  */
 function handleRefund(order, paymentDetails, params) {
     var JPMCPaymentHelper = require('*/cartridge/scripts/helpers/JPMCPaymentHelper');
@@ -384,6 +410,7 @@ function handleRefund(order, paymentDetails, params) {
         txCustom.jpmcPaymentStatus = refundAmount >= paymentDetails.amounts.remainingRefundable
             ? PAYMENT_STATUS.REFUNDED
             : PAYMENT_STATUS.PARTIAL_REFUNDED;
+        setOrderStatus(order, Order.ORDER_STATUS_COMPLETED);
     });
 
     return {
@@ -394,10 +421,10 @@ function handleRefund(order, paymentDetails, params) {
 }
 
 /**
- * @param {dw.order.Order} order
- * @param {Object} paymentDetails
- * @param {Object} params
- * @returns {{error: Object, successMessage: string|null, paymentDetails: Object}}
+ * @param {dw.order.Order} order - order to void
+ * @param {Object} paymentDetails - payment details
+ * @param {Object} params - request params
+ * @returns {Object} void result
  */
 function handleVoid(order, paymentDetails, params) {
     var JPMCPaymentHelper = require('*/cartridge/scripts/helpers/JPMCPaymentHelper');
@@ -427,6 +454,11 @@ function handleVoid(order, paymentDetails, params) {
         var txCustom = paymentDetails.paymentInstrument.paymentTransaction.custom;
         txCustom.jpmcPaymentStatus = hadCaptures ? PAYMENT_STATUS.PARTIAL_VOID : PAYMENT_STATUS.VOIDED;
         txCustom.jpmcRemainingAuthAmount = 0;
+        if (!hadCaptures) {
+            setOrderStatus(order, Order.ORDER_STATUS_CANCELLED);
+        } else {
+            setOrderStatus(order, Order.ORDER_STATUS_COMPLETED);
+        }
 
         var existingVoidHistory = [];
         if (txCustom.jpmcVoidHistory) {
@@ -453,8 +485,19 @@ function handleVoid(order, paymentDetails, params) {
     };
 }
 
+/**
+ * Exports getOrderPaymentDetails helper for external use
+ */
 exports.getOrderPaymentDetails = getOrderPaymentDetails;
 
+/**
+ * JPMCPaymentCSC-ManagePayment : Business Manager customer service center for managing JPMC payment transactions
+ * @name JPMCPaymentCSC-ManagePayment
+ * @function
+ * @memberof JPMCPaymentCSC
+ * @param {querystringparameter} orderNo - Order number to manage
+ * @param {querystringparameter} action - Action to perform (capture, refund, void)
+ */
 exports.ManagePayment = function () {
     var orderId = request.httpParameterMap.orderNo.stringValue || '';
     var captureAction = request.httpParameterMap.capture.stringValue || null;

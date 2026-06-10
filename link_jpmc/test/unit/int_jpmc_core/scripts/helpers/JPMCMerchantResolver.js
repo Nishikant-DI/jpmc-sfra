@@ -30,8 +30,6 @@ function makeSitePrefs(custom) {
                                 JPMC_MerchantCode: 'sp-merchant',
                                 JPMCClientID: 'sp-client',
                                 JPMCResourceID: 'sp-resource',
-                                JPMCAudience: 'sp-audience',
-                                JPMCExpiresIn: '8h',
                                 JPMCCertAlias: 'sp-cert',
                                 JPMCPrivateKeyAlias: 'sp-key',
                                 jpmc_kid: 'sp-kid',
@@ -56,8 +54,7 @@ function makeSitePrefs(custom) {
                                 jpmcKountClientId: 'sp-kount',
                                 JPMCMerchantSoftwareCompany: null,
                                 JPMCMerchantSoftwareProduct: null,
-                                JPMCMerchantSoftwareVersion: null,
-                                JPMCTokenURI: null
+                                JPMCMerchantSoftwareVersion: null
                             }, custom || {});
                         },
                         custom: Object.assign({ JPMCEnableMultiMerchant: false }, custom || {})
@@ -85,7 +82,6 @@ var CONSTANTS = {
     MERCHANT_CONFIG_CACHE_ID: 'jpmc-merchant-config',
     MERCHANT_CONFIG_CACHE_KEY_PREFIX: 'jpmc_config_',
     MERCHANT_CONFIG_CO_TYPE: 'JPMCMerchantConfig',
-    DEFAULT_EXPIRES_IN: '8h',
     DEFAULT_CERT_ALIAS: 'default-cert',
     DEFAULT_KEY_ALIAS: 'default-key',
     DEFAULT_TOKEN_TYPE: 'SAFETECH_TOKEN',
@@ -100,7 +96,7 @@ function loadResolver(mockSite, mockCacheMgr, mockCustomObjectMgr, mockLogger, e
         'dw/system/Logger': { getLogger: function () { return mockLogger || makeMockLogger(); } },
         'dw/system/CacheMgr': mockCacheMgr,
         'dw/system/Site': mockSite,
-        '*/cartridge/scripts/helpers/jpmcConstants': CONSTANTS
+        '*/cartridge/scripts/helpers/JPMCConstants': CONSTANTS
     }, extraMocks || {});
     if (mockCustomObjectMgr) {
         mocks['dw/object/CustomObjectMgr'] = mockCustomObjectMgr;
@@ -216,19 +212,9 @@ describe('JPMCMerchantResolver', function () {
             assert.strictEqual(r.mergeConfigWithSPFallback(co, null).resourceId, null);
         });
 
-        it('should take audience from CO when present', function () {
-            var co = makeCO({ configKey: 'K', audience: 'co-aud' });
-            assert.strictEqual(r.mergeConfigWithSPFallback(co, { audience: 'sp-aud' }).audience, 'co-aud');
-        });
-
-        it('should fallback audience to fallbackConfig', function () {
+        it('should not expose audience in resolved merchant config', function () {
             var co = makeCO({ configKey: 'K' });
-            assert.strictEqual(r.mergeConfigWithSPFallback(co, { audience: 'sp-aud' }).audience, 'sp-aud');
-        });
-
-        it('should return null audience when both empty', function () {
-            var co = makeCO({ configKey: 'K' });
-            assert.strictEqual(r.mergeConfigWithSPFallback(co, null).audience, null);
+            assert.strictEqual(r.mergeConfigWithSPFallback(co, null).audience, undefined);
         });
     });
 
@@ -237,14 +223,8 @@ describe('JPMCMerchantResolver', function () {
         var r;
         beforeEach(function () { r = loadResolver(makeSitePrefs(), makeMockCacheMgr(makeMockCache()), null); });
 
-        it('expiresIn — uses CO value', function () {
-            assert.strictEqual(r.mergeConfigWithSPFallback(makeCO({ expiresIn: '24h' }), { expiresIn: '12h' }).expiresIn, '24h');
-        });
-        it('expiresIn — falls back to SP value', function () {
-            assert.strictEqual(r.mergeConfigWithSPFallback(makeCO({}), { expiresIn: '12h' }).expiresIn, '12h');
-        });
-        it('expiresIn — falls back to DEFAULT_EXPIRES_IN', function () {
-            assert.strictEqual(r.mergeConfigWithSPFallback(makeCO({}), null).expiresIn, CONSTANTS.DEFAULT_EXPIRES_IN);
+        it('does not expose expiresIn in resolved merchant config', function () {
+            assert.strictEqual(r.mergeConfigWithSPFallback(makeCO({}), null).expiresIn, undefined);
         });
 
         it('certAlias — uses CO value', function () {
@@ -275,13 +255,6 @@ describe('JPMCMerchantResolver', function () {
         });
         it('kid — null when both empty', function () {
             assert.strictEqual(r.mergeConfigWithSPFallback(makeCO({}), null).kid, null);
-        });
-
-        it('tokenUri — uses CO value over fallback', function () {
-            assert.strictEqual(r.mergeConfigWithSPFallback(makeCO({ tokenUri: 'https://co-token.example.com' }), { tokenUri: 'https://sp-token.example.com' }).tokenUri, 'https://co-token.example.com');
-        });
-        it('tokenUri — null when both empty', function () {
-            assert.strictEqual(r.mergeConfigWithSPFallback(makeCO({}), null).tokenUri, null);
         });
 
         it('pieGetKeyUrl — uses CO value', function () {
@@ -483,11 +456,11 @@ describe('JPMCMerchantResolver', function () {
         it('should return resourceId from SP', function () {
             assert.strictEqual(r.resolve().resourceId, 'sp-resource');
         });
-        it('should return audience from SP', function () {
-            assert.strictEqual(r.resolve().audience, 'sp-audience');
+        it('should not expose audience from SP', function () {
+            assert.strictEqual(r.resolve().audience, undefined);
         });
-        it('should return expiresIn from SP', function () {
-            assert.strictEqual(r.resolve().expiresIn, '8h');
+        it('should not expose expiresIn from SP', function () {
+            assert.strictEqual(r.resolve().expiresIn, undefined);
         });
         it('should return certAlias from SP', function () {
             assert.strictEqual(r.resolve().certAlias, 'sp-cert');
@@ -516,7 +489,7 @@ describe('JPMCMerchantResolver', function () {
     describe('resolve() — multi-merchant ENABLED, locale CO hit', function () {
 
         it('should return CustomObject source when locale CO found', function () {
-            var localeCoObj = makeCO({ configKey: 'RefArch::en_CA', merchantId: 'co-en-ca-merchant', clientId: 'co-en-ca-client', resourceId: 'co-en-ca-res', audience: 'co-en-ca-aud' });
+            var localeCoObj = makeCO({ configKey: 'RefArch::en_CA', merchantId: 'co-en-ca-merchant', clientId: 'co-en-ca-client', resourceId: 'co-en-ca-res' });
             var mockCO = { getCustomObject: function (type, key) { return key === 'RefArch::en_CA' ? localeCoObj : null; } };
             var r = loadResolver(makeSitePrefs({ JPMCEnableMultiMerchant: true }), makeMockCacheMgr(makeMockCache()), mockCO);
 
@@ -526,17 +499,17 @@ describe('JPMCMerchantResolver', function () {
         });
 
         it('should fallback optional fields to SP when CO does not set them', function () {
-            var localeCoObj = makeCO({ configKey: 'RefArch::en_CA', merchantId: 'co-mid', clientId: 'co-cid', resourceId: 'co-rid', audience: 'co-aud' });
+            var localeCoObj = makeCO({ configKey: 'RefArch::en_CA', merchantId: 'co-mid', clientId: 'co-cid', resourceId: 'co-rid' });
             var mockCO = { getCustomObject: function (type, key) { return key === 'RefArch::en_CA' ? localeCoObj : null; } };
             var r = loadResolver(makeSitePrefs({ JPMCEnableMultiMerchant: true }), makeMockCacheMgr(makeMockCache()), mockCO);
 
             var result = r.resolve({ siteId: 'RefArch', locale: 'en_CA' });
             assert.strictEqual(result.certAlias, 'sp-cert', 'Optional certAlias must fallback to SP');
-            assert.strictEqual(result.expiresIn, '8h', 'Optional expiresIn must fallback to SP');
+            assert.strictEqual(result.expiresIn, undefined, 'expiresIn is no longer resolved from config');
         });
 
         it('should load fr_CA locale-specific CO correctly', function () {
-            var frCoObj = makeCO({ configKey: 'RefArch::fr_CA', merchantId: 'co-fr-ca-merchant', clientId: 'co-fr-ca-client', resourceId: 'co-fr-ca-res', audience: 'co-fr-ca-aud' });
+            var frCoObj = makeCO({ configKey: 'RefArch::fr_CA', merchantId: 'co-fr-ca-merchant', clientId: 'co-fr-ca-client', resourceId: 'co-fr-ca-res' });
             var mockCO = { getCustomObject: function (type, key) { return key === 'RefArch::fr_CA' ? frCoObj : null; } };
             var r = loadResolver(makeSitePrefs({ JPMCEnableMultiMerchant: true }), makeMockCacheMgr(makeMockCache()), mockCO);
 
@@ -748,7 +721,7 @@ describe('JPMCMerchantResolver', function () {
         var base;
         beforeEach(function () {
             r = loadResolver(makeSitePrefs(), makeMockCacheMgr(makeMockCache()), null);
-            base = { clientId: 'my-client', merchantId: 'my-merchant', certAlias: 'my-cert', privateKeyAlias: 'my-key', expiresIn: '12h', audience: 'my-aud', resourceId: 'my-rid', tokenUri: 'https://token.example.com', kid: 'my-kid' };
+            base = { clientId: 'my-client', merchantId: 'my-merchant', certAlias: 'my-cert', privateKeyAlias: 'my-key', resourceId: 'my-rid', kid: 'my-kid' };
         });
 
         it('maps clientId → client_id', function () {
@@ -769,20 +742,11 @@ describe('JPMCMerchantResolver', function () {
         it('uses DEFAULT_KEY_ALIAS when privateKeyAlias is null', function () {
             assert.strictEqual(r.toAccessTokenConfig(Object.assign({}, base, { privateKeyAlias: null })).privateKeyAlias, CONSTANTS.DEFAULT_KEY_ALIAS);
         });
-        it('maps expiresIn directly', function () {
-            assert.strictEqual(r.toAccessTokenConfig(base).expiresIn, '12h');
-        });
-        it('uses DEFAULT_EXPIRES_IN when expiresIn is null', function () {
-            assert.strictEqual(r.toAccessTokenConfig(Object.assign({}, base, { expiresIn: null })).expiresIn, CONSTANTS.DEFAULT_EXPIRES_IN);
-        });
-        it('maps audience directly', function () {
-            assert.strictEqual(r.toAccessTokenConfig(base).audience, 'my-aud');
+        it('maps hardcoded audience', function () {
+            assert.strictEqual(r.toAccessTokenConfig(base).audience, 'https://idag2.jpmorganchase.com/adfs/oauth2/token');
         });
         it('maps resourceId → resource_id', function () {
             assert.strictEqual(r.toAccessTokenConfig(base).resource_id, 'my-rid');
-        });
-        it('maps tokenUri → ida_url', function () {
-            assert.strictEqual(r.toAccessTokenConfig(base).ida_url, 'https://token.example.com');
         });
         it('maps kid directly', function () {
             assert.strictEqual(r.toAccessTokenConfig(base).kid, 'my-kid');
@@ -886,5 +850,66 @@ describe('JPMCMerchantResolver', function () {
         it('exports isMultiMerchantEnabled', function () { assert.strictEqual(typeof r.isMultiMerchantEnabled, 'function'); });
         it('does NOT expose internal buildSitePrefsConfig', function () { assert.strictEqual(r.buildSitePrefsConfig, undefined); });
         it('does NOT expose internal getMerchantConfigCO', function () { assert.strictEqual(r.getMerchantConfigCO, undefined); });
+    });
+
+    describe('extractCOData(null) — line 92', function () {
+        it('resolveForOrder with null order falls back to site prefs (exercises extractCOData null guard indirectly)', function () {
+            var r = loadResolver(makeSitePrefs(), makeMockCacheMgr(makeMockCache()), null);
+            var result = r.resolveForOrder(null);
+            assert.strictEqual(result.source, 'SitePreferences');
+        });
+
+        it('mergeConfigWithSPFallback with null coData returns fallback (line 142)', function () {
+            var r = loadResolver(makeSitePrefs(), makeMockCacheMgr(makeMockCache()), null);
+            var fb = { merchantId: 'fb-mid', clientId: 'fb-cid' };
+            var result = r.mergeConfigWithSPFallback(null, fb);
+            assert.strictEqual(result, fb);
+        });
+    });
+
+    describe('getMerchantConfigCO error path — lines 255-257', function () {
+        it('logs warning and returns null when CustomObjectMgr.getCustomObject throws', function () {
+            var warnMsgs = [];
+            var logger = Object.assign(makeMockLogger(), { warn: function (msg) { warnMsgs.push(msg); } });
+            var throwingCO = { getCustomObject: function () { throw new Error('db error'); } };
+            // cache always calls cb, so the error inside cb is caught
+            var cache = makeMockCache({
+                get: function (key, cb) { return cb ? cb() : null; }
+            });
+            var r = loadResolver(
+                makeSitePrefs({ JPMCEnableMultiMerchant: true }),
+                makeMockCacheMgr(cache),
+                throwingCO,
+                logger
+            );
+            var result = r.resolve({ siteId: 'RefArch', locale: 'en_US' });
+            // Falls back to site prefs because CO threw
+            assert.strictEqual(result.source, 'SitePreferences');
+            assert.ok(warnMsgs.length > 0, 'Should log warning when CO access throws');
+        });
+    });
+
+    describe('resolveForOrder(null) — line 310', function () {
+        it('returns site prefs config when order is null', function () {
+            var r = loadResolver(makeSitePrefs(), makeMockCacheMgr(makeMockCache()), null);
+            var result = r.resolveForOrder(null);
+            assert.strictEqual(result.source, 'SitePreferences');
+            assert.strictEqual(result.merchantId, 'sp-merchant');
+        });
+    });
+
+    describe('toAccessTokenConfig(null) — line 405', function () {
+        it('uses buildSitePrefsConfig when resolvedConfig is null', function () {
+            var r = loadResolver(makeSitePrefs(), makeMockCacheMgr(makeMockCache()), null);
+            var result = r.toAccessTokenConfig(null);
+            assert.strictEqual(result.client_id, 'sp-client');
+            assert.strictEqual(result.merchantId, 'sp-merchant');
+        });
+
+        it('uses buildSitePrefsConfig when resolvedConfig is undefined', function () {
+            var r = loadResolver(makeSitePrefs(), makeMockCacheMgr(makeMockCache()), null);
+            var result = r.toAccessTokenConfig(undefined);
+            assert.strictEqual(result.client_id, 'sp-client');
+        });
     });
 });

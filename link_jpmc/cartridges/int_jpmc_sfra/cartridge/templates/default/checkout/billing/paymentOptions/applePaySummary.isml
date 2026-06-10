@@ -1,4 +1,4 @@
 <p>
-    ${Resource.msg('msg.paid.using.apple.pay', 'applePay', null)}
+    ${Resource.msg('msg.paid.using.apple.pay', 'checkout', null)}
 </p>
 

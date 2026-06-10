@@ -6,10 +6,10 @@ var Resource = require('dw/web/Resource');
 var Transaction = require('dw/system/Transaction');
 
 /**
- * @param {Object} req
- * @param {Object} paymentForm
- * @param {Object} viewFormData
- * @returns {Object}
+ * @param {Object} req - current request object
+ * @param {Object} paymentForm - billing payment form
+ * @param {Object} viewFormData - view data to extend
+ * @returns {Object} processed form result
  */
 function processForm(req, paymentForm, viewFormData) {
     var viewData = viewFormData;
@@ -36,15 +36,15 @@ function processForm(req, paymentForm, viewFormData) {
 }
 
 /**
- * @param {dw.order.Basket} basket
- * @param {Object} paymentInformation
- * @param {string} paymentMethodID
- * @param {Object} req
- * @returns {Object}
+ * @param {dw.order.Basket} basket - current basket
+ * @param {Object} paymentInformation - billing form payment data
+ * @param {string} paymentMethodID - payment method identifier
+ * @param {Object} req - request object (unused)
+ * @returns {Object} result
  */
-function Handle(basket, paymentInformation, paymentMethodID, req) {
+function Handle(basket, paymentInformation, paymentMethodID, req) { // eslint-disable-line no-unused-vars
     var collections = require('*/cartridge/scripts/util/collections');
-    var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
     var serverErrors = [];
 
     var googlePayTokenStr = paymentInformation.googlePayToken && paymentInformation.googlePayToken.value;
@@ -113,13 +113,13 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
 }
 
 /**
- * @param {string} orderNumber
- * @param {dw.order.PaymentInstrument} paymentInstrument
- * @param {dw.order.PaymentProcessor} paymentProcessor
- * @returns {Object}
+ * @param {string} orderNumber - order number to authorize
+ * @param {dw.order.PaymentInstrument} paymentInstrument - Google Pay payment instrument
+ * @param {dw.order.PaymentProcessor} paymentProcessor - JPMC payment processor
+ * @returns {Object} authorization result
  */
 function Authorize(orderNumber, paymentInstrument, paymentProcessor) {
-    var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
     var serverErrors = [];
     var fieldErrors = {};
 
@@ -130,7 +130,7 @@ function Authorize(orderNumber, paymentInstrument, paymentProcessor) {
             return { fieldErrors: fieldErrors, serverErrors: serverErrors, error: true };
         }
 
-        var jpmcTransactionHelpers = require('*/cartridge/scripts/helpers/jpmcTransactionHelpers');
+        var jpmcTransactionHelpers = require('*/cartridge/scripts/helpers/JPMCTransactionHelpers');
         var authResult = jpmcTransactionHelpers.authorizeGooglePay(orderNumber, paymentInstrument, paymentProcessor);
 
         if (authResult.error) {

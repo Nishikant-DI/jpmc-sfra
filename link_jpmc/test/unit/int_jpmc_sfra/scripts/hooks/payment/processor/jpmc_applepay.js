@@ -20,6 +20,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_applepay', function
     var mockPaymentProcessor;
     var mockEvent;
     var PaymentInstrumentMock;
+    var mockJPMCMerchantResolver;
 
    
     var VALID_PAYMENT_DATA = {
@@ -149,25 +150,28 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_applepay', function
                     createUUID: sinon.stub().returns('UUID-MOCK-123')
                 },
                 '*/cartridge/scripts/helpers/JPMCConfig': mockJPMCConfig,
-                '*/cartridge/scripts/helpers/JPMCMerchantResolver': {
-                    resolve: sinon.stub().returns({
-                        merchantId: 'TEST_MERCHANT_ID',
-                        captureMethod: 'DELAYED'
-                    }),
-                    resolveForOrder: sinon.stub().callsFake(function () {
-                        return {
+                '*/cartridge/scripts/helpers/JPMCMerchantResolver': (function () {
+                    mockJPMCMerchantResolver = {
+                        resolve: sinon.stub().returns({
                             merchantId: 'TEST_MERCHANT_ID',
-                            captureMethod: mockJPMCConfig.getCaptureMethod()
-                        };
-                    })
-                },
+                            captureMethod: 'DELAYED'
+                        }),
+                        resolveForOrder: sinon.stub().callsFake(function () {
+                            return {
+                                merchantId: 'TEST_MERCHANT_ID',
+                                captureMethod: mockJPMCConfig.getCaptureMethod()
+                            };
+                        })
+                    };
+                    return mockJPMCMerchantResolver;
+                }()),
                 '*/cartridge/scripts/helpers/JPMCPayloadBuilder': mockJPMCPayloadBuilder,
                 '*/cartridge/scripts/services/JPMCServiceHelper': mockJPMCServiceHelper,
-                '*/cartridge/scripts/helpers/jpmcConstants': {
+                '*/cartridge/scripts/helpers/JPMCConstants': {
                     APPLE_PAY_PROTOCOL: { EC_V1: 'EC_v1', EC_V2: 'EC_v2' },
                     APPLE_PAY_WALLET_PROVIDER: 'APPLE_PAY'
                 },
-                '*/cartridge/scripts/helpers/jpmcTransactionHelpers': {
+                '*/cartridge/scripts/helpers/JPMCTransactionHelpers': {
                     persistAuthorizationData: function (opts) {
                         var pi = opts.paymentInstrument;
                         var pt = pi.paymentTransaction || pi.getPaymentTransaction();
@@ -403,6 +407,90 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_applepay', function
       
             var infoLogs = logger.infoMessages.map(function (args) { return args.join(' '); }).join('|');
             assert.include(infoLogs, 'AP-ORDER-001');
+        });
+    });
+
+    describe('authorizeOrderPayment() — applicationData branch (line 39)', function () {
+        it('should set walletApplicationData when applicationData is present in header', function () {
+            mockEvent.payment.token.paymentData = {
+                data: VALID_PAYMENT_DATA.data,
+                signature: VALID_PAYMENT_DATA.signature,
+                version: VALID_PAYMENT_DATA.version,
+                header: {
+                    ephemeralPublicKey: VALID_PAYMENT_DATA.header.ephemeralPublicKey,
+                    publicKeyHash: VALID_PAYMENT_DATA.header.publicKeyHash,
+                    transactionId: VALID_PAYMENT_DATA.header.transactionId,
+                    applicationData: 'APP_DATA_BASE64'
+                }
+            };
+
+            var result = jpmcApplepay.authorizeOrderPayment(mockOrder, mockEvent);
+            assert.equal(result.status, 0);
+        });
+    });
+
+    describe('authorizeOrderPayment() — no merchantId (line 185)', function () {
+        it('should return error when resolveForOrder returns null', function () {
+            mockJPMCMerchantResolver.resolveForOrder.returns(null);
+
+            var result = jpmcApplepay.authorizeOrderPayment(mockOrder, mockEvent);
+            assert.isTrue(result.status.isError());
+        });
+
+        it('should return error when resolveForOrder returns config without merchantId', function () {
+            mockJPMCMerchantResolver.resolveForOrder.returns({ captureMethod: 'DELAYED' });
+
+            var result = jpmcApplepay.authorizeOrderPayment(mockOrder, mockEvent);
+            assert.isTrue(result.status.isError());
+        });
+    });
+
+    describe('getRequest (lines 192-205)', function () {
+        beforeEach(function () {
+            global.session = { privacy: {}, custom: {} };
+            global.request = { locale: 'en_US' };
+        });
+
+        afterEach(function () {
+            delete global.session;
+            delete global.request;
+        });
+
+        it('should set currencyCode and countryCode and return OK status', function () {
+            var basket = { getCurrencyCode: sinon.stub().returns('USD') };
+            var applePayRequest = {};
+
+            var result = jpmcApplepay.getRequest(basket, applePayRequest);
+
+            assert.equal(result.status.status, 0);
+            assert.equal(applePayRequest.currencyCode, 'USD');
+            assert.equal(applePayRequest.countryCode, 'US');
+        });
+
+        it('should return OK even when getCurrencyCode returns falsy', function () {
+            var basket = { getCurrencyCode: sinon.stub().returns('') };
+            var applePayRequest = {};
+
+            var result = jpmcApplepay.getRequest(basket, applePayRequest);
+
+            assert.equal(result.status.status, 0);
+            assert.isUndefined(applePayRequest.currencyCode);
+        });
+
+        it('should return ERROR status when basket.getCurrencyCode throws (line 205)', function () {
+            var basket = { getCurrencyCode: sinon.stub().throws(new Error('basket error')) };
+            var applePayRequest = {};
+
+            var result = jpmcApplepay.getRequest(basket, applePayRequest);
+
+            assert.equal(result.status.status, 1);
+        });
+    });
+
+    describe('cancel (lines 211-212)', function () {
+        it('should return OK status', function () {
+            var result = jpmcApplepay.cancel();
+            assert.equal(result.status.status, 0);
         });
     });
 

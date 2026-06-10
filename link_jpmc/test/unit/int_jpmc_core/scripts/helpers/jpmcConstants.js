@@ -3,7 +3,7 @@
 var assert = require('chai').assert;
 
 describe('jpmcConstants', function () {
-    var jpmcConstants = require('../../../../../cartridges/int_jpmc_core/cartridge/scripts/helpers/jpmcConstants');
+    var jpmcConstants = require('../../../../../cartridges/int_jpmc_core/cartridge/scripts/helpers/JPMCConstants');
 
     it('should export JPMC_Processor constant', function () {
         assert.equal(jpmcConstants.JPMC_Processor, 'JPMC_Payment');
@@ -40,7 +40,6 @@ describe('jpmcConstants', function () {
     });
 
     it('should export config defaults', function () {
-        assert.equal(jpmcConstants.DEFAULT_EXPIRES_IN, '5h');
         assert.equal(jpmcConstants.DEFAULT_COMPANY_NAME, 'JPMC Plugin');
         assert.equal(jpmcConstants.DEFAULT_PRODUCT_NAME, 'JPMC SFCC B2C Cartridge');
         assert.equal(jpmcConstants.DEFAULT_VERSION, '1.0');
@@ -86,7 +85,6 @@ describe('jpmcConstants', function () {
             'CLOCK_SKEW_SECONDS',
             'DEFAULT_CERT_ALIAS',
             'DEFAULT_KEY_ALIAS',
-            'DEFAULT_EXPIRES_IN',
             'DEFAULT_COMPANY_NAME',
             'DEFAULT_PRODUCT_NAME',
             'DEFAULT_VERSION',

@@ -8,6 +8,7 @@ var sinon = require('sinon');
 
 describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
     var checkoutHelpers;
+    var mockLogger;
     var mockTransaction;
     var mockPaymentInstrument;
     var mockCustomer;
@@ -18,6 +19,9 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
     var billingData;
 
     beforeEach(function () {
+        mockLogger = require('../../../../../test/mocks/dw/system/Logger');
+        mockLogger.resetAllLoggers();
+
        
         mockTransaction = require('../../../../../test/mocks/dw/system/Transaction');
         mockTransaction.reset();
@@ -75,6 +79,13 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
             'dw/system/Transaction': mockTransaction,
             'dw/order/PaymentInstrument': require('../../../../../test/mocks/dw/order/PaymentInstrument'),
             '*/cartridge/scripts/checkout/checkoutHelpers': baseMock,
+            '*/cartridge/scripts/helpers/JPMCConfig': {
+                isAccountUpdaterNotificationsEnabled: function () { return false; },
+                isAccountUpdaterRTAUEnabled: function () { return false; }
+            },
+            '*/cartridge/scripts/helpers/AccountUpdaterHelper': {
+                registerCard: function () { return { success: true }; }
+            },
             '*/cartridge/scripts/helpers/JPMCMerchantResolver': {
                 resolve: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID' }),
                 resolveForOrder: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID' }),
@@ -401,6 +412,257 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
 
                 assert.equal(result.creditCardType, cardType);
             });
+        });
+    });
+
+    describe('Account Updater registration paths', function () {
+        var resolverStub;
+        var registerCardStub;
+
+        beforeEach(function () {
+            resolverStub = {
+                resolve: sinon.stub().returns({ merchantId: 'MERCHANT-123' })
+            };
+            registerCardStub = sinon.stub().returns({ success: false, error: 'registration failed' });
+
+            mockStoredPaymentInstrument.getUUID = sinon.stub().returns('pi-uuid-1');
+            mockProfile.getCustomerNo = sinon.stub().returns('CUST-1');
+
+            checkoutHelpers = proxyquire('../../../../../cartridges/int_jpmc_sfra/cartridge/scripts/checkout/checkoutHelpers', {
+                'dw/system/Transaction': mockTransaction,
+                'dw/order/PaymentInstrument': require('../../../../../test/mocks/dw/order/PaymentInstrument'),
+                'dw/system/Logger': mockLogger,
+                '*/cartridge/scripts/checkout/checkoutHelpers': {},
+                '*/cartridge/scripts/helpers/JPMCConfig': {
+                    isAccountUpdaterNotificationsEnabled: function () { return true; }
+                },
+                '*/cartridge/scripts/helpers/AccountUpdaterHelper': {
+                    registerCard: registerCardStub
+                },
+                '*/cartridge/scripts/helpers/JPMCMerchantResolver': resolverStub
+            });
+        });
+
+        it('should set merchant id and warn when account updater registration fails', function () {
+            var result = checkoutHelpers.savePaymentInstrumentToWallet(
+                billingData,
+                mockBasket,
+                mockCustomer
+            );
+
+            assert.equal(result.custom.jpmcMerchantId, 'MERCHANT-123');
+            assert.equal(result.custom.jpmcMerchantRecordIdentifier, 'pi-uuid-1-CN-CUST-1');
+            assert.isTrue(registerCardStub.calledOnce);
+
+            var logger = mockLogger.getLogger('JPMC', 'checkoutHelpers');
+            assert.isAtLeast(logger.warnMessages.length, 1);
+        });
+
+        it('should warn when account updater throws', function () {
+            registerCardStub.throws(new Error('network down'));
+
+            checkoutHelpers.savePaymentInstrumentToWallet(
+                billingData,
+                mockBasket,
+                mockCustomer
+            );
+
+            var logger = mockLogger.getLogger('JPMC', 'checkoutHelpers');
+            assert.isAtLeast(logger.warnMessages.length, 1);
+        });
+
+        it('should not set merchant id when resolver returns no merchantId', function () {
+            resolverStub.resolve.returns({});
+
+            var result = checkoutHelpers.savePaymentInstrumentToWallet(
+                billingData,
+                mockBasket,
+                mockCustomer
+            );
+
+            assert.isUndefined(result.custom.jpmcMerchantId);
+        });
+
+        it('should use String(e) fallback when thrown error has no message property', function () {
+            registerCardStub.callsFake(function () {
+                throw { code: 'NO_MESSAGE' };
+            });
+
+            checkoutHelpers.savePaymentInstrumentToWallet(
+                billingData,
+                mockBasket,
+                mockCustomer
+            );
+
+            var logger = mockLogger.getLogger('JPMC', 'checkoutHelpers');
+            assert.isAtLeast(logger.warnMessages.length, 1);
+        });
+    });
+
+    describe('handlePayments()', function () {
+        var mockOrderMgr;
+        var mockPaymentMgr;
+        var mockHookMgr;
+        var mockResource;
+        var mockLoggerWithInfo;
+
+        function loadHandlePaymentsModule() {
+            return proxyquire('../../../../../cartridges/int_jpmc_sfra/cartridge/scripts/checkout/checkoutHelpers', {
+                'dw/system/Transaction': mockTransaction,
+                'dw/order/OrderMgr': mockOrderMgr,
+                'dw/order/PaymentMgr': mockPaymentMgr,
+                'dw/system/HookMgr': mockHookMgr,
+                'dw/web/Resource': mockResource,
+                'dw/system/Logger': mockLoggerWithInfo,
+                '*/cartridge/scripts/checkout/checkoutHelpers': {}
+            });
+        }
+
+        beforeEach(function () {
+            var PaymentTransaction = require('../../../../../test/mocks/dw/order/PaymentTransaction');
+
+            mockOrderMgr = require('../../../../../test/mocks/dw/order/OrderMgr');
+            mockOrderMgr.resetMock();
+            sinon.spy(mockOrderMgr, 'failOrder');
+
+            mockPaymentMgr = require('../../../../../test/mocks/dw/order/PaymentMgr');
+            mockPaymentMgr.resetMockPaymentMethods();
+
+            mockHookMgr = require('../../../../../test/mocks/dw/system/HookMgr');
+            mockHookMgr.resetMock();
+
+            mockResource = require('../../../../../test/mocks/dw/web/Resource');
+
+            mockLoggerWithInfo = {
+                info: sinon.spy(),
+                getLogger: mockLogger.getLogger,
+                reset: mockLogger.reset,
+                resetAllLoggers: mockLogger.resetAllLoggers
+            };
+
+            global.session = global.session || { privacy: {} };
+            global.session.privacy = global.session.privacy || {};
+
+            this.makeInstrument = function (paymentMethod) {
+                return {
+                    paymentMethod: paymentMethod || 'CREDIT_CARD',
+                    paymentTransaction: new PaymentTransaction()
+                };
+            };
+        });
+
+        it('should return empty result when order total net price is zero', function () {
+            checkoutHelpers = loadHandlePaymentsModule();
+
+            var order = {
+                totalNetPrice: 0,
+                paymentInstruments: []
+            };
+
+            var result = checkoutHelpers.handlePayments(order, 'ORD-1');
+            assert.deepEqual(result, {});
+        });
+
+        it('should fail order when no payment instruments are present', function () {
+            checkoutHelpers = loadHandlePaymentsModule();
+
+            var order = {
+                totalNetPrice: 10,
+                paymentInstruments: [],
+                custom: {}
+            };
+
+            var result = checkoutHelpers.handlePayments(order, 'ORD-2');
+
+            assert.isTrue(result.error);
+            assert.isTrue(mockOrderMgr.failOrder.calledOnce);
+        });
+
+        it('should set transaction id when payment processor is null', function () {
+            checkoutHelpers = loadHandlePaymentsModule();
+            var instrument = this.makeInstrument('CREDIT_CARD');
+
+            mockPaymentMgr.setMockPaymentMethod('CREDIT_CARD', {
+                paymentProcessor: null
+            });
+
+            var order = {
+                totalNetPrice: 10,
+                paymentInstruments: [instrument]
+            };
+
+            var result = checkoutHelpers.handlePayments(order, 'ORDER-TXN-ID');
+
+            assert.isUndefined(result.error);
+            assert.equal(instrument.paymentTransaction.transactionID, 'ORDER-TXN-ID');
+        });
+
+        it('should use default authorize hook when processor-specific hook does not exist', function () {
+            checkoutHelpers = loadHandlePaymentsModule();
+            var instrument = this.makeInstrument('CREDIT_CARD');
+
+            mockPaymentMgr.setMockPaymentMethod('CREDIT_CARD', {
+                paymentProcessor: { ID: 'JPMC_PAYMENT' }
+            });
+            mockHookMgr._setHookResult('app.payment.processor.default', 'Authorize', { error: false });
+
+            var result = checkoutHelpers.handlePayments({
+                totalNetPrice: 10,
+                paymentInstruments: [instrument]
+            }, 'ORD-3');
+
+            assert.isUndefined(result.error);
+        });
+
+        it('should fail order when authorization returns error', function () {
+            checkoutHelpers = loadHandlePaymentsModule();
+            var instrument = this.makeInstrument('CREDIT_CARD');
+
+            mockPaymentMgr.setMockPaymentMethod('CREDIT_CARD', {
+                paymentProcessor: { ID: 'JPMC_PAYMENT' }
+            });
+            mockHookMgr._registerHook('app.payment.processor.jpmc_payment');
+            mockHookMgr._setHookResult('app.payment.processor.jpmc_payment', 'Authorize', { error: true });
+
+            var order = {
+                totalNetPrice: 10,
+                paymentInstruments: [instrument],
+                custom: {}
+            };
+
+            var result = checkoutHelpers.handlePayments(order, 'ORD-4');
+
+            assert.isTrue(result.error);
+            assert.isTrue(mockOrderMgr.failOrder.calledOnce);
+        });
+
+        it('should return 3DS orchestration payload and persist url in session', function () {
+            checkoutHelpers = loadHandlePaymentsModule();
+            var instrument = this.makeInstrument('CREDIT_CARD');
+
+            mockPaymentMgr.setMockPaymentMethod('CREDIT_CARD', {
+                paymentProcessor: { ID: 'JPMC_PAYMENT' }
+            });
+            mockHookMgr._registerHook('app.payment.processor.jpmc_payment');
+            mockHookMgr._setHookResult('app.payment.processor.jpmc_payment', 'Authorize', {
+                error: false,
+                requires3DS: true,
+                authenticationOrchestrationUrl: 'https://example.com/3ds',
+                transactionId: 'txn-3ds-1',
+                captureMethod: 'NOW'
+            });
+
+            var result = checkoutHelpers.handlePayments({
+                totalNetPrice: 10,
+                paymentInstruments: [instrument]
+            }, 'ORD-5');
+
+            assert.isTrue(result.requires3DS);
+            assert.equal(result.authenticationOrchestrationUrl, 'https://example.com/3ds');
+            assert.equal(result.transactionId, 'txn-3ds-1');
+            assert.equal(result.captureMethod, 'NOW');
+            assert.equal(global.session.privacy.jpmc3DSOrchestrationUrl, 'https://example.com/3ds');
+            assert.isTrue(mockLoggerWithInfo.info.calledOnce);
         });
     });
 });

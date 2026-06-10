@@ -5,7 +5,7 @@ var MASKED_VALUE = '***********';
 /**
  * @param {dw.value.EnumValue|string|null} val - The attribute value
  * @param {string} defaultVal - Default if value is empty/null
- * @returns {string}
+ * @returns {string} The string value of the enum, or the default if input is empty/null
  */
 function safeEnumString(val, defaultVal) {
     if (!val) {
@@ -21,15 +21,13 @@ var defaultConfig = {
     enabled: true,
     merchantId: '',
     clientId: '',
-    resourceId: '',
-    audience: '',
-    tokenUri: '',
-    expiresIn: '',
+    resourceId: 'JPMC:URI:RS-105239-85484-HelixAPIEntitlementsCAT-PROD',
     certAlias: '',
     privateKeyAlias: '',
     kid: '',
-    pieGetKeyUrl: '',
-    pieEncryptionUrl: '',
+    pieGetKeyUrl: 'https://safetechpageencryptionvar.chasepaymentech.com/pie/v1',
+    pieEncryptionUrl: 'https://safetechpageencryptionvar.chasepaymentech.com/pie/v1/encryption.js',
+    pieKey: '',
     captureMethod: 'MANUAL',
     platformId: '',
     tokenizationType: 'SAFETECH_TOKEN',
@@ -47,9 +45,19 @@ var defaultConfig = {
     JPMCGooglePayPDPEnabled: false,
     applePayMerchantId: '',
     kountClientId: '',
-    kountEnvironment: 'TEST'
+    kountEnvironment: 'TEST',
+    accountUpdaterMode: 'NONE',
+    accountUpdaterWebhookUser: '',
+    accountUpdaterWebhookSecret: '',
+    jpmc3DSEnabled: false
 };
 Object.freeze(defaultConfig);
+/**
+ * buildEditConfig - Builds configuration object from custom object for editing
+ * @param {dw.object.CustomObject} co - custom object
+ * @param {boolean} isMasked - whether to mask sensitive values
+ * @returns {Object} configuration object for edit form
+ */
 function buildEditConfig(co, isMasked) {
     if (!co) {
         return Object.assign({}, defaultConfig);
@@ -61,15 +69,13 @@ function buildEditConfig(co, isMasked) {
     config.enabled = co.custom.enabled !== false;
     config.merchantId = String(co.custom.merchantId || '');
     config.clientId = isMasked && co.custom.clientId ? MASKED_VALUE : String(co.custom.clientId || '');
-    config.resourceId = isMasked && co.custom.resourceId ? MASKED_VALUE : String(co.custom.resourceId || '');
-    config.audience = String(co.custom.audience || '');
-    config.tokenUri = String(co.custom.tokenUri || '');
-    config.expiresIn = String(co.custom.expiresIn || '');
+    config.resourceId = safeEnumString(co.custom.resourceId, 'JPMC:URI:RS-105239-85484-HelixAPIEntitlementsCAT-PROD');
     config.certAlias = String(co.custom.certAlias || '');
     config.privateKeyAlias = String(co.custom.privateKeyAlias || '');
     config.kid = isMasked && co.custom.kid ? MASKED_VALUE : String(co.custom.kid || '');
-    config.pieGetKeyUrl = String(co.custom.pieGetKeyUrl || '');
-    config.pieEncryptionUrl = String(co.custom.pieEncryptionUrl || '');
+    config.pieGetKeyUrl = safeEnumString(co.custom.pieGetKeyUrl, 'https://safetechpageencryptionvar.chasepaymentech.com/pie/v1');
+    config.pieEncryptionUrl = safeEnumString(co.custom.pieEncryptionUrl, 'https://safetechpageencryptionvar.chasepaymentech.com/pie/v1/encryption.js');
+    config.pieKey = String(co.custom.pieKey || '');
     config.captureMethod = safeEnumString(co.custom.captureMethod, 'MANUAL');
     config.platformId = String(co.custom.platformId || '');
     config.tokenizationType = safeEnumString(co.custom.tokenizationType, 'SAFETECH_TOKEN');
@@ -88,10 +94,19 @@ function buildEditConfig(co, isMasked) {
     config.applePayMerchantId = String(co.custom.applePayMerchantId || '');
     config.kountClientId = String(co.custom.kountClientId || '');
     config.kountEnvironment = safeEnumString(co.custom.kountEnvironment, 'TEST');
+    config.accountUpdaterMode = safeEnumString(co.custom.jpmcAccountUpdaterMode, 'NONE');
+    config.accountUpdaterWebhookUser = String(co.custom.jpmcAccountUpdaterWebhookUser || '');
+    config.accountUpdaterWebhookSecret = isMasked && co.custom.jpmcAccountUpdaterWebhookSecret ? MASKED_VALUE : String(co.custom.jpmcAccountUpdaterWebhookSecret || '');
+    config.jpmc3DSEnabled = co.custom.jpmc3DSEnabled === true;
 
     return config;
 }
 
+/**
+ * buildFromParams - Builds configuration object from form parameters
+ * @param {Object} params - form params
+ * @returns {Object} configuration object
+ */
 function buildFromParams(params) {
     return {
         configKey: String(params.configKey.stringValue || ''),
@@ -99,15 +114,13 @@ function buildFromParams(params) {
         enabled: params.enabled.stringValue === 'true',
         merchantId: String(params.merchantId.stringValue || ''),
         clientId: String(params.clientId.stringValue || ''),
-        resourceId: String(params.resourceId.stringValue || ''),
-        audience: String(params.audience.stringValue || ''),
-        tokenUri: String(params.tokenUri.stringValue || ''),
-        expiresIn: String(params.expiresIn.stringValue || ''),
+        resourceId: String(params.resourceId.stringValue || 'JPMC:URI:RS-105239-85484-HelixAPIEntitlementsCAT-PROD'),
         certAlias: String(params.certAlias.stringValue || ''),
         privateKeyAlias: String(params.privateKeyAlias.stringValue || ''),
         kid: String(params.kid.stringValue || ''),
-        pieGetKeyUrl: String(params.pieGetKeyUrl.stringValue || ''),
-        pieEncryptionUrl: String(params.pieEncryptionUrl.stringValue || ''),
+        pieGetKeyUrl: String(params.pieGetKeyUrl.stringValue || 'https://safetechpageencryptionvar.chasepaymentech.com/pie/v1'),
+        pieEncryptionUrl: String(params.pieEncryptionUrl.stringValue || 'https://safetechpageencryptionvar.chasepaymentech.com/pie/v1/encryption.js'),
+        pieKey: String(params.pieKey.stringValue || ''),
         captureMethod: String(params.captureMethod.stringValue || 'MANUAL'),
         platformId: String(params.platformId.stringValue || ''),
         tokenizationType: String(params.tokenizationType.stringValue || 'SAFETECH_TOKEN'),
@@ -125,7 +138,11 @@ function buildFromParams(params) {
         JPMCGooglePayPDPEnabled: params.JPMCGooglePayPDPEnabled.stringValue === 'true',
         applePayMerchantId: String(params.applePayMerchantId.stringValue || ''),
         kountClientId: String(params.kountClientId.stringValue || ''),
-        kountEnvironment: String(params.kountEnvironment.stringValue || 'TEST')
+        kountEnvironment: String(params.kountEnvironment.stringValue || 'TEST'),
+        accountUpdaterMode: String(params.accountUpdaterMode.stringValue || 'NONE'),
+        accountUpdaterWebhookUser: String(params.accountUpdaterWebhookUser.stringValue || ''),
+        accountUpdaterWebhookSecret: String(params.accountUpdaterWebhookSecret.stringValue || ''),
+        jpmc3DSEnabled: !!params.jpmc3DSEnabled && params.jpmc3DSEnabled.stringValue === 'true'
     };
 }
 
@@ -137,6 +154,11 @@ function isMaskedValue(value) {
     return !!(value) && (value === MASKED_VALUE);
 }
 
+/**
+ * assignToCustomObject
+ * @param {dw.object.CustomObject} co - custom object
+ * @param {Object} config - config data
+ */
 function assignToCustomObject(co, config) {
     co.custom.configKey = config.configKey;
     co.custom.enabled = config.enabled;
@@ -144,12 +166,7 @@ function assignToCustomObject(co, config) {
     if (!isMaskedValue(config.clientId)) {
         co.custom.clientId = config.clientId;
     }
-    if (!isMaskedValue(config.resourceId)) {
-        co.custom.resourceId = config.resourceId;
-    }
-    co.custom.audience = config.audience;
-    co.custom.tokenUri = config.tokenUri;
-    co.custom.expiresIn = config.expiresIn;
+    co.custom.resourceId = config.resourceId;
     co.custom.certAlias = config.certAlias;
     co.custom.privateKeyAlias = config.privateKeyAlias;
     if (!isMaskedValue(config.kid)) {
@@ -157,6 +174,7 @@ function assignToCustomObject(co, config) {
     }
     co.custom.pieGetKeyUrl = config.pieGetKeyUrl;
     co.custom.pieEncryptionUrl = config.pieEncryptionUrl;
+    co.custom.pieKey = config.pieKey;
     co.custom.captureMethod = config.captureMethod;
     co.custom.platformId = config.platformId;
     co.custom.tokenizationType = config.tokenizationType;
@@ -175,6 +193,12 @@ function assignToCustomObject(co, config) {
     co.custom.applePayMerchantId = config.applePayMerchantId;
     co.custom.kountClientId = config.kountClientId;
     co.custom.kountEnvironment = config.kountEnvironment;
+    co.custom.jpmcAccountUpdaterMode = config.accountUpdaterMode;
+    co.custom.jpmcAccountUpdaterWebhookUser = config.accountUpdaterWebhookUser;
+    if (!isMaskedValue(config.accountUpdaterWebhookSecret)) {
+        co.custom.jpmcAccountUpdaterWebhookSecret = config.accountUpdaterWebhookSecret;
+    }
+    co.custom.jpmc3DSEnabled = config.jpmc3DSEnabled;
 }
 
 module.exports = {

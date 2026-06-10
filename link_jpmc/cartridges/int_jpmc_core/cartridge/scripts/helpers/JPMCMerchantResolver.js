@@ -5,18 +5,18 @@ var CacheMgr = require('dw/system/CacheMgr');
 
 /**
  * Returns the merchant config custom cache instance.
- * @returns {dw.system.Cache}
+ * @returns {dw.system.Cache} result
  */
 function getMerchantCache() {
-    var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
     return CacheMgr.getCache(constants.MERCHANT_CONFIG_CACHE_ID);
 }
 
 /**
  * Safely extracts a string value from an enum-of-string attribute
- * @param {dw.value.EnumValue|string|null} enumVal
- * @param {string|null} defaultVal
- * @returns {string|null}
+ * @param {dw.value.EnumValue|string|null} enumVal - enum attribute value
+ * @param {string|null} defaultVal - fallback if enumVal is empty
+ * @returns {string|null} resolved string value
  */
 function getEnumValue(enumVal, defaultVal) {
     if (!enumVal) {
@@ -30,11 +30,11 @@ function getEnumValue(enumVal, defaultVal) {
 
 /**
  * Returns coValue if not null/undefined, else fallbackValue, else defaultValue.
- * @param {*} coValue
- * @param {*} fallbackValue
- * @param {*} defaultValue
- * @param {boolean} isEnum
- * @returns {*}
+ * @param {string|number|boolean|Object|null} coValue - custom object attribute value
+ * @param {string|number|boolean|Object|null} fallbackValue - site preference fallback
+ * @param {string|number|boolean|Object|null} defaultValue - hard-coded default
+ * @param {boolean} isEnum - whether the value is an enum type
+ * @returns {string|number|boolean|Object|null} resolved value
  */
 function getFieldWithFallback(coValue, fallbackValue, defaultValue, isEnum) {
     var value = (coValue != null) ? coValue : fallbackValue;
@@ -46,10 +46,10 @@ function getFieldWithFallback(coValue, fallbackValue, defaultValue, isEnum) {
 
 /**
  * Boolean-aware fallback: explicit true/false from CO wins, then fallback, then default.
- * @param {boolean|undefined} coValue
- * @param {boolean|undefined} fallbackValue
- * @param {boolean} defaultValue
- * @returns {boolean}
+ * @param {boolean|undefined} coValue - custom object boolean value
+ * @param {boolean|undefined} fallbackValue - site preference fallback
+ * @param {boolean} defaultValue - hard-coded default
+ * @returns {boolean} resolved boolean
  */
 function getBoolWithFallback(coValue, fallbackValue, defaultValue) {
     if (coValue === true) return true;
@@ -61,8 +61,8 @@ function getBoolWithFallback(coValue, fallbackValue, defaultValue) {
 
 /**
  * Checks whether a CO is enabled (exists and enabled !== false).
- * @param {dw.object.CustomObject|null} co
- * @returns {boolean}
+ * @param {dw.object.CustomObject|null} co - merchant config custom object
+ * @returns {boolean} true if CO exists and is enabled
  */
 function isMerchantConfigEnabled(co) {
     return co && co.custom && co.custom.enabled !== false;
@@ -70,7 +70,7 @@ function isMerchantConfigEnabled(co) {
 
 /**
  * Reads the JPMCEnableMultiMerchant site preference.
- * @returns {boolean}
+ * @returns {boolean} result
  */
 function isMultiMerchantEnabled() {
     try {
@@ -84,7 +84,7 @@ function isMultiMerchantEnabled() {
 }
 
 /**
- * @param {dw.object.CustomObject} co
+ * @param {dw.object.CustomObject} co - merchant config custom object
  * @returns {Object|null} Plain JS object with primitive values only
  */
 function extractCOData(co) {
@@ -97,21 +97,20 @@ function extractCOData(co) {
         enabled: co.custom.enabled !== false,
         merchantId: co.custom.merchantId || null,
         clientId: co.custom.clientId || null,
-        resourceId: co.custom.resourceId || null,
-        audience: co.custom.audience || null,
-        tokenUri: co.custom.tokenUri || null,
-        expiresIn: co.custom.expiresIn || null,
+        resourceId: getEnumValue(co.custom.resourceId, null),
         certAlias: co.custom.certAlias || null,
         privateKeyAlias: co.custom.privateKeyAlias || null,
         kid: co.custom.kid || null,
-        pieGetKeyUrl: co.custom.pieGetKeyUrl || null,
-        pieEncryptionUrl: co.custom.pieEncryptionUrl || null,
+        pieGetKeyUrl: getEnumValue(co.custom.pieGetKeyUrl, null),
+        pieEncryptionUrl: getEnumValue(co.custom.pieEncryptionUrl, null),
+        pieKey: co.custom.pieKey || null,
         captureMethod: getEnumValue(co.custom.captureMethod, null),
         platformId: co.custom.platformId || null,
         tokenizationType: getEnumValue(co.custom.tokenizationType, null),
         enableAVS: co.custom.enableAVS,
         enableFraudCheck: co.custom.enableFraudCheck,
         enableFraudCheckAtAuth: co.custom.enableFraudCheckAtAuth,
+        jpmc3DSEnabled: co.custom.jpmc3DSEnabled,
         googlePayGatewayMerchantId: co.custom.googlePayGatewayMerchantId || null,
         googlePayMerchantId: co.custom.googlePayMerchantId || null,
         googlePayMerchantName: co.custom.googlePayMerchantName || null,
@@ -123,7 +122,11 @@ function extractCOData(co) {
         JPMCGooglePayPDPEnabled: co.custom.JPMCGooglePayPDPEnabled,
         kountClientId: co.custom.kountClientId || null,
         kountEnvironment: getEnumValue(co.custom.kountEnvironment, null),
-        applePayMerchantId: co.custom.applePayMerchantId || null
+        applePayMerchantId: co.custom.applePayMerchantId || null,
+        accountUpdaterMode: getEnumValue(co.custom.jpmcAccountUpdaterMode, null),
+        accountUpdaterWebhookUser: co.custom.jpmcAccountUpdaterWebhookUser || null,
+        accountUpdaterWebhookSecret: co.custom.jpmcAccountUpdaterWebhookSecret || null,
+        jpmcWebhookSubscriptionId: co.custom.jpmcWebhookSubscriptionId || null
     };
 }
 
@@ -135,7 +138,7 @@ function extractCOData(co) {
  * @returns {Object} Merged configuration
  */
 function mergeConfigWithSPFallback(coData, fallbackConfig) {
-    var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
     var fb = fallbackConfig || {};
 
     if (!coData) {
@@ -149,21 +152,20 @@ function mergeConfigWithSPFallback(coData, fallbackConfig) {
         configKey: getFieldWithFallback(c.configKey, fb.configKey, '', false),
         merchantId: getFieldWithFallback(c.merchantId, fb.merchantId, null, false),
         clientId: getFieldWithFallback(c.clientId, fb.clientId, null, false),
-        resourceId: getFieldWithFallback(c.resourceId, fb.resourceId, null, false),
-        audience: getFieldWithFallback(c.audience, fb.audience, null, false),
-        tokenUri: getFieldWithFallback(c.tokenUri, fb.tokenUri, null, false),
-        expiresIn: getFieldWithFallback(c.expiresIn, fb.expiresIn, constants.DEFAULT_EXPIRES_IN, false),
+        resourceId: getFieldWithFallback(c.resourceId, fb.resourceId, null, true),
         certAlias: getFieldWithFallback(c.certAlias, fb.certAlias, constants.DEFAULT_CERT_ALIAS, false),
         privateKeyAlias: getFieldWithFallback(c.privateKeyAlias, fb.privateKeyAlias, constants.DEFAULT_KEY_ALIAS, false),
         kid: getFieldWithFallback(c.kid, fb.kid, null, false),
-        pieGetKeyUrl: getFieldWithFallback(c.pieGetKeyUrl, fb.pieGetKeyUrl, null, false),
-        pieEncryptionUrl: getFieldWithFallback(c.pieEncryptionUrl, fb.pieEncryptionUrl, null, false),
+        pieGetKeyUrl: getFieldWithFallback(c.pieGetKeyUrl, fb.pieGetKeyUrl, null, true),
+        pieEncryptionUrl: getFieldWithFallback(c.pieEncryptionUrl, fb.pieEncryptionUrl, null, true),
+        pieKey: getFieldWithFallback(c.pieKey, fb.pieKey, null, false),
         captureMethod: getFieldWithFallback(c.captureMethod, fb.captureMethod, null, true),
         platformId: getFieldWithFallback(c.platformId, fb.platformId, null, false),
         tokenizationType: getFieldWithFallback(c.tokenizationType, fb.tokenizationType, constants.DEFAULT_TOKEN_TYPE, true),
         enableAVS: getBoolWithFallback(c.enableAVS, fb.enableAVS, true),
         enableFraudCheck: getBoolWithFallback(c.enableFraudCheck, fb.enableFraudCheck, false),
         enableFraudCheckAtAuth: getBoolWithFallback(c.enableFraudCheckAtAuth, fb.enableFraudCheckAtAuth, false),
+        jpmc3DSEnabled: getBoolWithFallback(c.jpmc3DSEnabled, fb.jpmc3DSEnabled, false),
         merchantSoftwareCompany: constants.DEFAULT_COMPANY_NAME,
         merchantSoftwareProduct: constants.DEFAULT_PRODUCT_NAME,
         merchantSoftwareVersion: constants.DEFAULT_VERSION,
@@ -180,16 +182,24 @@ function mergeConfigWithSPFallback(coData, fallbackConfig) {
         JPMCGooglePayPDPEnabled: getBoolWithFallback(c.JPMCGooglePayPDPEnabled, fb.JPMCGooglePayPDPEnabled, false),
         kountClientId: getFieldWithFallback(c.kountClientId, fb.kountClientId, null, false),
         kountEnvironment: getFieldWithFallback(c.kountEnvironment, fb.kountEnvironment, 'TEST', true),
-        applePayMerchantId: getFieldWithFallback(c.applePayMerchantId, fb.applePayMerchantId, null, false)
+        applePayMerchantId: getFieldWithFallback(c.applePayMerchantId, fb.applePayMerchantId, null, false),
+        
+        accountUpdaterMode: getFieldWithFallback(c.accountUpdaterMode, fb.accountUpdaterMode, 'NONE', false),
+        accountUpdaterWebhookUser: getFieldWithFallback(c.accountUpdaterWebhookUser,
+            fb.accountUpdaterWebhookUser, null, false),
+        accountUpdaterWebhookSecret: getFieldWithFallback(c.accountUpdaterWebhookSecret,
+            fb.accountUpdaterWebhookSecret, null, false),
+        jpmcWebhookSubscriptionId: getFieldWithFallback(c.jpmcWebhookSubscriptionId,
+            fb.jpmcWebhookSubscriptionId, null, false)
     };
 }
 
 /**
  * Builds configuration from site preferences
- * @returns {Object}
+ * @returns {Object} result
  */
 function buildSitePrefsConfig() {
-    var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
     var Site = require('dw/system/Site');
     var prefs = Site.getCurrent().getPreferences().getCustom();
 
@@ -198,21 +208,20 @@ function buildSitePrefsConfig() {
         configKey: Site.getCurrent().getID() + '::site-prefs',
         merchantId: prefs.JPMC_MerchantCode || null,
         clientId: prefs.JPMCClientID || null,
-        resourceId: prefs.JPMCResourceID || null,
-        audience: prefs.JPMCAudience || null,
-        tokenUri: prefs.JPMCTokenURI || null,
-        expiresIn: prefs.JPMCExpiresIn || constants.DEFAULT_EXPIRES_IN,
+        resourceId: getEnumValue(prefs.JPMCResourceID, null),
         certAlias: prefs.JPMCCertAlias || constants.DEFAULT_CERT_ALIAS,
         privateKeyAlias: prefs.JPMCPrivateKeyAlias || constants.DEFAULT_KEY_ALIAS,
         kid: prefs.jpmc_kid || null,
-        pieGetKeyUrl: prefs.JPMCGetKeyUrl || null,
-        pieEncryptionUrl: prefs.JPMCEncryptionUrl || null,
+        pieGetKeyUrl: getEnumValue(prefs.JPMCGetKeyUrl, null),
+        pieEncryptionUrl: getEnumValue(prefs.JPMCEncryptionUrl, null),
+        pieKey: prefs.JPMCPieKey || null,
         captureMethod: getEnumValue(prefs.JPMCCaptureMethod, constants.DEFAULT_CAPTURE_METHOD),
         platformId: prefs.JPMCPlatformId || null,
         tokenizationType: getEnumValue(prefs.JPMCTokenizationType, constants.DEFAULT_TOKEN_TYPE),
         enableAVS: prefs.JPMCEnableAVS !== false,
         enableFraudCheck: prefs.JPMCEnableFraudCheck === true,
         enableFraudCheckAtAuth: prefs.JPMCEnableFraudCheckAtAuth === true,
+        jpmc3DSEnabled: prefs.jpmc3DSEnabled === true,
         merchantSoftwareCompany: constants.DEFAULT_COMPANY_NAME,
         merchantSoftwareProduct: constants.DEFAULT_PRODUCT_NAME,
         merchantSoftwareVersion: constants.DEFAULT_VERSION,
@@ -227,17 +236,22 @@ function buildSitePrefsConfig() {
         JPMCGooglePayPDPEnabled: prefs.JPMCGooglePayPDPEnabled === true,
         kountClientId: prefs.jpmcKountClientId || null,
         kountEnvironment: getEnumValue(prefs.jpmcKountEnvironment, 'TEST'),
-        applePayMerchantId: null
+        applePayMerchantId: null,
+        
+        accountUpdaterMode: getEnumValue(prefs.jpmcAccountUpdaterMode, 'NONE'),
+        accountUpdaterWebhookUser: prefs.jpmcAccountUpdaterWebhookUser || null,
+        accountUpdaterWebhookSecret: prefs.jpmcAccountUpdaterWebhookSecret || null,
+        jpmcWebhookSubscriptionId: prefs.jpmcWebhookSubscriptionId || null
     };
 }
 
 /**
  * Loads a merchant config CO by key, using cache
  * @param {string} coKey - e.g. "RefArch::en_CA"
- * @returns {Object|null}
+ * @returns {Object|null} result
  */
 function getMerchantConfigCO(coKey) {
-    var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
     var cache = getMerchantCache();
     var cacheKey = constants.MERCHANT_CONFIG_CACHE_KEY_PREFIX + coKey;
 
@@ -300,11 +314,11 @@ function resolve(overrides) {
 
 /**
  * Resolves merchant configuration for a specific order.
- * @param {dw.order.Order} order
+ * @param {dw.order.Order} order - order to resolve configuration for
  * @returns {Object} Resolved configuration
  */
 function resolveForOrder(order) {
-    var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
     if (!order) {
         return buildSitePrefsConfig();
@@ -364,13 +378,66 @@ function resolveForOrder(order) {
 }
 
 /**
+ * Resolves merchant configuration by merchantId.
+ * @param {string} merchantId - JPMC merchantId to look up.
+ * @returns {Object} Resolved merchant configuration.
+ */
+function resolveByMerchantId(merchantId) {
+    if (!merchantId || !isMultiMerchantEnabled()) {
+        return resolve();
+    }
+
+    var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
+    var cache = getMerchantCache();
+    var midCacheKey = constants.MERCHANT_CONFIG_CACHE_KEY_PREFIX + 'mid_' + merchantId;
+
+    var midCached = cache.get(midCacheKey, function () {
+        var queryResult = null;
+        try {
+            var CustomObjectMgr = require('dw/object/CustomObjectMgr');
+            queryResult = CustomObjectMgr.queryCustomObjects(
+                constants.MERCHANT_CONFIG_CO_TYPE,
+                'custom.merchantId = {0}',
+                null,
+                merchantId
+            );
+
+            if (!queryResult.hasNext()) {
+                return { _notFound: true };
+            }
+
+            var co = queryResult.next();
+            if (!isMerchantConfigEnabled(co)) {
+                return { _notFound: true };
+            }
+
+            return extractCOData(co);
+        } catch (e) {
+            Logger.warn('resolveByMerchantId: error querying CO for merchantId={0}: {1}', merchantId,
+                e instanceof Error ? e.message : String(e));
+            return { _notFound: true };
+        } finally {
+            if (queryResult) {
+                try { queryResult.close(); } catch (ignored) { /* noop */ }
+            }
+        }
+    });
+
+    if (midCached && !midCached._notFound) {
+        return mergeConfigWithSPFallback(midCached, buildSitePrefsConfig());
+    }
+
+    return resolve();
+}
+
+/**
  * Invalidates cached merchant configurations.
- * @param {string} configKey
- * @param {string} [merchantId]
- * @returns {boolean}
+ * @param {string} configKey - merchant config key to invalidate
+ * @param {string} [merchantId] - specific merchant ID to clear
+ * @returns {boolean} true if invalidation succeeded
  */
 function invalidateCache(configKey, merchantId) {
-    var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
     if (!configKey) {
         Logger.warn('invalidateCache called with empty configKey');
@@ -395,11 +462,11 @@ function invalidateCache(configKey, merchantId) {
 
 /**
  * Maps resolved config to access token service format.
- * @param {Object} [resolvedConfig]
- * @returns {Object}
+ * @param {Object} [resolvedConfig] - resolved merchant configuration
+ * @returns {Object} token service configuration
  */
 function toAccessTokenConfig(resolvedConfig) {
-    var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
     if (!resolvedConfig) {
         resolvedConfig = buildSitePrefsConfig();
@@ -410,20 +477,66 @@ function toAccessTokenConfig(resolvedConfig) {
         merchantId: resolvedConfig.merchantId,
         certAlias: resolvedConfig.certAlias || constants.DEFAULT_CERT_ALIAS,
         privateKeyAlias: resolvedConfig.privateKeyAlias || constants.DEFAULT_KEY_ALIAS,
-        expiresIn: resolvedConfig.expiresIn || constants.DEFAULT_EXPIRES_IN,
-        audience: resolvedConfig.audience,
+        audience: 'https://idag2.jpmorganchase.com/adfs/oauth2/token',
         resource_id: resolvedConfig.resourceId,
-        ida_url: resolvedConfig.tokenUri,
+        ida_url: 'https://idag2.jpmorganchase.com/adfs/oauth2/token',
         kid: resolvedConfig.kid || null
     };
+}
+
+/**
+ * @param {string} subscriptionId - The subscription ID returned by JPMC POST /subscriptions.
+ * @param {string} [configKey] - Optional CO key for multi-MID write target.
+ * @returns {boolean} true on success, false on failure.
+ */
+function saveWebhookSubscriptionId(subscriptionId, configKey) {
+    var Transaction = require('dw/system/Transaction');
+    try {
+        if (isMultiMerchantEnabled() && configKey) {
+            var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
+            var CustomObjectMgr = require('dw/object/CustomObjectMgr');
+            var co = CustomObjectMgr.getCustomObject(constants.MERCHANT_CONFIG_CO_TYPE, configKey);
+            if (!co) {
+                Logger.warn('saveWebhookSubscriptionId: CO not found for configKey={0}', configKey);
+                return false;
+            }
+            Transaction.wrap(function () {
+                co.custom.jpmcWebhookSubscriptionId = subscriptionId || null;
+            });
+            invalidateCache(configKey, co.custom.merchantId);
+            return true;
+        }
+        // Single-MID: site preference
+        var SiteW = require('dw/system/Site');
+        Transaction.wrap(function () {
+            SiteW.getCurrent().setCustomPreferenceValue('jpmcWebhookSubscriptionId', subscriptionId || null);
+        });
+        return true;
+    } catch (e) {
+        Logger.error('saveWebhookSubscriptionId failed: {0}', e instanceof Error ? e.message : String(e));
+        return false;
+    }
+}
+
+/**
+ * Clears the persisted webhook subscription ID for the given target.
+ *
+ * @param {string} [configKey] - Optional CO key for multi-MID setups.
+ * @returns {boolean} true on success, false on failure.
+ */
+function clearWebhookSubscriptionId(configKey) {
+    return saveWebhookSubscriptionId(null, configKey);
 }
 
 // Export public API
 module.exports = {
     resolve: resolve,
     resolveForOrder: resolveForOrder,
+    resolveByMerchantId: resolveByMerchantId,
     toAccessTokenConfig: toAccessTokenConfig,
     invalidateCache: invalidateCache,
     isMultiMerchantEnabled: isMultiMerchantEnabled,
-    mergeConfigWithSPFallback: mergeConfigWithSPFallback
+    mergeConfigWithSPFallback: mergeConfigWithSPFallback,
+    saveWebhookSubscriptionId: saveWebhookSubscriptionId,
+    clearWebhookSubscriptionId: clearWebhookSubscriptionId
 };

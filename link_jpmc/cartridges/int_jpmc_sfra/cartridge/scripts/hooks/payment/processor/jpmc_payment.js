@@ -11,7 +11,6 @@ var Transaction = require('dw/system/Transaction');
  */
 function clearSensitivePaymentData() {
     try {
-        session.privacy.jpmcCvv = null;
         session.privacy.jpmcEncryptedCvv = null;
         session.privacy.jpmcEncryptedData = null;
     } catch (e) {
@@ -21,8 +20,8 @@ function clearSensitivePaymentData() {
 
 /**
  * Extracts the first successful SAFETECH token from a verification response
- * @param {Object} verificationData
- * @returns {String|null}
+ * @param {Object} verificationData - JPMC verification API response
+ * @returns {string|null} SAFETECH token or null
  */
 function extractSafetechToken(verificationData) {
     var tokens = verificationData
@@ -47,13 +46,13 @@ function extractSafetechToken(verificationData) {
 
 /**
  * Extracts payment information from billing form including PIE encrypted data
- * @param {Object} req
- * @param {Object} paymentForm
- * @param {Object} viewFormData
- * @returns {Object}
+ * @param {Object} req - current request object
+ * @param {Object} paymentForm - billing payment form
+ * @param {Object} viewFormData - view data to extend
+ * @returns {Object} processed form result
  */
 function processForm(req, paymentForm, viewFormData) {
-    var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
     var paymentMethodValue = paymentForm.paymentMethod.value;
     if (paymentMethodValue === jpmcConstants.JPMC_GOOGLE_PAY) {
@@ -120,14 +119,14 @@ function processForm(req, paymentForm, viewFormData) {
 
 /**
  * Save the credit card information to login account if save card option is selected
- * @param {Object} req
- * @param {dw.order.Basket} basket
- * @param {Object} billingData
+ * @param {Object} req - current request object
+ * @param {dw.order.Basket} basket - current basket
+ * @param {Object} billingData - billing form data
  */
 function savePaymentInformation(req, basket, billingData) {
     var COHelpers = require('*/cartridge/scripts/checkout/checkoutHelpers');
     var CustomerMgr = require('dw/customer/CustomerMgr');
-    var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
     if (billingData.paymentMethod && billingData.paymentMethod.value === jpmcConstants.JPMC_GOOGLE_PAY) {
         return;
@@ -177,14 +176,14 @@ function savePaymentInformation(req, basket, billingData) {
 
 /**
  * Validates PIE encrypted data and creates payment instrument on basket
- * @param {dw.order.Basket} basket
- * @param {Object} paymentInformation
- * @param {string} paymentMethodID
- * @param {Object} req
- * @returns {Object}
+ * @param {dw.order.Basket} basket - current basket
+ * @param {Object} paymentInformation - billing form payment data
+ * @param {string} paymentMethodID - payment method identifier
+ * @param {Object} req - request object
+ * @returns {Object} result
  */
 function Handle(basket, paymentInformation, paymentMethodID, req) {
-    var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
     if (paymentMethodID === jpmcConstants.JPMC_GOOGLE_PAY) {
         var googlePayHook = require('*/cartridge/scripts/hooks/payment/processor/jpmc_googlepay');
@@ -198,6 +197,7 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
     var isStoredCard = !!paymentInformation.storedPaymentUUID;
     var isSaveCardChecked = paymentInformation.saveCard;
     var encrypted = null;
+    var errorMsg;
     session.privacy.jpmcCardSafeTechToken = null;
     if (paymentMethodID === PaymentInstrument.METHOD_CREDIT_CARD) {
         var creditCardPaymentMethod = PaymentMgr.getPaymentMethod(PaymentInstrument.METHOD_CREDIT_CARD);
@@ -248,7 +248,7 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
                 return { fieldErrors: [], serverErrors: serverErrors, error: true };
             }
         } catch (e) {
-            var errorMsg = e instanceof Error ? e.message : String(e);
+            errorMsg = e instanceof Error ? e.message : String(e);
             Logger.error('Handle: Failed to parse encrypted data: {0}', errorMsg);
             serverErrors.push(Resource.msg('error.payment.encryption.invalid', 'checkout', null));
             return { fieldErrors: [], serverErrors: serverErrors, error: true };
@@ -320,11 +320,9 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
 
   
     if (isStoredCard) {
-        session.privacy.jpmcCvv = paymentInformation.securityCode.value;
         session.privacy.jpmcEncryptedCvv = null;
         session.privacy.jpmcEncryptedData = null;
     } else if (encrypted) {
-        session.privacy.jpmcCvv = null;
         session.privacy.jpmcEncryptedCvv = encrypted.cvv || null;
         session.privacy.jpmcEncryptedData = JSON.stringify(encrypted);
     }
@@ -357,7 +355,14 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
     var safetechToken = null;
     try {
         var JPMCPaymentHelper = require('*/cartridge/scripts/helpers/JPMCPaymentHelper');
-        var accountOnFile = isStoredCard ? 'STORED' : (isSaveCardChecked ? 'TO_BE_STORED' : 'NOT_STORED');
+        var accountOnFile;
+        if (isStoredCard) {
+            accountOnFile = 'STORED';
+        } else if (isSaveCardChecked) {
+            accountOnFile = 'TO_BE_STORED';
+        } else {
+            accountOnFile = 'NOT_STORED';
+        }
         var cardData = {
             accountNumber: isStoredCard ? paymentInformation.creditCardToken : encrypted.accountNumber,
             expirationMonth: paymentInformation.expirationMonth.value,
@@ -369,42 +374,58 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
                 cardData.encryptionIntegrityCheck = encrypted.encryptionIntegrityCheck;
             }
         }
-        var verificationOptions = {
-            currency: basket.getCurrencyCode(),
-            billingAddress: basket.getBillingAddress(),
-            email: basket.getCustomerEmail(),
-            initiatorType: 'CARDHOLDER',
-            accountOnFile: accountOnFile,
-            isStoredCard: isStoredCard,
-            accountNumberType: isStoredCard ? storedCardTokenType : jpmcConstants.ACCOUNT_NUMBER_TYPE_PIE,
-            resolvedConfig: resolvedConfig
-        };
-        var verifyResult = JPMCPaymentHelper.verifyPaymentInstrument(cardData, verificationOptions);
-        
-        if (!verifyResult.success) {
-            Logger.error('Handle: JPMC verification failed for order in progress');
-            clearSensitivePaymentData();
-            serverErrors.push(Resource.msg('error.payment.verification.failed', 'checkout', null));
-            return { fieldErrors: [], serverErrors: serverErrors, error: true };
-        }
-        if (!isStoredCard && verifyResult.data) {
-            safetechToken = extractSafetechToken(verifyResult.data);
-            if (safetechToken && isSaveCardChecked) {
-                session.privacy.jpmcCardSafeTechToken = safetechToken;
+        // Skip verification for stored cards - already verified at save time
+        if (!isStoredCard) {
+            var verificationOptions = {
+                currency: basket.getCurrencyCode(),
+                billingAddress: basket.getBillingAddress(),
+                email: basket.getCustomerEmail(),
+                initiatorType: 'CARDHOLDER',
+                accountOnFile: accountOnFile,
+                accountNumberType: jpmcConstants.ACCOUNT_NUMBER_TYPE_PIE,
+                resolvedConfig: resolvedConfig
+            };
+            var verifyResult = JPMCPaymentHelper.verifyPaymentInstrument(cardData, verificationOptions);
+            
+            if (!verifyResult.success) {
+                Logger.error('Handle: JPMC verification failed for order in progress');
+                clearSensitivePaymentData();
+                serverErrors.push(Resource.msg('error.payment.verification.failed', 'checkout', null));
+                return { fieldErrors: [], serverErrors: serverErrors, error: true };
             }
-        }
+            if (verifyResult.data) {
+                safetechToken = extractSafetechToken(verifyResult.data);
+                if (safetechToken && isSaveCardChecked) {
+                    session.privacy.jpmcCardSafeTechToken = safetechToken;
+                }
+            }
 
-        if (!isSaveCardChecked) {
-            session.privacy.jpmcCardSafeTechToken = null;
-        }
-        if (!isStoredCard && isSaveCardChecked && safetechToken) {
-            Transaction.wrap(function () {
-                paymentInstrument.setCreditCardToken(safetechToken);
-            });
-        }
+            // Store cardTypeName if available, otherwise fallback to cardType (short code)
+            var cardTypeName = verifyResult.data
+                && verifyResult.data.paymentMethodType
+                && verifyResult.data.paymentMethodType.card
+                && verifyResult.data.paymentMethodType.card.cardTypeName;
+            var cardType = verifyResult.data
+                && verifyResult.data.paymentMethodType
+                && verifyResult.data.paymentMethodType.card
+                && verifyResult.data.paymentMethodType.card.cardType;
+            var cardTypeValue = cardTypeName || cardType || jpmcConstants.PAYMENT_METHOD_DISPLAY_UNKNOWN;
         
+            Transaction.wrap(function () {
+                paymentInstrument.custom.jpmcCardTypeName = cardTypeValue;
+            });
+
+            if (!isSaveCardChecked) {
+                session.privacy.jpmcCardSafeTechToken = null;
+            }
+            if (!isStoredCard && isSaveCardChecked && safetechToken) {
+                Transaction.wrap(function () {
+                    paymentInstrument.setCreditCardToken(safetechToken);
+                });
+            }
+        }    
     } catch (e) {
-        var errorMsg = e instanceof Error ? e.message : String(e);
+        errorMsg = e instanceof Error ? e.message : String(e);
         Logger.error('Handle: JPMC verification exception - {0}', errorMsg);
         clearSensitivePaymentData();
         serverErrors.push(Resource.msg('error.payment.verification.exception', 'checkout', null));
@@ -416,13 +437,13 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
 
 /**
  * Authorizes payment via JPMC processor.
- * @param {string} orderNumber
- * @param {dw.order.PaymentInstrument} paymentInstrument
- * @param {dw.order.PaymentProcessor} paymentProcessor
- * @returns {Object}
+ * @param {string} orderNumber - order number to authorize
+ * @param {dw.order.PaymentInstrument} paymentInstrument - payment instrument with card data
+ * @param {dw.order.PaymentProcessor} paymentProcessor - JPMC payment processor
+ * @returns {Object} authorization result
  */
 function Authorize(orderNumber, paymentInstrument, paymentProcessor) {
-    var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
     var serverErrors = [];
     var fieldErrors = {};
 
@@ -437,14 +458,24 @@ function Authorize(orderNumber, paymentInstrument, paymentProcessor) {
             return googlePayHook.Authorize(orderNumber, paymentInstrument, paymentProcessor);
         }
 
-        var jpmcTransactionHelpers = require('*/cartridge/scripts/helpers/jpmcTransactionHelpers');
+        var jpmcTransactionHelpers = require('*/cartridge/scripts/helpers/JPMCTransactionHelpers');
         var authResult = jpmcTransactionHelpers.authorize(orderNumber, paymentInstrument, paymentProcessor);
 
         if (authResult.error) {
             return { fieldErrors: fieldErrors, serverErrors: authResult.serverErrors || [], error: true };
         }
 
-        return { fieldErrors: fieldErrors, serverErrors: serverErrors, error: false };
+        // Pass through 3DS data if present
+        return {
+            fieldErrors: fieldErrors,
+            serverErrors: serverErrors,
+            error: false,
+            requires3DS: authResult.requires3DS,
+            authenticationOrchestrationUrl: authResult.authenticationOrchestrationUrl,
+            transactionId: authResult.transactionId,
+            authenticationId: authResult.authenticationId,
+            captureMethod: authResult.captureMethod
+        };
     } catch (e) {
         var errorMsg = e instanceof Error ? e.message : String(e);
         Logger.error('Authorize failed: {0}', errorMsg);
@@ -455,13 +486,13 @@ function Authorize(orderNumber, paymentInstrument, paymentProcessor) {
 
 /**
  * Creates a SAFETECH token for My Account Save Payment flow
- * @returns {String}
+ * @returns {string} result
  * @throws {Error}
  */
 function createToken() {
     var JPMCPaymentHelper = require('*/cartridge/scripts/helpers/JPMCPaymentHelper');
     var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
-    var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
     var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
 
     var resolvedConfig = JPMCMerchantResolver.resolve();
@@ -523,15 +554,12 @@ function createToken() {
     var verifyResult = JPMCPaymentHelper.verifyPaymentInstrument(cardData, verificationOptions);
 
     if (!verifyResult.success) {
-        Logger.error('createToken: JPMC verification failed - {0}', verifyResult.error);
         throw new Error('Payment verification failed');
     }
     var safetechToken = extractSafetechToken(verifyResult.data);
     if (safetechToken) {
         return safetechToken;
     }
-
-    Logger.error('createToken: No SAFETECH token in verification response');
     throw new Error('Payment verification failed');
 }
 

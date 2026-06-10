@@ -91,7 +91,7 @@ describe('JPMCPaymentOperations', function () {
             '*/cartridge/scripts/services/JPMCServiceHelper': mockJPMCServiceHelper,
             '*/cartridge/scripts/helpers/JPMCPayloadBuilder': mockJPMCPayloadBuilder,
             '*/cartridge/scripts/helpers/JPMCConfig': mockJPMCConfig,
-            '*/cartridge/scripts/helpers/jpmcConstants': {
+            '*/cartridge/scripts/helpers/JPMCConstants': {
                 FALLBACK_IP_ADDRESS: '0.0.0.0',
                 FALLBACK_USER_AGENT: 'Unknown',
                 ACCOUNT_NUMBER_TYPE_PIE: 'SAFETECH_PAGE_ENCRYPTION'

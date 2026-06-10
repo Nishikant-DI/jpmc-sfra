@@ -5,6 +5,11 @@ var csrfProtection = require('*/cartridge/scripts/middleware/csrf');
 var consentTracking = require('*/cartridge/scripts/middleware/consentTracking');
 
 
+/**
+ * clearBasketState
+ * @param {dw.order.Basket} basket - basket to clear
+ * @param {dw.system.Transaction} Transaction - transaction module
+ */
 function clearBasketState(basket, Transaction) {
     try {
         Transaction.wrap(function () {
@@ -12,11 +17,11 @@ function clearBasketState(basket, Transaction) {
             basket.createBillingAddress();
             basket.removeAllPaymentInstruments();
         });
-    } catch (e) {  }
+    } catch (e) { /* intentionally empty */ }
 }
 
 /**
- * JpmcGooglePay-GetConfig : Returns Google Pay merchant configuration and current basket totals.
+ * JPMCGooglePay-GetConfig : Returns Google Pay merchant configuration and current basket totals.
  */
 server.get('GetConfig',
     server.middleware.https,
@@ -128,7 +133,7 @@ server.get('GetConfig',
 );
 
 /**
- * JpmcGooglePay-StoreToken : Persists Google Pay payment token in session for checkout flow.
+ * JPMCGooglePay-StoreToken : Persists Google Pay payment token in session for checkout flow.
  */
 server.post('StoreToken',
     server.middleware.https,
@@ -154,6 +159,14 @@ server.post('StoreToken',
     }
 );
 
+/**
+ * JPMCGooglePay-ClearToken : Clears Google Pay payment token from session
+ * @name JPMCGooglePay-ClearToken
+ * @function
+ * @memberof JPMCGooglePay
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - csrfProtection.validateAjaxRequest
+ */
 server.post('ClearToken',
     server.middleware.https,
     csrfProtection.validateAjaxRequest,
@@ -164,9 +177,18 @@ server.post('ClearToken',
     }
 );
 
-
+/**
+ * JPMCGooglePay-SelectShippingDetails : Processes shipping address selection and returns available shipping methods
+ * @name JPMCGooglePay-SelectShippingDetails
+ * @function
+ * @memberof JPMCGooglePay
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - csrfProtection.validateAjaxRequest
+ * @param {httpparameter} - address - Shipping address object from Google Pay
+ */
 server.post('SelectShippingDetails',
     server.middleware.https,
+    csrfProtection.validateAjaxRequest,
     function (req, res, next) {
         var BasketMgr = require('dw/order/BasketMgr');
         var Transaction = require('dw/system/Transaction');
@@ -259,9 +281,18 @@ server.post('SelectShippingDetails',
     }
 );
 
-
+/**
+ * JPMCGooglePay-SelectShippingMethod : Updates basket with selected shipping method and returns updated totals
+ * @name JPMCGooglePay-SelectShippingMethod
+ * @function
+ * @memberof JPMCGooglePay
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - csrfProtection.validateAjaxRequest
+ * @param {httpparameter} - shippingMethodId - Shipping method ID to apply
+ */
 server.post('SelectShippingMethod',
     server.middleware.https,
+    csrfProtection.validateAjaxRequest,
     function (req, res, next) {
         var BasketMgr = require('dw/order/BasketMgr');
         var Transaction = require('dw/system/Transaction');
@@ -327,9 +358,18 @@ server.post('SelectShippingMethod',
     }
 );
 
-
+/**
+ * JPMCGooglePay-SubmitOrder : Processes Google Pay order submission with payment authorization
+ * @name JPMCGooglePay-SubmitOrder
+ * @function
+ * @memberof JPMCGooglePay
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - csrfProtection.validateAjaxRequest
+ * @returns {json} Order confirmation data or error details
+ */
 server.post('SubmitOrder',
     server.middleware.https,
+    csrfProtection.validateAjaxRequest,
     function (req, res, next) {
         var BasketMgr = require('dw/order/BasketMgr');
         var Transaction = require('dw/system/Transaction');
@@ -338,8 +378,7 @@ server.post('SubmitOrder',
         var HookMgr = require('dw/system/HookMgr');
         var basketCalculationHelpers = require('*/cartridge/scripts/helpers/basketCalculationHelpers');
         var COHelpers = require('*/cartridge/scripts/checkout/checkoutHelpers');
-        var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
-        var collections = require('*/cartridge/scripts/util/collections');
+        var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
         var currentBasket = BasketMgr.getCurrentBasket();
         if (!currentBasket) {
@@ -497,9 +536,18 @@ server.post('SubmitOrder',
     }
 );
 
-
+/**
+ * JPMCGooglePay-PrepareBasket : Saves basket state and clears all items for Google Pay flow (PDP/Cart express checkout)
+ * @name JPMCGooglePay-PrepareBasket
+ * @function
+ * @memberof JPMCGooglePay
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - csrfProtection.validateAjaxRequest
+ * @returns {json} Success or error status
+ */
 server.post('PrepareBasket',
     server.middleware.https,
+    csrfProtection.validateAjaxRequest,
     function (req, res, next) {
         var BasketMgr = require('dw/order/BasketMgr');
         var Transaction = require('dw/system/Transaction');
@@ -561,9 +609,18 @@ server.post('PrepareBasket',
     }
 );
 
-
+/**
+ * JPMCGooglePay-RestoreBasket : Restores previously saved basket state when Google Pay flow is cancelled
+ * @name JPMCGooglePay-RestoreBasket
+ * @function
+ * @memberof JPMCGooglePay
+ * @param {middleware} - server.middleware.https
+ * @param {middleware} - csrfProtection.validateAjaxRequest
+ * @returns {json} Success or error status
+ */
 server.post('RestoreBasket',
     server.middleware.https,
+    csrfProtection.validateAjaxRequest,
     function (req, res, next) {
         var BasketMgr = require('dw/order/BasketMgr');
         var Transaction = require('dw/system/Transaction');

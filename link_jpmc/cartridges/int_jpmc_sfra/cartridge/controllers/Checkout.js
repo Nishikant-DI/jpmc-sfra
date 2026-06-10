@@ -3,9 +3,18 @@
 var server = require('server');
 server.extend(module.superModule);
 
+/**
+ * Checkout-Begin : JPMC extension to inject PIE encryption URLs and filter customer payment instruments by merchant ID
+ * @name Checkout-Begin
+ * @function
+ * @memberof Checkout
+ * @param {middleware} - server.append
+ * @param {httpparameter} - req - HTTP request
+ * @param {httpparameter} - res - HTTP response
+ * @param {Function} next - next middleware function
+ */
 server.append('Begin', function (req, res, next) {
     var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
-    var Site = require('dw/system/Site');
     var AccountModel = require('*/cartridge/models/account');
 
     var resolvedConfig = JPMCMerchantResolver.resolve();
@@ -23,11 +32,18 @@ server.append('Begin', function (req, res, next) {
         );
     }
 
+    var pieGetKeyUrl = resolvedConfig.pieGetKeyUrl || '';
+    var pieEncryptionUrl = resolvedConfig.pieEncryptionUrl || '';
+    var pieKey = resolvedConfig.pieKey || '';
+    var jpmcPieGetKeyUrl = (pieGetKeyUrl && pieKey)
+        ? pieGetKeyUrl + '/' + pieKey + '/getkey.js' : '';
+
     res.setViewData({
         customer: filteredCustomer,
-        jpmcPieGetKeyUrl: resolvedConfig.pieGetKeyUrl || Site.getCurrent().getCustomPreferenceValue('JPMCGetKeyUrl') || '',
-        jpmcPieEncryptionUrl: resolvedConfig.pieEncryptionUrl || Site.getCurrent().getCustomPreferenceValue('JPMCEncryptionUrl') || ''
+        jpmcPieGetKeyUrl: jpmcPieGetKeyUrl,
+        jpmcPieEncryptionUrl: pieEncryptionUrl
     });
+
 
     return next();
 });

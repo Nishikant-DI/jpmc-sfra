@@ -7,14 +7,27 @@
 
 /**
  * Checks if JPMC PIE library is ready
- * @returns {boolean} True if PIE library is fully loaded
+ *
+ * All key-material fields (K, L, E, key_id, phase) are checked for truthiness
+ * rather than just existence:
+ *
+ * - `typeof null` returns 'object' and `typeof ''` returns 'string', so a pure
+ *   typeof check passes even when getkey.js has set placeholder values while
+ *   its async key-fetch XHR is still in flight.
+ *
+ * - `phase` is intentionally kept as a typeof/existence check rather than a
+ *   truthy check. JPMC PIE sets phase = 0 when keys are fully loaded in some
+ *   environments, so !!phase would permanently return false and prevent
+ *   encryption from ever being attempted.
+ *
+ * @returns {boolean} True if PIE library is fully loaded with valid key material
  */
 function isPieReady() {
     return typeof window.PIE !== 'undefined' &&
-           typeof window.PIE.K !== 'undefined' &&
-           typeof window.PIE.L !== 'undefined' &&
-           typeof window.PIE.E !== 'undefined' &&
-           typeof window.PIE.key_id !== 'undefined' &&
+           !!window.PIE.K &&
+           !!window.PIE.L &&
+           !!window.PIE.E &&
+           !!window.PIE.key_id &&
            typeof window.PIE.phase !== 'undefined' &&
            typeof window.ValidatePANChecksum === 'function' &&
            typeof window.ProtectPANandCVV === 'function';
@@ -51,6 +64,35 @@ function encryptCardData(cardNumber, cvv) {
 }
 
 /**
+ * Polls until the PIE library is fully initialised, then invokes the callback.
+ * PIE's getkey.js fires an async XHR to fetch live key material; this function
+ * waits for that XHR to complete before signalling readiness.
+ * @param {Function} callback - Called with true when ready, false on timeout
+ * @param {number} [timeoutMs=10000] - Maximum ms to wait before giving up
+ */
+function waitForPieReady(callback, timeoutMs) {
+    if (isPieReady()) {
+        callback(true);
+        return;
+    }
+
+    var limit = typeof timeoutMs === 'number' ? timeoutMs : 10000;
+    var elapsed = 0;
+    var POLL_INTERVAL = 100;
+
+    var timer = setInterval(function () {
+        elapsed += POLL_INTERVAL;
+        if (isPieReady()) {
+            clearInterval(timer);
+            callback(true);
+        } else if (elapsed >= limit) {
+            clearInterval(timer);
+            callback(false);
+        }
+    }, POLL_INTERVAL);
+}
+
+/**
  * Encrypts card data and stores in target element
  * @param {string} cardSelector - Selector for card number input
  * @param {string} cvvSelector - Selector for CVV input
@@ -74,5 +116,7 @@ function encryptAndStore(cardSelector, cvvSelector, targetSelector) {
 }
 
 module.exports = {
+    isPieReady: isPieReady,
+    waitForPieReady: waitForPieReady,
     encryptAndStore: encryptAndStore
 };

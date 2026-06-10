@@ -8,33 +8,26 @@
             var assets = require('*/cartridge/scripts/assets.js');
             assets.addJs('/js/cart.js');
         }
-        var hasApplePay = session.custom.applepaysession === 'yes';
+        var hasApplePay = session.privacy.applepaysession === 'yes';
         var hasGPay = showGPayOnCart && gpayConfig.enabled && !pdict.valid.error;
     </isscript>
 
     <isset name="checkoutBtnClass" value="btn btn-primary btn-block checkout-btn${pdict.valid.error ? ' disabled' : ''}" scope="page"/>
 
-    <isif condition="${hasApplePay}">
-        <div class="row no-gutters align-items-stretch payment-buttons-row">
-            <div class="col pr-1">
-                <a href="${URLUtils.https('Checkout-Begin')}"
-                    class="${checkoutBtnClass}"
-                    role="button">
-                    <isprint value="${Resource.msg('button.checkout', 'cart', null)}" encoding="htmlcontent"/>
-                </a>
-            </div>
-            <div class="col pl-1">
-                <isapplepay class="apple-pay-cart btn btn-block"></isapplepay>
-            </div>
+    <div class="row no-gutters payment-buttons-row">
+        <div class="col">
+            <a href="${URLUtils.https('Checkout-Begin')}"
+                class="${checkoutBtnClass}"
+                role="button">
+                <isprint value="${Resource.msg('button.checkout', 'cart', null)}" encoding="htmlcontent"/>
+            </a>
         </div>
-    <iselse/>
-        <div class="row no-gutters payment-buttons-row">
+    </div>
+
+    <isif condition="${hasApplePay}">
+        <div class="row no-gutters payment-buttons-row mt-2">
             <div class="col">
-                <a href="${URLUtils.https('Checkout-Begin')}"
-                    class="${checkoutBtnClass}"
-                    role="button">
-                    <isprint value="${Resource.msg('button.checkout', 'cart', null)}" encoding="htmlcontent"/>
-                </a>
+                <isapplepay class="apple-pay-cart btn btn-block"></isapplepay>
             </div>
         </div>
     </isif>
@@ -43,14 +36,14 @@
         <div class="row no-gutters payment-buttons-row mt-2">
             <div class="col cart-googlepay-col">
                 <div id="googlepay-button-wrapper"
-                     data-config-url="${URLUtils.https('JpmcGooglePay-GetConfig')}"
-                     data-store-url="${URLUtils.https('JpmcGooglePay-StoreToken')}"
-                     data-clear-url="${URLUtils.https('JpmcGooglePay-ClearToken')}"
-                     data-shipping-details-url="${URLUtils.https('JpmcGooglePay-SelectShippingDetails')}"
-                     data-shipping-method-url="${URLUtils.https('JpmcGooglePay-SelectShippingMethod')}"
-                     data-submit-order-url="${URLUtils.https('JpmcGooglePay-SubmitOrder')}"
+                     data-config-url="${URLUtils.https('JPMCGooglePay-GetConfig')}"
+                     data-store-url="${URLUtils.https('JPMCGooglePay-StoreToken')}"
+                     data-clear-url="${URLUtils.https('JPMCGooglePay-ClearToken')}"
+                     data-shipping-details-url="${URLUtils.https('JPMCGooglePay-SelectShippingDetails')}"
+                     data-shipping-method-url="${URLUtils.https('JPMCGooglePay-SelectShippingMethod')}"
+                     data-submit-order-url="${URLUtils.https('JPMCGooglePay-SubmitOrder')}"
                      data-place-order-url="${URLUtils.https('CheckoutServices-PlaceOrder')}"
-                     data-restore-basket-url="${URLUtils.https('JpmcGooglePay-RestoreBasket')}"
+                     data-restore-basket-url="${URLUtils.https('JPMCGooglePay-RestoreBasket')}"
                      data-gpay-context="cart">
                 </div>
                 <div id="googlepay-error" class="googlepay-error text-center mt-2 text-danger d-none">

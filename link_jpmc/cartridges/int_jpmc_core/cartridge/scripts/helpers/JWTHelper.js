@@ -1,9 +1,14 @@
 'use strict';
 
-var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+/**
+ * JWT expiry in seconds. Since the JWT is created and immediately consumed
+ * for token exchange, a short expiry (5 minutes) is sufficient.
+ * @type {number}
+ */
+var JWT_EXPIRY_SECONDS = 300;
 
 /**
- * @returns {string}
+ * @returns {string} result
  */
 function generateJTI() {
     var UUIDUtils = require('dw/util/UUIDUtils');
@@ -11,29 +16,16 @@ function generateJTI() {
 }
 
 /**
- * @param {string|number} expiresIn
- * @returns {number}
- */
-function parseExpiration(expiresIn) {
-    if (!expiresIn) return jpmcConstants.DEFAULT_JWT_EXPIRY_SECONDS;
-    if (typeof expiresIn === 'number') return expiresIn;
-    if (typeof expiresIn === 'string' && expiresIn.indexOf('h') > -1) {
-        return parseInt(expiresIn, 10) * 60 * 60;
-    }
-    return parseInt(expiresIn, 10) || jpmcConstants.DEFAULT_JWT_EXPIRY_SECONDS;
-}
-
-/**
- * @param {string} base64
- * @returns {string}
+ * @param {string} base64 - standard Base64 encoded string
+ * @returns {string} Base64URL encoded string
  */
 function toBase64URL(base64) {
     return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
 /**
- * @param {string} str
- * @returns {string}
+ * @param {string} str - plain text to encode
+ * @returns {string} Base64URL encoded string
  */
 function base64UrlEncode(str) {
     var Bytes = require('dw/util/Bytes');
@@ -42,8 +34,8 @@ function base64UrlEncode(str) {
 }
 
 /**
- * @param {Object} config
- * @returns {string}
+ * @param {Object} config - JWT signing configuration (clientId, keyId, privateKey)
+ * @returns {string} signed JWT token
  * @throws {Error}
  */
 function generateJWT(config) {
@@ -57,7 +49,7 @@ function generateJWT(config) {
     var Encoding = require('dw/crypto/Encoding');
     
     var now = Math.floor(Date.now() / 1000);
-    var exp = now + parseExpiration(config.expiresIn);
+    var exp = now + JWT_EXPIRY_SECONDS;
     
     var header = { alg: 'RS256', typ: 'JWT', kid: config.kid || '' };
     var payload = {

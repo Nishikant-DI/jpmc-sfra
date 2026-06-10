@@ -12,8 +12,8 @@ var Logger = require('dw/system/Logger').getLogger('JPMC', 'payload');
 /**
  * Converts dollar amount to cents (integer format required by JPMC API)
  * 
- * @param {Number} dollarAmount
- * @returns {Number}
+ * @param {number} dollarAmount - amount in dollars to convert
+ * @returns {number} amount in cents
  * @private
  */
 function convertToCents(dollarAmount) {
@@ -22,30 +22,42 @@ function convertToCents(dollarAmount) {
 
 /**
  * Builds merchant object with software details from configuration.
- * @returns {Object}
+ * @param {boolean} [includeSoftwareId=false] - whether to include softwareId field (for Auth, Void, Capture, Refund)
+ * @returns {Object} merchant object with merchantSoftware details
  */
-function buildMerchantObject() {
-    var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
+function buildMerchantObject(includeSoftwareId) {
+    var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
     var softwareCompany = constants.DEFAULT_COMPANY_NAME;
     var softwareProduct = constants.DEFAULT_PRODUCT_NAME;
     var softwareVersion = constants.DEFAULT_VERSION;
 
+    var merchantSoftware = {
+        companyName: softwareCompany,
+        productName: softwareProduct,
+        version: softwareVersion
+    };
+
+    if (includeSoftwareId) {
+        var System = require('dw/system/System');
+        var realmId = System.getPreferences().getCustom().jpmcRealmId;
+        merchantSoftware.softwareId = realmId || '';
+    }
+
     return {
-        merchantSoftware: {
-            companyName: softwareCompany,
-            productName: softwareProduct,
-            version: softwareVersion
-        }
+        merchantSoftware: merchantSoftware
     };
 }
 /**
- * Formats phone number for JPMC API (digits only, max 12 chars)
- * 
- * @param {String} phone
- * @returns {Object}
+ * Formats phone number for JPMC API (digits only, max 12 chars).
+ * Sets countryCode when the address country is in the PHONE_COUNTRY_CODES map
+ * (US, CA and all EU member states).
+ *
+ * @param {string} phone - raw phone number string
+ * @param {string} [countryAlpha2] - ISO 3166 Alpha-2 country code (e.g. 'US', 'CA')
+ * @returns {Object} formatted phone object with subscriber and countryCode
  * @private
  */
-function formatPhoneNumber(phone) {
+function formatPhoneNumber(phone, countryAlpha2) {
     if (!phone) {
         return null;
     }
@@ -54,8 +66,14 @@ function formatPhoneNumber(phone) {
         phoneNumber: phone.replace(/[^0-9]/g, '').substring(0, 12)
     };
 
-    if (phone.trim().startsWith('+1') || phone.trim().startsWith('1')) {
-        phoneObj.countryCode = 1;
+    if (countryAlpha2) {
+        var jpmcConst = require('*/cartridge/scripts/helpers/JPMCConstants');
+        var code = countryAlpha2.toUpperCase();
+        var phoneCountryCodes = jpmcConst.PHONE_COUNTRY_CODES || {};
+        var dialCode = phoneCountryCodes[code];
+        if (dialCode) {
+            phoneObj.countryCode = dialCode;
+        }
     }
 
     return phoneObj;
@@ -65,8 +83,8 @@ function formatPhoneNumber(phone) {
  * Converts ISO 3166 Alpha-2 country code to Alpha-3
  * JPMC API requires Alpha-3 country codes; SFCC stores Alpha-2
  *
- * @param {String} alpha2
- * @returns {String}
+ * @param {string} alpha2 - ISO 3166 Alpha-2 country code (e.g. 'US')
+ * @returns {string} Alpha-3 country code (e.g. 'USA')
  * @private
  */
 function toAlpha3CountryCode(alpha2) {
@@ -92,8 +110,8 @@ function toAlpha3CountryCode(alpha2) {
 
 /**
  * Builds fraudCheckShoppingCart string from basket or order line items.
- * @param {dw.order.Basket|dw.order.Order} basketOrOrder
- * @returns {String}
+ * @param {dw.order.Basket|dw.order.Order} basketOrOrder - basket or order containing line items
+ * @returns {string} URL-encoded shopping cart string for fraud scoring
  * @private
  */
 function buildFraudCheckShoppingCart(basketOrOrder) {
@@ -132,7 +150,7 @@ function buildFraudCheckShoppingCart(basketOrOrder) {
             items.push(itemString);
         }
         
-        var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+        var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
         var CART_MAX = jpmcConstants.FRAUD_CART_MAX_LENGTH;
         var shoppingCartString = items.join('');
         
@@ -151,15 +169,15 @@ function buildFraudCheckShoppingCart(basketOrOrder) {
 /**
  * Builds capture request payload per JPMC API specification
  * 
- * @param {Object} params
- * @param {dw.order.Order} params.order
- * @param {Number} params.amount
- * @param {Boolean} [params.isFinal=true]
- * @param {Object} [params.multiCapture]
- * @param {Number} [params.multiCapture.sequenceNumber]
- * @param {Number} [params.multiCapture.recordCount]
- * @param {Boolean} [params.multiCapture.isFinal]
- * @returns {Object}
+ * @param {Object} params - capture request parameters
+ * @param {dw.order.Order} params.order - order to capture
+ * @param {number} params.amount - capture amount in dollars
+ * @param {boolean} [params.isFinal=true] - whether this is a final capture
+ * @param {Object} [params.multiCapture] - multi-capture settings
+ * @param {number} [params.multiCapture.sequenceNumber] - capture sequence number
+ * @param {number} [params.multiCapture.recordCount] - total number of captures
+ * @param {boolean} [params.multiCapture.isFinal] - whether this is the final capture in sequence
+ * @returns {Object} capture request payload
  */
 function buildCapturePayload(params) {
     if (!params || !params.order || params.amount === undefined) {
@@ -168,12 +186,13 @@ function buildCapturePayload(params) {
 
     var payload = {
         amount: convertToCents(params.amount),
-        currency: params.order.getCurrencyCode()
+        currency: params.order.getCurrencyCode(),
+        merchant: buildMerchantObject(true)
     };
     if (params.multiCapture) {
         var seqNum = params.multiCapture.sequenceNumber || 1;
         var isFinal = params.multiCapture.isFinal || false;
-        var jpmcConst = require('*/cartridge/scripts/helpers/jpmcConstants');
+        var jpmcConst = require('*/cartridge/scripts/helpers/JPMCConstants');
         payload.multiCapture = {
             multiCaptureSequenceNumber: String(seqNum),
             multiCaptureRecordCount: isFinal ? seqNum : jpmcConst.MULTI_CAPTURE_MAX_RECORD_COUNT,
@@ -188,12 +207,12 @@ function buildCapturePayload(params) {
 
 /**
  * Builds refund request payload per JPMC API specification
- * @param {Object} params
- * @param {String} params.transactionReferenceId
- * @param {Number} [params.amount]
- * @param {String} [params.currency]
- * @param {String} [params.reason]
- * @returns {Object}
+ * @param {Object} params - refund request parameters
+ * @param {string} params.transactionReferenceId - original transaction reference ID
+ * @param {number} [params.amount] - refund amount in dollars (omit for full refund)
+ * @param {string} [params.currency] - currency code (e.g. 'USD')
+ * @param {string} [params.reason] - reason for refund
+ * @returns {Object} refund request payload
  */
 function buildRefundPayload(params) {
     if (!params || !params.transactionReferenceId) {
@@ -206,7 +225,7 @@ function buildRefundPayload(params) {
                 transactionReferenceId: params.transactionReferenceId
             }
         },
-        merchant: buildMerchantObject()
+        merchant: buildMerchantObject(true)
     };
 
     if (params.amount !== undefined && params.amount !== null && params.currency) {
@@ -220,20 +239,20 @@ function buildRefundPayload(params) {
 /**
  * Builds fraud check request payload per JPMC API specification
  * 
- * @param {Object} params
- * @param {dw.order.Basket|dw.order.Order} params.basketOrOrder
- * @param {dw.order.PaymentInstrument} params.paymentInstrument
- * @param {String} [params.deviceIPAddress]
- * @param {Object} [params.fraudScore]
- * @param {String} [params.fraudScore.cardholderBrowserInformation]
- * @param {Boolean} [params.fraudScore.isFraudRuleReturn]
- * @param {String} [params.fraudScore.fraudCheckShoppingCart]
- * @param {String} [params.fraudScore.sessionId]
- * @param {String} [params.fraudScore.websiteRootDomainName]
- * @param {Number} [params.fraudScore.fencibleItemAmount]
- * @param {String} [params.fraudScore.aNITelephoneNumber]
- * @param {String} [params.accountNumberType]
- * @returns {Object}
+ * @param {Object} params - fraud check request parameters
+ * @param {dw.order.Basket|dw.order.Order} params.basketOrOrder - basket or order to check
+ * @param {dw.order.PaymentInstrument} params.paymentInstrument - payment instrument with card data
+ * @param {string} [params.deviceIPAddress] - customer device IP address
+ * @param {Object} [params.fraudScore] - fraud scoring parameters
+ * @param {string} [params.fraudScore.cardholderBrowserInformation] - cardholder browser info
+ * @param {boolean} [params.fraudScore.isFraudRuleReturn] - whether to return fraud rule details
+ * @param {string} [params.fraudScore.fraudCheckShoppingCart] - shopping cart XML for fraud check
+ * @param {string} [params.fraudScore.sessionId] - Kount session identifier
+ * @param {string} [params.fraudScore.websiteRootDomainName] - merchant website domain
+ * @param {number} [params.fraudScore.fencibleItemAmount] - fencible item total amount
+ * @param {string} [params.fraudScore.aNITelephoneNumber] - ANI telephone number
+ * @param {string} [params.accountNumberType] - account number type
+ * @returns {Object} fraud check payload
  */
 function buildFraudCheckPayload(params) {
     if (!params || !params.basketOrOrder) {
@@ -255,6 +274,7 @@ function buildFraudCheckPayload(params) {
         merchant: buildMerchantObject()
     };
 
+    var autoShoppingCart;
     if (params.fraudScore) {
         payload.fraudScore = {};
 
@@ -269,7 +289,7 @@ function buildFraudCheckPayload(params) {
         if (params.fraudScore.fraudCheckShoppingCart) {
             payload.fraudScore.fraudCheckShoppingCart = params.fraudScore.fraudCheckShoppingCart;
         } else {
-            var autoShoppingCart = buildFraudCheckShoppingCart(basketOrOrder);
+            autoShoppingCart = buildFraudCheckShoppingCart(basketOrOrder);
             if (autoShoppingCart) {
                 payload.fraudScore.fraudCheckShoppingCart = autoShoppingCart;
             }
@@ -288,7 +308,7 @@ function buildFraudCheckPayload(params) {
         }
     } else {
         payload.fraudScore = {};
-        var autoShoppingCart = buildFraudCheckShoppingCart(basketOrOrder);
+        autoShoppingCart = buildFraudCheckShoppingCart(basketOrOrder);
         if (autoShoppingCart) {
             payload.fraudScore.fraudCheckShoppingCart = autoShoppingCart;
         }
@@ -306,25 +326,25 @@ function buildFraudCheckPayload(params) {
  * Builds fraud check payload for card save in My Account (minimal payload)
  * Used when customer saves a payment card to their wallet without an active basket/order
  * 
- * @param {Object} params
- * @param {Object} params.cardData
- * @param {String} params.cardData.accountNumber
- * @param {Number} params.cardData.expirationMonth
- * @param {Number} params.cardData.expirationYear
- * @param {String} [params.currency]
- * @param {String} [params.accountNumberType='SAFETECH_TOKEN']
- * @param {String} [params.deviceIPAddress]
- * @param {String} [params.customerEmail]
- * @param {String} [params.browserInformation]
- * @param {String} [params.kountSessionId]
- * @returns {Object}
+ * @param {Object} params - fraud check parameters
+ * @param {Object} params.cardData - card data for fraud check
+ * @param {string} params.cardData.accountNumber - encrypted or tokenized card number
+ * @param {number} params.cardData.expirationMonth - card expiration month
+ * @param {number} params.cardData.expirationYear - card expiration year
+ * @param {string} [params.currency] - currency code (defaults to site currency)
+ * @param {string} [params.accountNumberType='SAFETECH_TOKEN'] - card number encryption type
+ * @param {string} [params.deviceIPAddress] - customer device IP address
+ * @param {string} [params.customerEmail] - customer email address
+ * @param {string} [params.browserInformation] - customer browser user agent
+ * @param {string} [params.kountSessionId] - Kount fraud session identifier
+ * @returns {Object} fraud check payload for card save
  */
 function buildFraudCheckForCardSavePayload(params) {
     if (!params || !params.cardData || !params.cardData.accountNumber) {
         throw new Error('Card data with account number is required for fraud check payload');
     }
 
-    var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
     var card = params.cardData;
     var Site = require('dw/system/Site');
     var currency = params.currency || Site.getCurrent().getDefaultCurrency();
@@ -367,11 +387,11 @@ function buildFraudCheckForCardSavePayload(params) {
 /**
  * Builds accountHolder object for fraud check and payment authorization
  *
- * @param {dw.order.Basket|dw.order.Order} basketOrOrder
- * @param {String} [ipAddress]
- * @param {String} [ipAddressFieldName='deviceIPAddress']
- * @param {Object} [resolvedConfig]
- * @returns {Object}
+ * @param {dw.order.Basket|dw.order.Order} basketOrOrder - basket or order for account holder data
+ * @param {string} [ipAddress] - customer IP address
+ * @param {string} [ipAddressFieldName='deviceIPAddress'] - IP address field name in payload
+ * @param {Object} [resolvedConfig] - resolved merchant configuration
+ * @returns {Object} account holder payload object
  * @private
  */
 function buildAccountHolderObject(basketOrOrder, ipAddress, ipAddressFieldName, resolvedConfig) {
@@ -385,13 +405,11 @@ function buildAccountHolderObject(basketOrOrder, ipAddress, ipAddressFieldName, 
     var shouldIncludeBillingAddress;
     if (ipAddressFieldName === 'deviceIPAddress') {
         shouldIncludeBillingAddress = true;
+    } else if (resolvedConfig) {
+        shouldIncludeBillingAddress = resolvedConfig.enableAVS !== false;
     } else {
-        if (resolvedConfig) {
-            shouldIncludeBillingAddress = resolvedConfig.enableAVS !== false;
-        } else {
-            var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
-            shouldIncludeBillingAddress = JPMCConfig.isAVSEnabled();
-        }
+        var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
+        shouldIncludeBillingAddress = JPMCConfig.isAVSEnabled();
     }
 
     if (billingAddress) {
@@ -400,6 +418,12 @@ function buildAccountHolderObject(basketOrOrder, ipAddress, ipAddressFieldName, 
         if (firstName || lastName) {
             accountHolder.fullName = (firstName + ' ' + lastName).trim();
         }
+        if (firstName) {
+            accountHolder.firstName = firstName;
+        }
+        if (lastName) {
+            accountHolder.lastName = lastName;
+        }
 
         if (shouldIncludeBillingAddress) {
             accountHolder.billingAddress = buildAddressObject(billingAddress);
@@ -407,7 +431,7 @@ function buildAccountHolderObject(basketOrOrder, ipAddress, ipAddressFieldName, 
 
         var phone = billingAddress.getPhone();
         if (phone) {
-            accountHolder.phone = formatPhoneNumber(phone);
+            accountHolder.phone = formatPhoneNumber(phone, billingAddress.getCountryCode().getValue());
         }
     }
 
@@ -422,8 +446,8 @@ function buildAccountHolderObject(basketOrOrder, ipAddress, ipAddressFieldName, 
 /**
  * Builds address object for fraud check
  * 
- * @param {dw.order.OrderAddress} address
- * @returns {Object}
+ * @param {dw.order.OrderAddress} address - order address to format
+ * @returns {Object} JPMC-formatted address object
  * @private
  */
 function buildAddressObject(address) {
@@ -458,17 +482,17 @@ function buildAddressObject(address) {
 /**
  * Builds paymentMethodType object for fraud check
  * 
- * @param {dw.order.PaymentInstrument} paymentInstrument
- * @param {Object} options
- * @param {String} options.accountNumberType
- * @param {String} [options.cvv]
- * @param {String} [options.encryptedCvv]
- * @param {String} [options.encryptionIntegrityCheck]
- * @returns {Object}
+ * @param {dw.order.PaymentInstrument} paymentInstrument - payment instrument with card data
+ * @param {Object} options - card processing options
+ * @param {string} options.accountNumberType - encryption type (PIE, SAFETECH_TOKEN, PAN)
+ * @param {string} [options.cvv] - card verification value
+ * @param {string} [options.encryptedCvv] - PIE-encrypted CVV
+ * @param {string} [options.encryptionIntegrityCheck] - encryption integrity check value
+ * @returns {Object} payment method type payload
  * @private
  */
 function buildPaymentMethodTypeObject(paymentInstrument, options) {
-    var jpmcConst = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var jpmcConst = require('*/cartridge/scripts/helpers/JPMCConstants');
     var paymentMethodType = {};
     var opts = options || {};
     var accountNumberType = opts.accountNumberType || jpmcConst.ACCOUNT_NUMBER_TYPE_PIE;
@@ -492,13 +516,10 @@ function buildPaymentMethodTypeObject(paymentInstrument, options) {
             };
         }
         if (accountNumberType === 'SAFETECH_PAGE_ENCRYPTION') {
-            var sessionCvv = session.privacy.jpmcCvv || null;
             var sessionEncryptedCvv = session.privacy.jpmcEncryptedCvv || null;
             var sessionEncryptedData = session.privacy.jpmcEncryptedData || null;
 
-            if (sessionCvv) {
-                paymentMethodType.card.cvv = sessionCvv;
-            } else if (sessionEncryptedCvv) {
+            if (sessionEncryptedCvv) {
                 paymentMethodType.card.cvv = sessionEncryptedCvv;
             }
 
@@ -510,8 +531,7 @@ function buildPaymentMethodTypeObject(paymentInstrument, options) {
                         paymentMethodType.card.encryptionIntegrityCheck = encryptedData.encryptionIntegrityCheck;
                     }
                 } catch (e) {
-                    var Logger = require('dw/system/Logger');
-                    Logger.warn('buildPaymentMethodTypeObject: Failed to parse encrypted data for integrity check: {0}', e.message);
+                    require('dw/system/Logger').warn('buildPaymentMethodTypeObject: Failed to parse encrypted data for integrity check: {0}', e.message);
                 }
             }
         }
@@ -523,8 +543,8 @@ function buildPaymentMethodTypeObject(paymentInstrument, options) {
 /**
  * Builds shipTo object for fraud check
  * 
- * @param {dw.order.Shipment} shipment
- * @returns {Object}
+ * @param {dw.order.Shipment} shipment - order shipment with shipping address
+ * @returns {Object} ship-to payload object
  * @private
  */
 function buildShipToObject(shipment) {
@@ -546,7 +566,7 @@ function buildShipToObject(shipment) {
         }
         var phone = shippingAddress.getPhone();
         if (phone) {
-            shipTo.phone = formatPhoneNumber(phone);
+            shipTo.phone = formatPhoneNumber(phone, shippingAddress.getCountryCode().getValue());
         }
     }
     var shippingMethod = shipment.getShippingMethod();
@@ -561,20 +581,20 @@ function buildShipToObject(shipment) {
  * Builds verification request payload per JPMC API specification
  * Validates card details without placing a funds hold
  * 
- * @param {Object} params
- * @param {Object} params.cardData
- * @param {String} params.cardData.accountNumber
- * @param {String} [params.cardData.cvv]
- * @param {Number} params.cardData.expirationMonth
- * @param {Number} params.cardData.expirationYear
- * @param {String} [params.cardData.encryptionIntegrityCheck]
- * @param {String} params.currency
- * @param {String} [params.accountNumberType='SAFETECH_PAGE_ENCRYPTION']
- * @param {Object} [params.billingAddress]
- * @param {Object} [params.authentication]
- * @param {String} [params.walletProvider]
- * @param {String} [params.email]
- * @returns {Object}
+ * @param {Object} params - verification request parameters
+ * @param {Object} params.cardData - card data for verification
+ * @param {string} params.cardData.accountNumber - encrypted or tokenized card number
+ * @param {string} [params.cardData.cvv] - card verification value
+ * @param {number} params.cardData.expirationMonth - card expiration month
+ * @param {number} params.cardData.expirationYear - card expiration year
+ * @param {string} [params.cardData.encryptionIntegrityCheck] - encryption integrity check value
+ * @param {string} params.currency - currency code (e.g. 'USD')
+ * @param {string} [params.accountNumberType='SAFETECH_PAGE_ENCRYPTION'] - card number encryption type
+ * @param {Object} [params.billingAddress] - billing address for AVS
+ * @param {Object} [params.authentication] - 3DS authentication data
+ * @param {string} [params.walletProvider] - wallet provider (e.g. APPLE_PAY)
+ * @param {string} [params.email] - customer email address
+ * @returns {Object} verification request payload
  */
 function buildVerificationPayload(params) {
     if (!params || !params.cardData || !params.currency) {
@@ -582,7 +602,7 @@ function buildVerificationPayload(params) {
     }
 
     var card = params.cardData;
-    var jpmcConst = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var jpmcConst = require('*/cartridge/scripts/helpers/JPMCConstants');
     var cardPayload = {
         accountNumberType: params.accountNumberType || jpmcConst.ACCOUNT_NUMBER_TYPE_PIE,
         accountNumber: card.accountNumber,
@@ -624,8 +644,8 @@ function buildVerificationPayload(params) {
 
 /**
  * Builds authentication object for verification
- * @param {Object} auth
- * @returns {Object}
+ * @param {Object} auth - 3DS authentication response data
+ * @returns {Object} formatted authentication object
  * @private
  */
 function buildVerificationAuthenticationObject(auth) {
@@ -665,10 +685,15 @@ function buildVerificationAuthenticationObject(auth) {
                 authObj.threeDS.version2.threeDSTransactionStatusReasonCode = 
                     auth.threeDS.version2.threeDSTransactionStatusReasonCode;
             }
-            
+
             if (auth.threeDS.version2.threeDSChallengeType) {
-                authObj.threeDS.version2.threeDSChallengeType = auth.threeDS.version2.threeDSChallengeType;
+                authObj.threeDS.version2.threeDSChallengeType =
+                    auth.threeDS.version2.threeDSChallengeType;
             }
+        }
+
+        if (auth.threeDS.threeDSChallengeType) {
+            authObj.threeDS.threeDSChallengeType = auth.threeDS.threeDSChallengeType;
         }
 
         if (auth.threeDS.electronicCommerceIndicator) {
@@ -689,9 +714,9 @@ function buildVerificationAuthenticationObject(auth) {
 
 /**
  * Builds account holder object for verification
- * @param {dw.order.OrderAddress} billingAddress
- * @param {Object} params
- * @returns {Object}
+ * @param {dw.order.OrderAddress} billingAddress - billing address for AVS
+ * @param {Object} params - verification parameters
+ * @returns {Object} account holder payload
  * @private
  */
 function buildVerificationAccountHolderObject(billingAddress, params) {
@@ -714,7 +739,7 @@ function buildVerificationAccountHolderObject(billingAddress, params) {
     }
     var phone = billingAddress.getPhone();
     if (phone) {
-        accountHolder.phone = formatPhoneNumber(phone);
+        accountHolder.phone = formatPhoneNumber(phone, billingAddress.getCountryCode().getValue());
     }
 
     return accountHolder;
@@ -724,22 +749,22 @@ function buildVerificationAccountHolderObject(billingAddress, params) {
  * Builds create payment request payload per JPMC API specification
  * Supports Authorization (MANUAL), Sale (NOW), and Delayed Capture (DELAYED)
  * 
- * @param {Object} params
- * @param {dw.order.Basket|dw.order.Order} params.order
- * @param {dw.order.PaymentInstrument} params.paymentInstrument
- * @param {String} [params.captureMethod='NOW']
- * @param {Object} [params.authentication]
- * @param {String} [params.walletProvider]
- * @param {String} [params.accountNumberType='PAN']
- * @param {String} [params.initiatorType='CARDHOLDER']
- * @param {String} [params.accountOnFile='NOT_STORED']
- * @param {String} [params.deviceIPAddress]
- * @param {Object} [params.recurring]
- * @param {Boolean} [params.isAmountFinal=true]
- * @param {String} [params.merchantCategoryCode]
- * @param {Boolean} [params.requestFraudScore=false]
- * @param {Number} [params.transactionRiskScore]
- * @returns {Object}
+ * @param {Object} params - payment request parameters
+ * @param {dw.order.Basket|dw.order.Order} params.order - basket or order to authorize
+ * @param {dw.order.PaymentInstrument} params.paymentInstrument - payment instrument with card data
+ * @param {string} [params.captureMethod='NOW'] - capture method (NOW, DELAYED, MANUAL)
+ * @param {Object} [params.authentication] - 3DS authentication data
+ * @param {string} [params.walletProvider] - wallet provider identifier
+ * @param {string} [params.accountNumberType='PAN'] - card number encryption type
+ * @param {string} [params.initiatorType='CARDHOLDER'] - transaction initiator type
+ * @param {string} [params.accountOnFile='NOT_STORED'] - account on file status
+ * @param {string} [params.deviceIPAddress] - customer device IP address
+ * @param {Object} [params.recurring] - recurring payment configuration
+ * @param {boolean} [params.isAmountFinal=true] - whether the amount is final
+ * @param {string} [params.merchantCategoryCode] - merchant category code (MCC)
+ * @param {boolean} [params.requestFraudScore=false] - whether to request fraud score
+ * @param {number} [params.transactionRiskScore] - pre-calculated transaction risk score
+ * @returns {Object} create payment request payload
  */
 function buildCreatePaymentPayload(params) {
     if (!params || !params.order || !params.paymentInstrument) {
@@ -758,7 +783,7 @@ function buildCreatePaymentPayload(params) {
         initiatorType: params.initiatorType || 'CARDHOLDER',
         accountOnFile: params.accountOnFile || 'NOT_STORED',
         merchantOrderNumber: basket.getOrderNo ? basket.getOrderNo() : ('BASKET-' + basket.getUUID()),
-        merchant: buildMerchantObject()
+        merchant: buildMerchantObject(true)
     };
     payload.accountHolder = buildAccountHolderObject(basket, params.IPAddress, 'IPAddress', params.resolvedConfig);
     if (params.merchantCategoryCode) {
@@ -769,8 +794,15 @@ function buildCreatePaymentPayload(params) {
         accountNumberType: params.accountNumberType,
         walletProvider: params.walletProvider,
         authentication: params.authentication,
-        resolvedConfig: params.resolvedConfig
+        resolvedConfig: params.resolvedConfig,
+        requestAccountUpdater: params.requestAccountUpdater === true,
+        paymentAuthenticationRequest: params.paymentAuthenticationRequest
     });
+    
+    // Add browserInfo at root level (required for 3DS)
+    if (params.browserInfo) {
+        payload.browserInfo = params.browserInfo;
+    }
     if (params.recurring) {
         payload.recurring = {
             recurringSequence: params.recurring.sequence || 'FIRST',
@@ -798,6 +830,11 @@ function buildCreatePaymentPayload(params) {
             payload.risk.transactionRiskScore = params.transactionRiskScore;
         }
     }
+    
+    // Log payload for debugging 3DS issues
+    if (payload.browserInfo) {
+        require('dw/system/Logger').info('JPMC 3DS: Payload browserInfo: {0}', JSON.stringify(payload.browserInfo));
+    }
 
     return payload;
 }
@@ -805,9 +842,9 @@ function buildCreatePaymentPayload(params) {
 /**
  * Builds payment method type object for create payment
  * 
- * @param {dw.order.PaymentInstrument} paymentInstrument
- * @param {Object} options
- * @returns {Object}
+ * @param {dw.order.PaymentInstrument} paymentInstrument - payment instrument with card data
+ * @param {Object} options - card and wallet options
+ * @returns {Object} payment method type payload with wallet/auth extensions
  * @private
  */
 function buildCreatePaymentMethodTypeObject(paymentInstrument, options) {
@@ -821,6 +858,24 @@ function buildCreatePaymentMethodTypeObject(paymentInstrument, options) {
         if (options.authentication) {
             paymentMethodType.card.authentication = options.authentication;
         }
+
+        // Real-Time Account Updater (RTAU): include the flag for eligible saved cards.
+        // Eligibility: stored card (token present) and RTAU mode is REAL_TIME or BOTH.
+        try {
+            if (options.requestAccountUpdater === true) {
+                paymentMethodType.card.accountUpdater = {
+                    requestAccountUpdater: true
+                };
+            }
+        } catch (e) {
+            Logger.warn('buildCreatePaymentMethodTypeObject: failed to attach RTAU flag - {0}',
+                e instanceof Error ? e.message : String(e));
+        }
+
+        // CRITICAL: paymentAuthenticationRequest must be nested inside card object
+        if (options.paymentAuthenticationRequest) {
+            paymentMethodType.card.paymentAuthenticationRequest = options.paymentAuthenticationRequest;
+        }
     }
 
     return paymentMethodType;
@@ -828,7 +883,7 @@ function buildCreatePaymentMethodTypeObject(paymentInstrument, options) {
 
 /**
  * Builds the void authorization payload for JPMC PATCH /payments/{id}
- * @returns {Object}
+ * @returns {Object} result
  */
 function buildVoidPayload() {
     return {
@@ -840,21 +895,21 @@ function buildVoidPayload() {
  * Builds Apple Pay payment request payload per JPMC Online Payments API specification
  * Maps Apple Pay encrypted payment token to JPMC's paymentMethodType.applepay structure
  * 
- * @param {Object} params
- * @param {dw.order.Order} params.order
- * @param {Object} params.encryptedPaymentBundle
- * @param {String} params.encryptedPaymentBundle.encryptedPayload
- * @param {String} params.encryptedPaymentBundle.signature
- * @param {String} params.encryptedPaymentBundle.protocolVersion
- * @param {Object} params.encryptedPaymentBundle.encryptedPaymentHeader
- * @param {String} params.encryptedPaymentBundle.encryptedPaymentHeader.ephemeralPublicKey
- * @param {String} params.encryptedPaymentBundle.encryptedPaymentHeader.publicKeyHash
- * @param {String} params.encryptedPaymentBundle.encryptedPaymentHeader.walletTransactionId
- * @param {String} [params.encryptedPaymentBundle.encryptedPaymentHeader.walletApplicationData]
- * @param {String} [params.captureMethod]
- * @param {String} [params.latLong]
- * @param {Boolean} [params.isAmountFinal]
- * @returns {Object}
+ * @param {Object} params - Apple Pay payment parameters
+ * @param {dw.order.Order} params.order - order for payment
+ * @param {Object} params.encryptedPaymentBundle - Apple Pay encrypted payment token
+ * @param {string} params.encryptedPaymentBundle.encryptedPayload - encrypted payment data
+ * @param {string} params.encryptedPaymentBundle.signature - payment token signature
+ * @param {string} params.encryptedPaymentBundle.protocolVersion - encryption protocol version
+ * @param {Object} params.encryptedPaymentBundle.encryptedPaymentHeader - payment token header
+ * @param {string} params.encryptedPaymentBundle.encryptedPaymentHeader.ephemeralPublicKey - ephemeral public key
+ * @param {string} params.encryptedPaymentBundle.encryptedPaymentHeader.publicKeyHash - merchant public key hash
+ * @param {string} params.encryptedPaymentBundle.encryptedPaymentHeader.walletTransactionId - Apple Pay transaction ID
+ * @param {string} [params.encryptedPaymentBundle.encryptedPaymentHeader.walletApplicationData] - wallet application data
+ * @param {string} [params.captureMethod] - capture method (NOW, DELAYED, MANUAL)
+ * @param {string} [params.latLong] - latitude/longitude coordinates
+ * @param {boolean} [params.isAmountFinal] - whether payment amount is final
+ * @returns {Object} Apple Pay payment payload
  */
 function buildApplePayPaymentPayload(params) {
     if (!params || !params.order) {
@@ -895,7 +950,7 @@ function buildApplePayPaymentPayload(params) {
         initiatorType: 'CARDHOLDER',
         accountOnFile: 'NOT_STORED',
         merchantOrderNumber: order.getOrderNo(),
-        merchant: buildMerchantObject()
+        merchant: buildMerchantObject(true)
     };
     payload.paymentMethodType = {
         applepay: {
@@ -926,15 +981,15 @@ function buildApplePayPaymentPayload(params) {
 
 /**
  * Builds Google Pay payment request payload for JPMC API
- * @param {Object} params
- * @param {dw.order.Basket|dw.order.Order} params.order
- * @param {dw.order.PaymentInstrument} params.paymentInstrument
- * @param {Object} params.googlePayToken
- * @param {string} [params.captureMethod='NOW']
- * @param {string} [params.initiatorType='CARDHOLDER']
- * @param {string} [params.accountOnFile='NOT_STORED']
- * @param {boolean} [params.isAmountFinal=true]
- * @returns {Object}
+ * @param {Object} params - Google Pay payment parameters
+ * @param {dw.order.Basket|dw.order.Order} params.order - basket or order for payment
+ * @param {dw.order.PaymentInstrument} params.paymentInstrument - payment instrument
+ * @param {Object} params.googlePayToken - decrypted Google Pay token data
+ * @param {string} [params.captureMethod='NOW'] - capture method (NOW, DELAYED, MANUAL)
+ * @param {string} [params.initiatorType='CARDHOLDER'] - transaction initiator type
+ * @param {string} [params.accountOnFile='NOT_STORED'] - account on file status
+ * @param {boolean} [params.isAmountFinal=true] - whether the amount is final
+ * @returns {Object} Google Pay payment request payload
  */
 function buildGooglePayPaymentPayload(params) {
     if (!params || !params.order || !params.paymentInstrument) {
@@ -979,7 +1034,7 @@ function buildGooglePayPaymentPayload(params) {
         initiatorType: params.initiatorType || 'CARDHOLDER',
         accountOnFile: params.accountOnFile || 'NOT_STORED',
         merchantOrderNumber: basket.getOrderNo ? basket.getOrderNo() : ('BASKET-' + basket.getUUID()),
-        merchant: buildMerchantObject(),
+        merchant: buildMerchantObject(true),
         paymentMethodType: {
             googlepay: {
                 encryptedPaymentBundle: encryptedPaymentBundle

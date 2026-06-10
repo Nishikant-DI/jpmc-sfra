@@ -9,6 +9,7 @@ var Collection = require('../../dw.util.Collection');
 function Order() {
     this.orderNo = 'TEST-ORDER-001';
     this.UUID = 'test-uuid-12345';
+    this.orderToken = 'test-order-token';
     this.totalGrossPrice = { value: 100.00, currencyCode: 'USD' };
     this.currencyCode = 'USD';
     this.customerEmail = 'test@example.com';
@@ -28,6 +29,10 @@ Order.PAYMENT_STATUS_PAID = 2;
 
 Order.prototype.getOrderNo = function () {
     return this.orderNo;
+};
+
+Order.prototype.getOrderToken = function () {
+    return this.orderToken;
 };
 
 Order.prototype.getUUID = function () {

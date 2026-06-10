@@ -10,9 +10,16 @@
     "watch": "sgmf-scripts --watch",
     "upload": "sgmf-scripts --upload",
     "uploadCartridge": "sgmf-scripts --uploadCartridge int_jpmc_sfra && sgmf-scripts --uploadCartridge bm_jpmc",
-    "test": "sgmf-scripts --test test/unit/**/*.js test/integration/**/*.js",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "sgmf-scripts --test test/unit/**/*.js",
+    "test:integration": "mocha --timeout 10000 --require test/integration/setup.js 'test/integration/int_jpmc_*/**/*.js'",
     "cover": "sgmf-scripts --cover 'test/unit'",
-    "test:watch": "sgmf-scripts --test test/unit/**/*.js test/integration/**/*.js --watch"
+    "test:watch": "sgmf-scripts --test test/unit/**/*.js --watch",
+    "test:functional:setup": "cd test/functional && npm install && npx playwright install --with-deps chromium",
+    "test:functional": "cd test/functional && npx playwright test",
+    "test:functional:headed": "cd test/functional && npx playwright test --headed",
+    "test:functional:ui": "cd test/functional && npx playwright test --ui",
+    "test:functional:report": "cd test/functional && npx playwright show-report"
   },
   "devDependencies": {
     "@babel/core": "^7.15.4",
@@ -29,6 +36,10 @@
     "mocha": "^10.0.0",
     "nyc": "^15.1.0",
     "proxyquire": "^1.7.4",
+    "request": "^2.88.2",
+    "request-promise": "^4.2.6",
+    "@tridnguyen/config": "^2.3.1",
+    "chai-subset": "^1.6.0",
     "sass": "^1.69.5",
     "sass-loader": "^13.3.2",
     "sgmf-scripts": "^3.0.0",
@@ -40,6 +51,7 @@
   },
   "packageName": "int_jpmc_sfra",
   "dependencies": {
-    "@kount/kount-web-client-sdk": "^2.2.3"
+    "@kount/kount-web-client-sdk": "^2.2.3",
+    "cleave.js": "^1.6.0"
   }
 }

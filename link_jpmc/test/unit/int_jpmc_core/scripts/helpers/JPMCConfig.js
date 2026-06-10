@@ -22,7 +22,12 @@ describe('JPMCConfig', function () {
             'dw/system/Site': SiteMock,
             'dw/system/Logger': LoggerMock,
             'dw/order/PaymentMgr': PaymentMgrMock,
-            '*/cartridge/scripts/helpers/jpmcConstants': require('../../../../../cartridges/int_jpmc_core/cartridge/scripts/helpers/jpmcConstants')
+            '*/cartridge/scripts/helpers/JPMCConstants': require('../../../../../cartridges/int_jpmc_core/cartridge/scripts/helpers/JPMCConstants'),
+            '*/cartridge/scripts/helpers/JPMCMerchantResolver': {
+                resolve: function () {
+                    return { accountUpdaterMode: SiteMock.getCurrent().getPreferences().getCustom().jpmcAccountUpdaterMode || 'NONE' };
+                }
+            }
         });
     });
 
@@ -31,10 +36,7 @@ describe('JPMCConfig', function () {
             SiteMock.setMockPreferences({
                 JPMCClientID: 'test-client-id',
                 JPMC_MerchantCode: 'test-merchant',
-                JPMCTokenURI: 'https://test.jpmc.com/token',
-                JPMCResourceID: 'test-resource-id',
-                JPMCAudience: 'https://test.jpmc.com/token',
-                JPMCExpiresIn: '5h',
+                JPMCResourceID: { value: 'test-resource-id' },
                 jpmc_kid: 'ABCDEF0123456789ABCDEF0123456789ABCDEF01',
                 JPMCCertAlias: 'test-cert',
                 JPMCPrivateKeyAlias: 'test-key'
@@ -46,8 +48,7 @@ describe('JPMCConfig', function () {
             assert.equal(config.merchantId, 'test-merchant');
             assert.equal(config.ida_url, 'https://test.jpmc.com/token');
             assert.equal(config.resource_id, 'test-resource-id');
-            assert.equal(config.audience, 'https://test.jpmc.com/token');
-            assert.equal(config.expiresIn, '5h');
+            assert.equal(config.audience, 'https://idag2.jpmorganchase.com/adfs/oauth2/token');
             assert.equal(config.kid, 'ABCDEF0123456789ABCDEF0123456789ABCDEF01');
             assert.equal(config.certAlias, 'test-cert');
             assert.equal(config.privateKeyAlias, 'test-key');
@@ -57,16 +58,13 @@ describe('JPMCConfig', function () {
             SiteMock.setMockPreferences({
                 JPMCClientID: 'test-client-id',
                 JPMC_MerchantCode: 'test-merchant',
-                JPMCTokenURI: 'https://test.jpmc.com/token',
-                JPMCResourceID: 'test-resource-id',
-                JPMCAudience: 'https://test.jpmc.com/token'
+                JPMCResourceID: { value: 'test-resource-id' }
             });
 
             var config = JPMCConfig.getAccessTokenConfig();
 
             assert.equal(config.certAlias, 'jpmc-certificate');
             assert.equal(config.privateKeyAlias, 'jpmc-private-key');
-            assert.equal(config.expiresIn, '5h');
         });
 
         it('should throw error when required preference is missing', function () {
@@ -82,9 +80,7 @@ describe('JPMCConfig', function () {
         it('should throw error when JPMCClientID is missing', function () {
             SiteMock.setMockPreferences({
                 JPMC_MerchantCode: 'test-merchant',
-                JPMCTokenURI: 'https://test.jpmc.com/token',
-                JPMCResourceID: 'test-resource-id',
-                JPMCAudience: 'https://test.jpmc.com/token'
+                JPMCResourceID: { value: 'test-resource-id' }
             });
 
             assert.throws(function () {
@@ -320,6 +316,231 @@ describe('JPMCConfig', function () {
             assert.equal(config.allowedCardNetworks.length, 3);
             assert.include(config.allowedCardNetworks, 'VISA');
             assert.include(config.allowedCardNetworks, 'MASTERCARD');
+        });
+
+        it('should return error when gateway is not configured', function () {
+            PaymentMgrMock.setMockPaymentMethod('JPMC_GOOGLE_PAY', { isActive: function () { return true; } });
+            SiteMock.setMockPreferences({
+                JPMCGooglePayEnvironment: { value: 'TEST' }
+            });
+            var config = JPMCConfig.getGooglePayConfig();
+            assert.isFalse(config.enabled);
+            assert.isTrue(config.error);
+        });
+
+        it('should return error when gatewayMerchantId is not configured', function () {
+            PaymentMgrMock.setMockPaymentMethod('JPMC_GOOGLE_PAY', { isActive: function () { return true; } });
+            SiteMock.setMockPreferences({
+                JPMCGooglePayEnvironment: { value: 'TEST' },
+                JPMCGooglePayGateway: 'chase'
+            });
+            var config = JPMCConfig.getGooglePayConfig();
+            assert.isFalse(config.enabled);
+            assert.isTrue(config.error);
+        });
+
+        it('should return error when merchantName is not configured', function () {
+            PaymentMgrMock.setMockPaymentMethod('JPMC_GOOGLE_PAY', { isActive: function () { return true; } });
+            SiteMock.setMockPreferences({
+                JPMCGooglePayEnvironment: { value: 'TEST' },
+                JPMCGooglePayGateway: 'chase',
+                JPMCGooglePayGatewayMerchantId: 'gw-mid'
+            });
+            var config = JPMCConfig.getGooglePayConfig();
+            assert.isFalse(config.enabled);
+            assert.isTrue(config.error);
+        });
+
+        it('should return error when allowedCardNetworks is not configured', function () {
+            PaymentMgrMock.setMockPaymentMethod('JPMC_GOOGLE_PAY', { isActive: function () { return true; } });
+            SiteMock.setMockPreferences({
+                JPMCGooglePayEnvironment: { value: 'TEST' },
+                JPMCGooglePayGateway: 'chase',
+                JPMCGooglePayGatewayMerchantId: 'gw-mid',
+                JPMCGooglePayMerchantName: 'Store'
+            });
+            var config = JPMCConfig.getGooglePayConfig();
+            assert.isFalse(config.enabled);
+            assert.isTrue(config.error);
+        });
+
+        it('should return error when allowedCardNetworks is empty after parsing', function () {
+            PaymentMgrMock.setMockPaymentMethod('JPMC_GOOGLE_PAY', { isActive: function () { return true; } });
+            SiteMock.setMockPreferences({
+                JPMCGooglePayEnvironment: { value: 'TEST' },
+                JPMCGooglePayGateway: 'chase',
+                JPMCGooglePayGatewayMerchantId: 'gw-mid',
+                JPMCGooglePayMerchantName: 'Store',
+                JPMCGooglePayAllowedCardNetworks: ',,,'
+            });
+            var config = JPMCConfig.getGooglePayConfig();
+            assert.isFalse(config.enabled);
+            assert.isTrue(config.error);
+        });
+
+        it('should return error when allowedAuthMethods is not configured', function () {
+            PaymentMgrMock.setMockPaymentMethod('JPMC_GOOGLE_PAY', { isActive: function () { return true; } });
+            SiteMock.setMockPreferences({
+                JPMCGooglePayEnvironment: { value: 'TEST' },
+                JPMCGooglePayGateway: 'chase',
+                JPMCGooglePayGatewayMerchantId: 'gw-mid',
+                JPMCGooglePayMerchantName: 'Store',
+                JPMCGooglePayAllowedCardNetworks: 'VISA'
+            });
+            var config = JPMCConfig.getGooglePayConfig();
+            assert.isFalse(config.enabled);
+            assert.isTrue(config.error);
+        });
+
+        it('should return error when allowedAuthMethods is empty after parsing', function () {
+            PaymentMgrMock.setMockPaymentMethod('JPMC_GOOGLE_PAY', { isActive: function () { return true; } });
+            SiteMock.setMockPreferences({
+                JPMCGooglePayEnvironment: { value: 'TEST' },
+                JPMCGooglePayGateway: 'chase',
+                JPMCGooglePayGatewayMerchantId: 'gw-mid',
+                JPMCGooglePayMerchantName: 'Store',
+                JPMCGooglePayAllowedCardNetworks: 'VISA',
+                JPMCGooglePayAllowedAuthMethods: ',,,'
+            });
+            var config = JPMCConfig.getGooglePayConfig();
+            assert.isFalse(config.enabled);
+            assert.isTrue(config.error);
+        });
+
+        it('should return error for PRODUCTION without googlePayMerchantId', function () {
+            PaymentMgrMock.setMockPaymentMethod('JPMC_GOOGLE_PAY', { isActive: function () { return true; } });
+            SiteMock.setMockPreferences({
+                JPMCGooglePayEnvironment: { value: 'PRODUCTION' },
+                JPMCGooglePayGateway: 'chase',
+                JPMCGooglePayGatewayMerchantId: 'gw-mid',
+                JPMCGooglePayMerchantName: 'Store',
+                JPMCGooglePayAllowedCardNetworks: 'VISA',
+                JPMCGooglePayAllowedAuthMethods: 'PAN_ONLY'
+            });
+            var config = JPMCConfig.getGooglePayConfig();
+            assert.isFalse(config.enabled);
+            assert.isTrue(config.error);
+        });
+
+        it('should return disabled when payment method is null', function () {
+            PaymentMgrMock.setMockPaymentMethod('JPMC_GOOGLE_PAY', null);
+            var config = JPMCConfig.getGooglePayConfig();
+            assert.isFalse(config.enabled);
+        });
+    });
+
+    describe('isGooglePayOnCartEnabled', function () {
+        it('should return true when enabled', function () {
+            SiteMock.setMockPreferences({ JPMCGooglePayCartEnabled: true });
+            assert.isTrue(JPMCConfig.isGooglePayOnCartEnabled());
+        });
+
+        it('should return true for string "true"', function () {
+            SiteMock.setMockPreferences({ JPMCGooglePayCartEnabled: 'true' });
+            assert.isTrue(JPMCConfig.isGooglePayOnCartEnabled());
+        });
+
+        it('should return false when not configured', function () {
+            SiteMock.setMockPreferences({});
+            assert.isFalse(JPMCConfig.isGooglePayOnCartEnabled());
+        });
+    });
+
+    describe('isGooglePayOnPDPEnabled', function () {
+        it('should return true when enabled', function () {
+            SiteMock.setMockPreferences({ JPMCGooglePayPDPEnabled: true });
+            assert.isTrue(JPMCConfig.isGooglePayOnPDPEnabled());
+        });
+
+        it('should return false when not configured', function () {
+            SiteMock.setMockPreferences({});
+            assert.isFalse(JPMCConfig.isGooglePayOnPDPEnabled());
+        });
+    });
+
+    describe('getAccountUpdaterMode', function () {
+        it('should return NONE when not configured', function () {
+            SiteMock.setMockPreferences({});
+            assert.equal(JPMCConfig.getAccountUpdaterMode(), 'NONE');
+        });
+
+        it('should return NOTIFICATIONS when set', function () {
+            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'NOTIFICATIONS' } });
+            assert.equal(JPMCConfig.getAccountUpdaterMode(), 'NOTIFICATIONS');
+        });
+
+        it('should return REAL_TIME when set', function () {
+            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'REAL_TIME' } });
+            assert.equal(JPMCConfig.getAccountUpdaterMode(), 'REAL_TIME');
+        });
+
+        it('should return BOTH when set', function () {
+            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'BOTH' } });
+            assert.equal(JPMCConfig.getAccountUpdaterMode(), 'BOTH');
+        });
+
+        it('should return NONE for invalid value', function () {
+            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'INVALID' } });
+            assert.equal(JPMCConfig.getAccountUpdaterMode(), 'NONE');
+        });
+    });
+
+    describe('isAccountUpdaterNotificationsEnabled', function () {
+        it('should return false when mode is NONE', function () {
+            SiteMock.setMockPreferences({});
+            assert.isFalse(JPMCConfig.isAccountUpdaterNotificationsEnabled());
+        });
+
+        it('should return true when mode is NOTIFICATIONS', function () {
+            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'NOTIFICATIONS' } });
+            assert.isTrue(JPMCConfig.isAccountUpdaterNotificationsEnabled());
+        });
+
+        it('should return true when mode is BOTH', function () {
+            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'BOTH' } });
+            assert.isTrue(JPMCConfig.isAccountUpdaterNotificationsEnabled());
+        });
+
+        it('should return false when mode is REAL_TIME', function () {
+            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'REAL_TIME' } });
+            assert.isFalse(JPMCConfig.isAccountUpdaterNotificationsEnabled());
+        });
+    });
+
+    describe('isAccountUpdaterRTAUEnabled', function () {
+        it('should return false when mode is NONE', function () {
+            SiteMock.setMockPreferences({});
+            assert.isFalse(JPMCConfig.isAccountUpdaterRTAUEnabled());
+        });
+
+        it('should return true when mode is REAL_TIME', function () {
+            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'REAL_TIME' } });
+            assert.isTrue(JPMCConfig.isAccountUpdaterRTAUEnabled());
+        });
+
+        it('should return true when mode is BOTH', function () {
+            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'BOTH' } });
+            assert.isTrue(JPMCConfig.isAccountUpdaterRTAUEnabled());
+        });
+
+        it('should return false when mode is NOTIFICATIONS', function () {
+            SiteMock.setMockPreferences({ jpmcAccountUpdaterMode: { value: 'NOTIFICATIONS' } });
+            assert.isFalse(JPMCConfig.isAccountUpdaterRTAUEnabled());
+        });
+    });
+
+    describe('getSitePreference edge cases', function () {
+        it('should throw when required preference missing and prefs unavailable', function () {
+            SiteMock.setMockPreferences({});
+            assert.throws(function () {
+                JPMCConfig.getPreference('NonExistentRequired', true);
+            }, Error, 'Required preference not configured');
+        });
+
+        it('should return null when optional preference missing', function () {
+            SiteMock.setMockPreferences({});
+            var result = JPMCConfig.getPreference('NonExistent', false);
+            assert.isNull(result);
         });
     });
 });

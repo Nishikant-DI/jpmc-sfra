@@ -66,7 +66,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/fraudDetection', functio
             'dw/system/Logger': mockLogger,
             '*/cartridge/scripts/helpers/JPMCConfig': mockJPMCConfig,
             '*/cartridge/scripts/helpers/JPMCPaymentHelper': mockJPMCPaymentHelper,
-            '*/cartridge/scripts/helpers/jpmcConstants': {
+            '*/cartridge/scripts/helpers/JPMCConstants': {
                 FALLBACK_USER_AGENT: 'Unknown',
                 ACCOUNT_NUMBER_TYPE_PIE: 'SAFETECH_PAGE_ENCRYPTION'
             }
@@ -520,6 +520,58 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/fraudDetection', functio
             // fraudDetection is already loaded via proxyquire
             assert.isFunction(fraudDetection);
             assert.equal(fraudDetection.name, 'fraudDetection');
+        });
+    });
+
+    describe('Fraud logging without orderNo (lines 95, 110, 122)', function () {
+        it('should log DECLINED without order number (line 95 else branch)', function () {
+            mockJPMCPaymentHelper.performFraudCheck.returns({
+                success: true,
+                riskDecision: { fraudRiskScore: 90, fraudRuleAction: 'D' },
+                riskElement: 'HIGH'
+            });
+            var result = fraudDetection(mockBasket, mockPaymentInstrument);
+            assert.equal(result.status, 'fail');
+            assert.equal(result.action, 'DECLINE');
+        });
+
+        it('should log DECLINED with order number (line 95 if branch)', function () {
+            mockJPMCPaymentHelper.performFraudCheck.returns({
+                success: true,
+                riskDecision: { fraudRiskScore: 90, fraudRuleAction: 'D' },
+                riskElement: 'HIGH'
+            });
+            var result = fraudDetection(mockBasket, mockPaymentInstrument, { orderNo: 'ORD-DECLINE' });
+            assert.equal(result.status, 'fail');
+            assert.equal(result.action, 'DECLINE');
+        });
+
+        it('should log MANAGER_REVIEW flag with order number (line 110 if branch)', function () {
+            mockJPMCPaymentHelper.performFraudCheck.returns({
+                success: true,
+                riskDecision: { fraudRiskScore: 60, fraudRuleAction: 'E' },
+                riskElement: 'MEDIUM'
+            });
+            var result = fraudDetection(mockBasket, mockPaymentInstrument, { orderNo: 'ORD-REVIEW' });
+            assert.equal(result.status, 'flag');
+            assert.equal(result.action, 'MANAGER_REVIEW');
+        });
+
+        it('should log UNKNOWN action with order number (line 122 if branch)', function () {
+            mockJPMCPaymentHelper.performFraudCheck.returns({
+                success: true,
+                riskDecision: { fraudRiskScore: 30, fraudRuleAction: 'Z' },
+                riskElement: 'LOW'
+            });
+            var result = fraudDetection(mockBasket, mockPaymentInstrument, { orderNo: 'ORD-UNKNOWN' });
+            assert.equal(result.status, 'success');
+            assert.equal(result.action, 'UNKNOWN');
+        });
+
+        it('should log FAIL_OPEN without order number', function () {
+            mockJPMCPaymentHelper.performFraudCheck.returns({ success: false, error: 'timeout' });
+            var result = fraudDetection(mockBasket, mockPaymentInstrument);
+            assert.equal(result.action, 'FAIL_OPEN');
         });
     });
 });

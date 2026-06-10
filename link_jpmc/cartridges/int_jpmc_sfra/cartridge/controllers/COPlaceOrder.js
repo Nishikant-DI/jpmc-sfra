@@ -8,18 +8,27 @@ var Resource = require('dw/web/Resource');
 var PaymentInstrument = require('dw/order/PaymentInstrument');
 var csrfProtection = require('*/cartridge/scripts/middleware/csrf');
 
-
+/**
+ * COPlaceOrder-Submit : Handles post-3DS order confirmation for Apple Pay and standard payments
+ * @name COPlaceOrder-Submit
+ * @function
+ * @memberof COPlaceOrder
+ * @param {middleware} - csrfProtection.generateToken
+ * @param {httpparameter} - order_id - Order ID from query string
+ * @param {httpparameter} - order_token - Order token for verification
+ * @param {Function} next - next middleware function
+ */
 server.post('Submit', csrfProtection.generateToken, function (req, res, next) {
     var checkoutHelper = require('*/cartridge/scripts/checkout/checkoutHelpers');
     var OrderModel = require('*/cartridge/models/order');
     var hooksHelper = require('*/cartridge/scripts/helpers/hooks');
-    var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
-    var order = OrderMgr.getOrder(req.querystring.order_id);
+    var order = OrderMgr.getOrder(req.querystring.order_id, req.querystring.order_token);
 
    
-    if (!order || req.querystring.order_token !== order.getOrderToken()) {
-        return next(new Error('Order token does not match'));
+    if (!order) {
+        return next(new Error('Order not found or token mismatch'));
     }
 
    

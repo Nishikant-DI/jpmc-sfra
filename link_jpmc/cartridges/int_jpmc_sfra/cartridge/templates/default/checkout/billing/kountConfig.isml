@@ -20,7 +20,7 @@
          data-client-id="<isprint value="${kountClientId}" encoding="htmldoublequote"/>" 
          data-environment="<isprint value="${kountEnvironmentValue}" encoding="htmldoublequote"/>" 
          data-session-id="<isprint value="${kountSessionId}" encoding="htmldoublequote"/>"
-         style="display:none;">
+         class="jpmc-hidden">
     </div>
     
     <input type="hidden" name="kountSessionId" value="<isprint value="${kountSessionId}" encoding="htmldoublequote"/>" />

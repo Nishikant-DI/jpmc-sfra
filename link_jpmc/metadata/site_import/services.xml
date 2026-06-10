@@ -42,6 +42,18 @@
         <password/>
     </service-credential>
 
+    <service-credential service-credential-id="JPMCAccountUpdaterCredentials">
+        <url>https://api-mock.payments.jpmorgan.com/api/v2/account-updates</url>
+        <user-id/>
+        <password/>
+    </service-credential>
+
+    <service-credential service-credential-id="JPMCAccountUpdatesNotificationSubscriptionCredentials">
+        <url>https://api-mock.payments.jpmorgan.com/api/v1/subscriptions</url>
+        <user-id/>
+        <password/>
+    </service-credential>
+
     <service-profile service-profile-id="JPMCServiceProfile">
         <timeout-millis>30000</timeout-millis>
         <rate-limit-enabled>false</rate-limit-enabled>
@@ -127,5 +139,27 @@
         <mock-mode-enabled>false</mock-mode-enabled>
         <profile-id>JPMCServiceProfile</profile-id>
         <credential-id>JPMCVerificationCredentials</credential-id>
+    </service>
+
+    <service service-id="JPMCAccountUpdater">
+        <service-type>HTTP</service-type>
+        <enabled>true</enabled>
+        <log-prefix>jpmc-au</log-prefix>
+        <comm-log-enabled>false</comm-log-enabled>
+        <force-prd-enabled>true</force-prd-enabled>
+        <mock-mode-enabled>false</mock-mode-enabled>
+        <profile-id>JPMCServiceProfile</profile-id>
+        <credential-id>JPMCAccountUpdaterCredentials</credential-id>
+    </service>
+
+    <service service-id="JPMCAccountUpdatesNotificationSubscription">
+        <service-type>HTTP</service-type>
+        <enabled>true</enabled>
+        <log-prefix>jpmc-au</log-prefix>
+        <comm-log-enabled>false</comm-log-enabled>
+        <force-prd-enabled>true</force-prd-enabled>
+        <mock-mode-enabled>false</mock-mode-enabled>
+        <profile-id>JPMCServiceProfile</profile-id>
+        <credential-id>JPMCAccountUpdatesNotificationSubscriptionCredentials</credential-id>
     </service>
 </services>

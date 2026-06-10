@@ -9,13 +9,13 @@ var Logger = require('dw/system/Logger').getLogger('JPMC', 'payment');
 var Transaction = require('dw/system/Transaction');
 var PaymentTransaction = require('dw/order/PaymentTransaction');
 var UUID = require('dw/util/UUIDUtils');
-var jpmcTransactionHelpers = require('*/cartridge/scripts/helpers/jpmcTransactionHelpers');
+var jpmcTransactionHelpers = require('*/cartridge/scripts/helpers/JPMCTransactionHelpers');
 
 /**
  * Creates a payment (Authorization or Sale).
- * @param {dw.order.Basket|dw.order.Order} order
- * @param {Object} options
- * @returns {Object}
+ * @param {dw.order.Basket|dw.order.Order} order - basket or order to authorize
+ * @param {Object} options - payment options (captureMethod, authentication, etc.)
+ * @returns {Object} payment creation result
  */
 function createPayment(order, options) {
     var JPMCServiceHelper = require('*/cartridge/scripts/services/JPMCServiceHelper');
@@ -53,7 +53,7 @@ function createPayment(order, options) {
         var captureMethod = options.captureMethod;
         result.captureMethod = captureMethod;
         
-    var payload = JPMCPayloadBuilder.buildCreatePaymentPayload({
+        var payload = JPMCPayloadBuilder.buildCreatePaymentPayload({
             order: order,
             paymentInstrument: paymentInstrument,
             captureMethod: captureMethod,
@@ -62,7 +62,16 @@ function createPayment(order, options) {
             isAmountFinal: options.isAmountFinal,
             accountNumberType: options.accountNumberType,
             IPAddress: options.IPAddress,
-            resolvedConfig: resolvedConfig
+            resolvedConfig: resolvedConfig,
+            requestAccountUpdater: options.requestAccountUpdater === true,
+            authentication: options.authentication,
+            walletProvider: options.walletProvider,
+            paymentAuthenticationRequest: options.paymentAuthenticationRequest,
+            browserInfo: options.browserInfo,
+            recurring: options.recurring,
+            merchantCategoryCode: options.merchantCategoryCode,
+            requestFraudScore: options.requestFraudScore,
+            transactionRiskScore: options.transactionRiskScore,
         });
         var requestId = UUID.createUUID().toString();
 
@@ -71,16 +80,22 @@ function createPayment(order, options) {
             'request-id': requestId
         };
         var serviceResult = JPMCServiceHelper.callWithTokenGeneration({
-                    tokenServiceId: 'JPMCAccessToken',
-                    serviceId: 'JPMCPaymentService',
-                    method: 'POST',
-                    data: payload,
-                    headers: headers,
-                    resolvedConfig: resolvedConfig
-                });
+            tokenServiceId: 'JPMCAccessToken',
+            serviceId: 'JPMCPaymentService',
+            method: 'POST',
+            data: payload,
+            headers: headers,
+            resolvedConfig: resolvedConfig
+        });
         
         if (serviceResult.success && serviceResult.data) {
             var paymentData = serviceResult.data;
+            
+            // Log 3DS response for debugging
+            if (paymentData.responseCode === 'PERFORM_AUTHENTICATION') {
+                Logger.info('JPMC 3DS: Received PERFORM_AUTHENTICATION response. authenticationOrchestrationUrl: {0}', 
+                    paymentData.paymentAuthenticationResult ? paymentData.paymentAuthenticationResult.authenticationOrchestrationUrl : 'MISSING');
+            }
             
             if (paymentData.responseStatus === 'SUCCESS') {
                 
@@ -133,9 +148,9 @@ function createPayment(order, options) {
 
 /**
  * Captures a payment for an order.
- * @param {dw.order.Order} order
- * @param {Object} options
- * @returns {Object}
+ * @param {dw.order.Order} order - order with authorized payment
+ * @param {Object} options - capture options (amount, isFinal, multiCapture)
+ * @returns {Object} capture result
  */
 function capturePayment(order, options) {
     var JPMCServiceHelper = require('*/cartridge/scripts/services/JPMCServiceHelper');
@@ -165,11 +180,6 @@ function capturePayment(order, options) {
         var paymentInstrument = paymentInstruments[0];
         var paymentTransaction = paymentInstrument.getPaymentTransaction();
         
-        if (!paymentTransaction || !paymentTransaction.getTransactionID()) {
-            result.error = 'No authorization transaction found';
-            Logger.error('capturePayment: Order {0} - {1}', order.orderNo, result.error);
-            return result;
-        }
         
         var jpmcTransactionId = jpmcTransactionHelpers.resolveJpmcTransactionId(paymentInstrument, paymentTransaction);
         
@@ -235,9 +245,9 @@ function capturePayment(order, options) {
 
                 Transaction.wrap(function () {
                     paymentTransaction.setType(PaymentTransaction.TYPE_CAPTURE);
-                    
+                    var captureAmountDollars = capturePayload.amount / 100;
+
                     if (paymentTransaction.custom) {
-                        var captureAmountDollars = capturePayload.amount / 100;
 
                         var previousCaptured = paymentTransaction.custom.jpmcCapturedAmount || 0;
                         paymentTransaction.custom.jpmcCapturedAmount = previousCaptured + captureAmountDollars;
@@ -322,9 +332,9 @@ function capturePayment(order, options) {
 
 /**
  * Refunds a payment for an order.
- * @param {dw.order.Order} order
- * @param {Object} options
- * @returns {Object}
+ * @param {dw.order.Order} order - order with captured payment
+ * @param {Object} options - refund options (amount, currency, reason)
+ * @returns {Object} refund result
  */
 function refundPayment(order, options) {
     var JPMCServiceHelper = require('*/cartridge/scripts/services/JPMCServiceHelper');
@@ -361,13 +371,7 @@ function refundPayment(order, options) {
         var paymentInstrument = paymentInstruments[0];
         var paymentTransaction = paymentInstrument.getPaymentTransaction();
         
-        if (!paymentTransaction || !paymentTransaction.getTransactionID()) {
-            result.error = 'No capture transaction found';
-            Logger.error('refundPayment: Order {0} - {1}', order.orderNo, result.error);
-            return result;
-        }
-        
-        
+       
         var jpmcTransactionId = jpmcTransactionHelpers.resolveJpmcTransactionId(paymentInstrument, paymentTransaction);
         
         if (!jpmcTransactionId) {
@@ -435,10 +439,10 @@ function refundPayment(order, options) {
             var authDollars = paymentTransaction.amount ? paymentTransaction.amount.value : 0;
 
             if (capturedDollarsForValidation > authDollars * 2 && authDollars > 0) {
-                capturedDollarsForValidation = capturedDollarsForValidation / 100;
+                capturedDollarsForValidation /= 100;
             }
             if (refundedDollarsForValidation > authDollars * 2 && authDollars > 0) {
-                refundedDollarsForValidation = refundedDollarsForValidation / 100;
+                refundedDollarsForValidation /= 100;
             }
 
             var remainingRefundableAmount = Math.max(capturedDollarsForValidation - refundedDollarsForValidation, 0);
@@ -489,10 +493,10 @@ function refundPayment(order, options) {
             if (refundData.responseStatus === 'SUCCESS') {
                 Transaction.wrap(function () {
                     paymentTransaction.setType(PaymentTransaction.TYPE_CREDIT);
-                    
+                    var actualRefundedAmountCents = refundData.amount || refundPayload.amount || 0;
+                    var actualRefundedDollars = actualRefundedAmountCents / 100;
+
                     if (paymentTransaction.custom) {
-                        var actualRefundedAmountCents = refundData.amount || refundPayload.amount || 0;
-                        var actualRefundedDollars = actualRefundedAmountCents / 100;
                         
                         var previousRefunded = paymentTransaction.custom.jpmcRefundedAmount || 0;
                         paymentTransaction.custom.jpmcRefundedAmount = previousRefunded + actualRefundedDollars;
@@ -509,7 +513,7 @@ function refundPayment(order, options) {
                             notes: (options.reason || 'Refund') + ' - $' + actualRefundedDollars.toFixed(2) + ' ' + order.getCurrencyCode()
                         };
                         
-                        var refundHistory = [];
+                        var refundHistory = []; // eslint-disable-line no-shadow
                         if (paymentTransaction.custom.jpmcRefundHistory) {
                             try {
                                 refundHistory = JSON.parse(paymentTransaction.custom.jpmcRefundHistory);
@@ -580,6 +584,73 @@ function refundPayment(order, options) {
     return result;
 }
 
+/**
+ * Get payment details after 3DS authentication (JPMC Step 5)
+ * Performs GET /payments/{id} to retrieve authentication results
+ * @param {dw.order.Order} order - order with payment to retrieve
+ * @param {string} transactionId - JPMC transaction/payment ID
+ * @returns {Object} { success: boolean, data: object }
+ */
+function getPaymentDetails(order, transactionId) {
+    var JPMCServiceHelper = require('*/cartridge/scripts/services/JPMCServiceHelper');
+    var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
+    
+    var result = {
+        success: false,
+        data: null,
+        error: null
+    };
+    
+    if (!transactionId) {
+        result.error = 'Transaction ID is required';
+        Logger.error('getPaymentDetails: {0}', result.error);
+        return result;
+    }
+    
+    try {
+        var resolvedConfig = JPMCMerchantResolver.resolve();
+        var merchantId = resolvedConfig.merchantId;
+        
+        var requestId = UUID.createUUID().toString();
+        var headers = {
+            'merchant-id': merchantId,
+            'request-id': requestId
+        };
+        
+        // GET /payments/{id}
+        var serviceResult = JPMCServiceHelper.callWithTokenGeneration({
+            tokenServiceId: 'JPMCAccessToken',
+            serviceId: 'JPMCPaymentService',
+            method: 'GET',
+            urlSuffix: '/' + transactionId,
+            headers: headers,
+            resolvedConfig: resolvedConfig
+        });
+        
+        if (serviceResult.success && serviceResult.data) {
+            result.success = true;
+            result.data = serviceResult.data;
+            
+            Logger.info('JPMC 3DS: Retrieved payment details for transaction {0} - responseCode: {1}', 
+                transactionId, serviceResult.data.responseCode);
+            
+            // Log authentication result
+            if (serviceResult.data.paymentAuthenticationResult) {
+                Logger.info('JPMC 3DS: Authentication result - authenticationId: {0}', 
+                    serviceResult.data.paymentAuthenticationResult.authenticationId);
+            }
+        } else {
+            result.error = 'Failed to retrieve payment details';
+            Logger.error('getPaymentDetails: {0}', result.error);
+        }
+    } catch (e) {
+        result.error = e.message || String(e);
+        Logger.error('getPaymentDetails exception: {0}', result.error);
+    }
+    
+    return result;
+}
+
 
 var JPMCPaymentOperations = require('*/cartridge/scripts/helpers/JPMCPaymentOperations');
 
@@ -590,5 +661,6 @@ module.exports = {
     voidPayment: jpmcTransactionHelpers.voidPayment,
     performFraudCheck: JPMCPaymentOperations.performFraudCheck,
     performFraudCheckForCardSave: JPMCPaymentOperations.performFraudCheckForCardSave,
-    verifyPaymentInstrument: JPMCPaymentOperations.verifyPaymentInstrument
+    verifyPaymentInstrument: JPMCPaymentOperations.verifyPaymentInstrument,
+    getPaymentDetails: getPaymentDetails
 };

@@ -6,13 +6,25 @@ var MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 var packageJson = require('./package.json');
 var basePath = path.resolve(__dirname, packageJson.paths.base);
-var CARTRIDGES = ['int_jpmc_sfra', 'bm_jpmc'];
+var CARTRIDGES = ['int_jpmc_sfra', 'int_jpmc_core', 'bm_jpmc'];
 var outputBase = path.resolve(__dirname, 'cartridges/int_jpmc_sfra/cartridge/static');
 
+var getCartridgePaths = function (cartridgeName) {
+    return {
+        clientBase: path.resolve(__dirname, 'cartridges/' + cartridgeName + '/cartridge/client'),
+        staticBase: path.resolve(__dirname, 'cartridges/' + cartridgeName + '/cartridge/static')
+    };
+};
+
 var createJsEntries = function (cartridgeName) {
-    var clientBase = path.resolve(__dirname, 'cartridges/' + cartridgeName + '/cartridge/client');
-    var staticBase = path.resolve(__dirname, 'cartridges/' + cartridgeName + '/cartridge/static');
+    var paths = getCartridgePaths(cartridgeName);
+    var clientBase = paths.clientBase;
+    var staticBase = paths.staticBase;
     var result = {};
+
+    if (!shell.test('-d', clientBase)) {
+        return result;
+    }
     shell.ls(path.join(clientBase, '**/js/**/*.js')).forEach(function (filePath) {
         var key = path.relative(clientBase, filePath).slice(0, -3);
         result[path.relative(outputBase, path.join(staticBase, key))] = filePath;
@@ -21,9 +33,14 @@ var createJsEntries = function (cartridgeName) {
 };
 
 var createScssEntries = function (cartridgeName) {
-    var clientBase = path.resolve(__dirname, 'cartridges/' + cartridgeName + '/cartridge/client');
-    var staticBase = path.resolve(__dirname, 'cartridges/' + cartridgeName + '/cartridge/static');
+    var paths = getCartridgePaths(cartridgeName);
+    var clientBase = paths.clientBase;
+    var staticBase = paths.staticBase;
     var result = {};
+
+    if (!shell.test('-d', clientBase)) {
+        return result;
+    }
     shell.ls(path.join(clientBase, '**/scss/*.scss')).forEach(function (filePath) {
         if (path.basename(filePath).charAt(0) === '_') { return; }
         var key = path.relative(clientBase, filePath)
@@ -34,15 +51,21 @@ var createScssEntries = function (cartridgeName) {
     return result;
 };
 
-var jsEntries   = CARTRIDGES.reduce(function (acc, name) { return Object.assign(acc, createJsEntries(name)); }, {});
-var scssEntries = CARTRIDGES.reduce(function (acc, name) { return Object.assign(acc, createScssEntries(name)); }, {});
+var mergeEntries = function (createEntriesFn) {
+    return CARTRIDGES.reduce(function (acc, name) {
+        return Object.assign(acc, createEntriesFn(name));
+    }, {});
+};
+
+var jsEntries = mergeEntries(createJsEntries);
+var scssEntries = mergeEntries(createScssEntries);
 
 var baseAlias = function (type) {
-    return { resolve: { alias: { base: path.join(basePath, 'cartridge/client/default/' + type) } } };
+    return path.join(basePath, 'cartridge/client/default/' + type);
 };
 
 module.exports = [
-    Object.assign({
+    {
         name: 'js',
         mode: 'production',
         devtool: false,
@@ -60,10 +83,17 @@ module.exports = [
                     options: { presets: ['@babel/env'], cacheDirectory: true }
                 }
             }]
+        },
+        resolve: {
+            extensions: ['.js'],
+            alias: {
+                base: baseAlias('js'),
+                'base/components/cleave': path.resolve(__dirname, 'cartridges/int_jpmc_sfra/cartridge/client/default/js/components/cleave.js')
+            }
         }
-    }, baseAlias('js')),
+    },
 
-    Object.assign({
+    {
         name: 'scss',
         mode: 'production',
         entry: scssEntries,
@@ -82,6 +112,11 @@ module.exports = [
                     { loader: 'sass-loader', options: { api: 'legacy' } }
                 ]
             }]
+        },
+        resolve: {
+            alias: {
+                base: baseAlias('scss')
+            }
         }
-    }, baseAlias('scss'))
+    }
 ];

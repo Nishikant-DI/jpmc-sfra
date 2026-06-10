@@ -10,10 +10,15 @@ var OrderMgr = {
     /**
      * Get an order by order number
      * @param {string} orderNo - Order number
+     * @param {string} [orderToken] - Order token for secure access
      * @returns {Object|null} Order object or null
      */
-    getOrder: function (orderNo) {
-        return orders[orderNo] || null;
+    getOrder: function (orderNo, orderToken) {
+        var order = orders[orderNo] || null;
+        if (order && orderToken && order.orderToken !== orderToken) {
+            return null;
+        }
+        return order;
     },
 
     /**

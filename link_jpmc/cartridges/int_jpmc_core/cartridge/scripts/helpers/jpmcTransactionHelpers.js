@@ -2,12 +2,118 @@
 
 var Transaction = require('dw/system/Transaction');
 var OrderMgr = require('dw/order/OrderMgr');
-var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
 /**
- * @param {dw.order.PaymentInstrument} paymentInstrument
- * @param {dw.order.PaymentTransaction} paymentTransaction
- * @returns {string|null}
+ * Builds 3DS authentication parameters from browser info collected on the frontend
+ * @param {dw.order.Order} order - order with browser info in custom attributes
+ * @param {Object} resolvedConfig - resolved merchant configuration
+ * @returns {Object|null} Object with paymentAuthenticationRequest and browserInfo, or null if 3DS not enabled
+ */
+function build3DSAuthenticationParameters(order, resolvedConfig) {
+    var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
+    
+    // Check if 3DS is enabled (locale-specific config or site preference)
+    var is3DSEnabled = (resolvedConfig && resolvedConfig.jpmc3DSEnabled === true) || JPMCConfig.is3DSEnabled();
+    
+    if (!is3DSEnabled) {
+        return null;
+    }
+    
+    // Collect browser info from request form parameters (injected by frontend)
+    var form = request.httpParameterMap;
+    
+    // Helper function to safely get form parameter value
+    /**
+     * getFormValue
+     * @param {string} paramName - parameter name
+     * @param {string} defaultValue - default value
+     * @returns {string} value
+     */
+    function getFormValue(paramName, defaultValue) {
+        var param = form.get(paramName);
+        if (param && param.stringValue) {
+            return param.stringValue;
+        }
+        return defaultValue || '';
+    }
+    
+    // Browser info fields for root-level browserInfo object
+    // CRITICAL: All these fields are REQUIRED by JPMC for 3DS
+    var browserInfo = {
+        // Required string fields with fallback defaults
+        browserAcceptHeader: getFormValue('browserAcceptHeader', 'application/json'),
+        browserLanguage: getFormValue('browserLanguage', 'en'),
+        browserColorDepth: getFormValue('browserColorDepth', '24'),
+        browserScreenHeight: getFormValue('browserScreenHeight', '1080'),
+        browserScreenWidth: getFormValue('browserScreenWidth', '1920'),
+        browserUserAgent: getFormValue('browserUserAgent', 'Mozilla/5.0 (compatible; SFCC/1.0)'),
+        
+        // Device local timezone (required, integer offset in minutes)
+        deviceLocalTimeZone: parseInt(getFormValue('deviceLocalTimeZone', '0'), 10),
+        
+        // Boolean fields (required)
+        javaEnabled: getFormValue('javaEnabled', 'false') === 'true',
+        javaScriptEnabled: getFormValue('javaScriptEnabled', 'true') === 'true',
+        
+        challengeWindowSize: getFormValue('challengeWindowSize', 'FULL_SCREEN')
+    };
+    
+    // Device IP address (required for 3DS)
+    var ipAddress = null;
+    try {
+        ipAddress = request.getHttpRemoteAddress();
+    } catch (e) {
+        // Fall back to form parameter if available
+        ipAddress = getFormValue('deviceIPAddress', null);
+    }
+    if (ipAddress) {
+        browserInfo.deviceIPAddress = ipAddress;
+    } else {
+        // Fallback IP if unable to detect (should not happen in production)
+        browserInfo.deviceIPAddress = '0.0.0.0';
+    }
+
+    // Build paymentAuthenticationRequest object (goes inside card object)
+    var URLUtils = require('dw/web/URLUtils');
+    var Site = require('dw/system/Site');
+    
+    // Build authenticationReturnUrl (where JPMC redirects after 3DS challenge).
+    // Include orderNo and orderToken so Handle3DSReturn can locate the order
+    // directly without relying on a custom-attribute search.
+    var authReturnUrl;
+    try {
+        authReturnUrl = URLUtils.https(
+            'CheckoutServices-Handle3DSReturn',
+            'orderNo', order.orderNo,
+            'orderToken', order.orderToken
+        ).toString();
+    } catch (urlErr) {
+        var siteUrl = Site.getCurrent().getHttpsHostName();
+        authReturnUrl = 'https://' + siteUrl + '/checkout/3ds-return';
+    }
+
+    var paymentAuthenticationRequest = {
+        authenticationReturnUrl: authReturnUrl,
+        threeDSRequestorAuthenticationInfo: {
+            authenticationPurpose: jpmcConstants.THREE_DS.AUTHENTICATION_PURPOSE.PAYMENT_TRANSACTION
+        },
+        threeDSPurchaseInfo: {
+            purchaseDate: new Date().toISOString(),
+            threeDomainSecureTransactionType: jpmcConstants.THREE_DS.TRANSACTION_TYPE.GOODS_SERVICES
+        }
+    };
+    
+    return {
+        paymentAuthenticationRequest: paymentAuthenticationRequest,
+        browserInfo: browserInfo
+    };
+}
+
+/**
+ * @param {dw.order.PaymentInstrument} paymentInstrument - payment instrument to check
+ * @param {dw.order.PaymentTransaction} paymentTransaction - payment transaction to check
+ * @returns {string|null} JPMC transaction ID or null
  */
 function resolveJpmcTransactionId(paymentInstrument, paymentTransaction) {
     if (paymentTransaction && paymentTransaction.custom && paymentTransaction.custom.jpmcAuthorizationId) {
@@ -23,7 +129,7 @@ function resolveJpmcTransactionId(paymentInstrument, paymentTransaction) {
 }
 
 /**
- * @param {Object} opts
+ * @param {Object} opts - authorization data options
  */
 function persistAuthorizationData(opts) {
     var paymentInstrument = opts.paymentInstrument;
@@ -60,10 +166,10 @@ function persistAuthorizationData(opts) {
 
 /**
  * Authorizes a credit card payment via JPMC
- * @param {string} orderNumber
- * @param {dw.order.PaymentInstrument} paymentInstrument
- * @param {dw.order.PaymentProcessor} paymentProcessor
- * @returns {Object}
+ * @param {string} orderNumber - order number to authorize
+ * @param {dw.order.PaymentInstrument} paymentInstrument - payment instrument with card data
+ * @param {dw.order.PaymentProcessor} paymentProcessor - JPMC payment processor
+ * @returns {Object} authorization result
  */
 function authorize(orderNumber, paymentInstrument, paymentProcessor) {
     var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
@@ -102,9 +208,12 @@ function authorize(orderNumber, paymentInstrument, paymentProcessor) {
             fraudRuleActionFromVerify = paymentInstrument.custom.jpmcFraudRuleAction;
         }
         if ((resolvedConfig ? resolvedConfig.enableFraudCheckAtAuth === true : JPMCConfig.isFraudCheckEnabledAtAuth()) && HookMgr.hasHook('app.safetech.fraud.detection')) {
-            var accountNumberType = isStoredCard
-                ? (resolvedConfig ? resolvedConfig.tokenizationType : JPMCConfig.getConfig().accountNumberType)
-                : jpmcConstants.ACCOUNT_NUMBER_TYPE_PIE;
+            var accountNumberType;
+            if (isStoredCard) {
+                accountNumberType = resolvedConfig ? resolvedConfig.tokenizationType : JPMCConfig.getConfig().accountNumberType;
+            } else {
+                accountNumberType = jpmcConstants.ACCOUNT_NUMBER_TYPE_PIE;
+            }
             
             var fraudDetectionResult = HookMgr.callHook(
                 'app.safetech.fraud.detection',
@@ -125,11 +234,11 @@ function authorize(orderNumber, paymentInstrument, paymentProcessor) {
                     serverErrors: [Resource.msg('error.fraud.declined', 'checkout', null)]
                 };
             }
+            if (fraudDetectionResult.captureMethod) {
+                captureMethod = fraudDetectionResult.captureMethod;
+            }
         }
 
-        var orderNoteAdded = false;
-        var originalCaptureMethod = captureMethod;
-        
         var isFraudFlagged = (fraudRuleActionFromVerify === 'E' || fraudRuleActionFromVerify === 'R') ||
                              (fraudRuleActionFromAuth === 'E' || fraudRuleActionFromAuth === 'R');
         
@@ -148,7 +257,6 @@ function authorize(orderNumber, paymentInstrument, paymentProcessor) {
                 
                 if (!noteExists) {
                     order.addNote(jpmcConstants.FRAUD_REVIEW_NOTE_SUBJECT, 'Order marked for review');
-                    orderNoteAdded = true;
                 }
             });
         }
@@ -157,23 +265,72 @@ function authorize(orderNumber, paymentInstrument, paymentProcessor) {
         try {
             ipAddress = (typeof request !== 'undefined' && request) ? request.getHttpRemoteAddress() : null;
         } catch (ipErr) {
+            // intentionally empty
         }
+
+        var paymentAccountNumberType;
+        if (isStoredCard) {
+            paymentAccountNumberType = resolvedConfig ? resolvedConfig.tokenizationType : JPMCConfig.getConfig().accountNumberType;
+        } else {
+            paymentAccountNumberType = jpmcConstants.ACCOUNT_NUMBER_TYPE_PIE;
+        }
+        // Build 3DS authentication parameters if 3DS is enabled.
+        // Only Visa, Mastercard, and American Express support 3DS (whitelist approach).
+        var cardTypeName = paymentInstrument.custom && paymentInstrument.custom.jpmcCardTypeName;
+        var is3DSSupportedCard = false;
+        
+        // Check if card type (name or code) is in supported list
+        if (cardTypeName) {
+            var upperCardType = cardTypeName.toUpperCase();
+            is3DSSupportedCard = jpmcConstants.THREE_DS.SUPPORTED_CARD_TYPES.indexOf(upperCardType) !== -1;
+        }
+        
+        var threeDSParams = is3DSSupportedCard
+            ? build3DSAuthenticationParameters(order, resolvedConfig)
+            : null;
 
         var paymentResult = JPMCPaymentHelper.createPayment(order, {
             paymentInstrument: paymentInstrument,
-            accountNumberType: isStoredCard
-                ? (resolvedConfig ? resolvedConfig.tokenizationType : JPMCConfig.getConfig().accountNumberType)
-                : jpmcConstants.ACCOUNT_NUMBER_TYPE_PIE,
+            accountNumberType: paymentAccountNumberType,
             captureMethod: captureMethod,
             initiatorType: 'CARDHOLDER',
             accountOnFile: accountOnFile,
             isAmountFinal: true,
             IPAddress: ipAddress,
-            resolvedConfig: resolvedConfig
+            resolvedConfig: resolvedConfig,
+            requestAccountUpdater: (isStoredCard && JPMCConfig.isAccountUpdaterRTAUEnabled()),
+            paymentAuthenticationRequest: threeDSParams ? threeDSParams.paymentAuthenticationRequest : null,
+            browserInfo: threeDSParams ? threeDSParams.browserInfo : null
         });
 
         if (!paymentResult.success) {
             return { error: true, serverErrors: [Resource.msg('error.payment.authorization.failed', 'checkout', null)] };
+        }
+
+        if (isStoredCard && JPMCConfig.isAccountUpdaterRTAUEnabled() && paymentResult.data) {
+            try {
+                var accountUpdaterHelper = require('*/cartridge/scripts/helpers/AccountUpdaterHelper');
+                var custPI = findCustomerPIByToken(order, creditCardToken);
+                if (custPI) {
+                    accountUpdaterHelper.handleRTAUResponse(custPI, paymentResult.data);
+                }
+            } catch (rtauErr) {
+                // Best-effort: do not break checkout
+            }
+        }
+        // Check if 3DS authentication is required
+        // JPMC returns responseCode "PERFORM_AUTHENTICATION" with paymentAuthenticationResult
+        var requires3DS = !!(paymentResult.data && 
+                             paymentResult.data.responseCode === 'PERFORM_AUTHENTICATION' && 
+                             paymentResult.data.paymentAuthenticationResult &&
+                             paymentResult.data.paymentAuthenticationResult.authenticationOrchestrationUrl);
+        
+        var authenticationId = null;
+        var orchestrationUrl = null;
+        
+        if (requires3DS) {
+            orchestrationUrl = paymentResult.data.paymentAuthenticationResult.authenticationOrchestrationUrl;
+            authenticationId = paymentResult.data.paymentAuthenticationResult.authenticationId;
         }
 
         Transaction.wrap(function () {
@@ -187,41 +344,70 @@ function authorize(orderNumber, paymentInstrument, paymentProcessor) {
             });
 
             order.custom.jpmcMerchantId = resolvedConfig.merchantId;
+            
+            // Store card network response if available
+            if (paymentResult.data && 
+                paymentResult.data.paymentMethodType && 
+                paymentResult.data.paymentMethodType.card && 
+                paymentResult.data.paymentMethodType.card.networkResponse) {
+                try {
+                    order.custom.jpmcCardNetworkResponse = JSON.stringify(paymentResult.data.paymentMethodType.card.networkResponse);
+                } catch (networkErr) {
+                    var Logger = require('dw/system/Logger');
+                    Logger.warn('Failed to store card network response: {0}', networkErr.message);
+                }
+            }
+            
+            // If 3DS is required, mark order as pending authentication
+            if (requires3DS) {
+                order.custom.pending3DSAuthentication = true;
+                order.custom.threeDSTransactionId = paymentResult.transactionId;
+                order.custom.threeDSAuthenticationId = authenticationId;
+            }
         });
 
-        return {
+        var result = {
             error: false,
             serverErrors: serverErrors,
             transactionId: paymentResult.transactionId,
             captureMethod: captureMethod
         };
+        
+        // Send Orchestration data if present
+        if (requires3DS) {
+            result.requires3DS = true;
+            result.authenticationOrchestrationUrl = orchestrationUrl;
+            result.authenticationId = authenticationId;
+        }
+        
+        return result;
 
     } catch (e) {
-        var errorMsg = e instanceof Error ? e.message : String(e);
         serverErrors.push(Resource.msg('error.technical', 'checkout', null));
         if (order) {
             try {
                 OrderMgr.failOrder(order, true);
             } catch (failErr) {
+                // intentionally empty
             }
         }
         return { error: true, serverErrors: serverErrors };
     } finally {
         try {
-            session.privacy.jpmcCvv = null;
             session.privacy.jpmcEncryptedCvv = null;
             session.privacy.jpmcEncryptedData = null;
         } catch (clearErr) {
+            // intentionally empty
         }
     }
 }
 
 /**
  * Authorizes a Google Pay payment
- * @param {string} orderNumber
- * @param {dw.order.PaymentInstrument} paymentInstrument
- * @param {dw.order.PaymentProcessor} paymentProcessor
- * @returns {Object}
+ * @param {string} orderNumber - order number to authorize
+ * @param {dw.order.PaymentInstrument} paymentInstrument - Google Pay payment instrument
+ * @param {dw.order.PaymentProcessor} paymentProcessor - JPMC payment processor
+ * @returns {Object} authorization result
  */
 function authorizeGooglePay(orderNumber, paymentInstrument, paymentProcessor) {
     var JPMCConfig = require('*/cartridge/scripts/helpers/JPMCConfig');
@@ -326,6 +512,19 @@ function authorizeGooglePay(orderNumber, paymentInstrument, paymentProcessor) {
                 '\nAmount: ' + paymentInstrument.paymentTransaction.amount.value + ' ' + order.getCurrencyCode());
 
             order.custom.jpmcMerchantId = resolvedConfig.merchantId;
+            
+            // Store card network response if available
+            if (paymentData && 
+                paymentData.paymentMethodType && 
+                paymentData.paymentMethodType.card && 
+                paymentData.paymentMethodType.card.networkResponse) {
+                try {
+                    order.custom.jpmcCardNetworkResponse = JSON.stringify(paymentData.paymentMethodType.card.networkResponse);
+                } catch (networkErr) {
+                    var Logger = require('dw/system/Logger');
+                    Logger.warn('Failed to store Google Pay card network response: {0}', networkErr.message);
+                }
+            }
         });
 
         return {
@@ -336,23 +535,23 @@ function authorizeGooglePay(orderNumber, paymentInstrument, paymentProcessor) {
         };
 
     } catch (e) {
-        var errorMsg = e instanceof Error ? e.message : String(e);
         serverErrors.push(Resource.msg('error.technical', 'checkout', null));
         return { error: true, serverErrors: serverErrors };
     } finally {
         try {
             session.privacy.jpmcGooglePayToken = null;
         } catch (clearErr) {
+            // intentionally empty
         }
     }
 }
 
 /**
  * Voids the remaining uncaptured authorization for an order.
- * @param {dw.order.Order} order
- * @param {Object} [options]
- * @param {Object} [options.resolvedConfig]
- * @returns {Object}
+ * @param {dw.order.Order} order - order with authorization to void
+ * @param {Object} [options] - void options
+ * @param {Object} [options.resolvedConfig] - resolved merchant configuration
+ * @returns {Object} void result
  */
 function voidPayment(order, options) {
     var JPMCServiceHelper = require('*/cartridge/scripts/services/JPMCServiceHelper');
@@ -375,11 +574,6 @@ function voidPayment(order, options) {
 
         var paymentInstrument = paymentInstruments[0];
         var paymentTransaction = paymentInstrument.getPaymentTransaction();
-
-        if (!paymentTransaction || !paymentTransaction.getTransactionID()) {
-            result.error = 'No authorization transaction found';
-            return result;
-        }
 
         var jpmcTransactionId = resolveJpmcTransactionId(paymentInstrument, paymentTransaction);
 
@@ -458,3 +652,44 @@ module.exports = {
     resolveJpmcTransactionId: resolveJpmcTransactionId,
     persistAuthorizationData: persistAuthorizationData
 };
+
+/**
+ * Locates the customer-saved CustomerPaymentInstrument matching a given token,
+ * for the customer associated with the order. Used by RTAU to apply updates
+ * to the wallet PI (not just the order PI). Returns null if not found.
+ *
+ * @private
+ * @param {dw.order.Order} order - order to search for customer payment instrument
+ * @param {string} token - credit card token to match
+ * @returns {dw.customer.CustomerPaymentInstrument|null} matching payment instrument or null
+ */
+function findCustomerPIByToken(order, token) {
+    if (!order || !token) {
+        return null;
+    }
+    try {
+        var PaymentInstrument = require('dw/order/PaymentInstrument');
+        var customer = order.getCustomer();
+        if (!customer || !customer.getProfile()) {
+            return null;
+        }
+        var wallet = customer.getProfile().getWallet();
+        if (!wallet) {
+            return null;
+        }
+        var pis = wallet.getPaymentInstruments(PaymentInstrument.METHOD_CREDIT_CARD);
+        if (!pis) {
+            return null;
+        }
+        var it = pis.iterator();
+        while (it.hasNext()) {
+            var pi = it.next();
+            if (pi && pi.getCreditCardToken() === token) {
+                return pi;
+            }
+        }
+    } catch (e) {
+        // swallow — best-effort lookup
+    }
+    return null;
+}

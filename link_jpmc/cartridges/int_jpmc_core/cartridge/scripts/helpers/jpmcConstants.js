@@ -3,7 +3,7 @@
 /**
  * JPMC Constants
  * Centralized constants used across JPMC payment integration
- * @module scripts/helpers/jpmcConstants
+ * @module scripts/helpers/JPMCConstants
  */
 var JPMCConstants = {
     // Processor
@@ -41,10 +41,8 @@ var JPMCConstants = {
     DEFAULT_KEY_ALIAS: 'jpmc-private-key',
 
     // Config Defaults
-    DEFAULT_EXPIRES_IN: '5h',
-    DEFAULT_JWT_EXPIRY_SECONDS: 8 * 60 * 60,
     DEFAULT_COMPANY_NAME: 'JPMC Plugin',
-    DEFAULT_PRODUCT_NAME: 'JPMC SFCC B2C Cartridge',
+    DEFAULT_PRODUCT_NAME: 'JPMC SFCC SFRA Cartridge',
     DEFAULT_VERSION: '1.0',
     DEFAULT_TOKEN_TYPE: 'SAFETECH_TOKEN',
     DEFAULT_CAPTURE_METHOD: 'MANUAL',
@@ -80,7 +78,151 @@ var JPMCConstants = {
     // Validation
     VALID_CAPTURE_METHODS: ['MANUAL', 'DELAYED', 'NOW'],
     ALIAS_PATTERN: /^[a-zA-Z0-9_-]{1,100}$/,
-    THUMBPRINT_PATTERN: /^[A-F0-9]{40}$/
+    THUMBPRINT_PATTERN: /^[A-F0-9]{40}$/,
+
+    // Account Updater
+    ACCOUNT_UPDATER: {
+        // Custom Object Types
+        QUEUE_CO_TYPE: 'AccountUpdater_Notification_Queue',
+
+        // Mode (driven by Site Preference jpmcAccountUpdaterMode)
+        MODE_NONE: 'NONE',
+        MODE_NOTIFICATIONS: 'NOTIFICATIONS',
+        MODE_REAL_TIME: 'REAL_TIME',
+        MODE_BOTH: 'BOTH',
+
+        // Queue Statuses
+        STATUS_NEW: 'NEW',
+        STATUS_PROCESSING: 'PROCESSING',
+        STATUS_ERROR: 'ERROR',
+
+        // Card Account Actions
+        ACTION_REGISTER: 'REGISTER',
+        ACTION_UNREGISTER: 'UNREGISTER',
+
+        // Registration Response Statuses
+        REGISTERED: 'REGISTERED',
+        REGISTRATION_PENDING: 'REGISTRATION_PENDING',
+
+        // Reason Messages (from provider)
+        REASON_CLOSED_ACCOUNT: 'CLOSED_ACCOUNT',
+        REASON_CONTACT_CARDHOLDER: 'CONTACT_CARDHOLDER',
+        REASON_NEW_ACCOUNT: 'NEW_ACCOUNT',
+        REASON_NEW_EXPIRY: 'NEW_EXPIRY',
+        REASON_NEW_ACCOUNT_AND_EXPIRY: 'NEW_ACCOUNT_AND_EXPIRY',
+
+        ACTIONABLE_REASONS: {
+            NEW_ACCOUNT: true,
+            NEW_ACCOUNT_AND_EXPIRY: true,
+            NEW_EXPIRY: true
+        },
+
+        // Webhook Event Types
+        EVENT_TYPE: 'accountUpdateNotification',
+        EVENT_SUBTYPE: 'AccountUpdaterStatus',
+
+        // Logger Category
+        LOGGER_CATEGORY: 'AccountUpdater',
+
+        // Max records per job run (safety limit)
+        MAX_RECORDS_PER_RUN: 500,
+
+        // Subscription storage
+        SUBSCRIPTION_PREF_KEY: 'jpmcWebhookSubscriptionId',
+        // Site preference key for the mode dropdown
+        MODE_PREF_KEY: 'jpmcAccountUpdaterMode',
+
+        // RTAU response codes (from /payments authorization response)
+        RTAU_RESPONSE_NEW_ACCOUNT: 'NEW_ACCOUNT',
+        RTAU_RESPONSE_NEW_EXPIRY: 'NEW_EXPIRY',
+        RTAU_RESPONSE_NEW_ACCOUNT_AND_EXPIRY: 'NEW_ACCOUNT_AND_EXPIRY',
+        RTAU_RESPONSE_CLOSED_ACCOUNT: 'CLOSED_ACCOUNT',
+        RTAU_RESPONSE_CONTACT_CARDHOLDER: 'CONTACT_CARDHOLDER',
+        RTAU_RESPONSE_MATCH_NO_UPDATE: 'MATCH_NO_UPDATE'
+    },
+    // Phone country codes keyed by ISO 3166 Alpha-2.
+    // Covers US, CA, and all EU member states.
+    PHONE_COUNTRY_CODES: {
+        // North America
+        US: 1,
+        CA: 1,
+        // EU member states
+        AT: 43,  // Austria
+        BE: 32,  // Belgium
+        BG: 359, // Bulgaria
+        HR: 385, // Croatia
+        CY: 357, // Cyprus
+        CZ: 420, // Czech Republic
+        DK: 45,  // Denmark
+        EE: 372, // Estonia
+        FI: 358, // Finland
+        FR: 33,  // France
+        DE: 49,  // Germany
+        GR: 30,  // Greece
+        HU: 36,  // Hungary
+        IE: 353, // Ireland
+        IT: 39,  // Italy
+        LV: 371, // Latvia
+        LT: 370, // Lithuania
+        LU: 352, // Luxembourg
+        MT: 356, // Malta
+        NL: 31,  // Netherlands
+        PL: 48,  // Poland
+        PT: 351, // Portugal
+        RO: 40,  // Romania
+        SK: 421, // Slovakia
+        SI: 386, // Slovenia
+        ES: 34,  // Spain
+        SE: 46   // Sweden
+    },
+
+    // 3D Secure (3DS)
+    THREE_DS: {
+        // Response statuses from JPMC postback
+        RESPONSE_STATUS: {
+            SUCCESS: 'SUCCESS',
+            ERROR: 'ERROR',
+            DENIED: 'DENIED',
+            CANCELLED: 'CANCELLED'
+        },
+        // Transaction authentication statuses (stored in order)
+        TRANSACTION_STATUS: {
+            SUCCESS: 'Y',           // Authentication successful
+            FAILED: 'N',            // Authentication failed
+            ATTEMPTED: 'A',         // Authentication attempted
+            UNAVAILABLE: 'U'        // Authentication unavailable/unknown
+        },
+        // Failure reasons for frontend-initiated failures
+        FAILURE_REASON: {
+            TIMEOUT: 'TIMEOUT',
+            USER_CANCELLED: 'USER_CANCELLED',
+            IFRAME_ERROR: 'IFRAME_ERROR'
+        },
+        // Timeout configuration
+        TIMEOUT_MS: 3 * 60 * 1000,      // 3 minutes
+        TIMEOUT_MINUTES: 3,
+        // PostMessage event type
+        POSTMESSAGE_TYPE: 'jpmc3dsComplete',
+        // Valid JPMC origins for postMessage validation
+        JPMC_ORIGINS: [
+            'https://payments.jpmorgan.com',
+            'https://api-ms.payments.jpmorgan.com',
+            'https://api-ms-test.payments.jpmorgan.com'
+        ],
+        JPMC_DOMAIN_SUFFIX: '.payments.jpmorgan.com',
+        // Card types that support 3DS (whitelist approach)
+        // Only Visa, Mastercard, and American Express support 3DS
+        // Includes both full names and short codes for validation
+        SUPPORTED_CARD_TYPES: ['VISA', 'MASTERCARD', 'AMERICAN_EXPRESS', 'VI', 'MC', 'AX'],
+        // authenticationPurpose values
+        AUTHENTICATION_PURPOSE: {
+            PAYMENT_TRANSACTION: 'PAYMENT_TRANSACTION'
+        },
+        // threeDomainSecureTransactionType values
+        TRANSACTION_TYPE: {
+            GOODS_SERVICES: 'GOODS_SERVICES'
+        }
+    }
 };
 
 module.exports = JPMCConstants;

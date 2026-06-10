@@ -10,9 +10,9 @@ var UUID = require('dw/util/UUIDUtils');
 
 /**
  * Performs fraud check for a basket or order.
- * @param {dw.order.Basket|dw.order.Order} basketOrOrder
- * @param {Object} options
- * @returns {Object}
+ * @param {dw.order.Basket|dw.order.Order} basketOrOrder - basket or order to fraud-check
+ * @param {Object} options - fraud check options (paymentInstrument, accountNumberType, etc.)
+ * @returns {Object} fraud check result
  */
 function performFraudCheck(basketOrOrder, options) {
     var JPMCServiceHelper = require('*/cartridge/scripts/services/JPMCServiceHelper');
@@ -119,6 +119,7 @@ function performFraudCheck(basketOrOrder, options) {
                             try {
                                 basketOrOrder.custom.jpmcFraudResponse = JSON.stringify(fraudData);
                             } catch (jsonError) {
+                                // intentionally empty
                             }
                         }
                     });
@@ -139,6 +140,7 @@ function performFraudCheck(basketOrOrder, options) {
                                 basketOrOrder.custom.jpmcFraudResponse = JSON.stringify(fraudData);
                                 basketOrOrder.custom.jpmcFraudCheckDate = new Date();
                             } catch (jsonError) {
+                                // intentionally empty
                             }
                         }
                     });
@@ -148,13 +150,13 @@ function performFraudCheck(basketOrOrder, options) {
             result.error = serviceResult.error || 'Fraud check service call failed';
             Logger.error('performFraudCheck: SERVICE ERROR - Error: {0}', result.error);
 
-            if (hasOrderNo && serviceResult.data) {
+            if (hasOrderNo && serviceResult) {
                 Transaction.wrap(function () {
                     try {
-                        basketOrOrder.custom.jpmcFraudResponse = JSON.stringify(serviceResult.data);
+                        basketOrOrder.custom.jpmcFraudResponse = JSON.stringify(serviceResult);
                         basketOrOrder.custom.jpmcFraudCheckDate = new Date();
                     } catch (jsonError) {
-                       
+                        // intentionally empty
                     }
                 });
             }
@@ -170,15 +172,15 @@ function performFraudCheck(basketOrOrder, options) {
 
 /**
  * Performs fraud check for card save in My Account (minimal payload).
- * @param {Object} cardData
- * @param {Object} options
- * @returns {Object}
+ * @param {Object} cardData - card data (accountNumber, expirationMonth, expirationYear)
+ * @param {Object} options - fraud check options (deviceIPAddress, browserInformation, etc.)
+ * @returns {Object} fraud check result
  */
 function performFraudCheckForCardSave(cardData, options) {
     var JPMCServiceHelper = require('*/cartridge/scripts/services/JPMCServiceHelper');
     var JPMCPayloadBuilder = require('*/cartridge/scripts/helpers/JPMCPayloadBuilder');
     var Site = require('dw/system/Site');
-    var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
     var result = {
         success: false,
@@ -221,7 +223,7 @@ function performFraudCheckForCardSave(cardData, options) {
             resolvedConfig: resolvedConfig
         });
 
-        var requestId = 'fraud-' + UUID.createUUID();
+        var requestId = 'fraud-' + UUID.createUUID().toString();
 
         var headers = {
             'merchant-id': resolvedConfig.merchantId,
@@ -274,9 +276,9 @@ function performFraudCheckForCardSave(cardData, options) {
 
 /**
  * Verifies card details without placing a funds hold.
- * @param {Object} cardData
- * @param {Object} [options]
- * @returns {Object}
+ * @param {Object} cardData - card data (accountNumber, expirationMonth, expirationYear)
+ * @param {Object} [options] - verification options (billingAddress, authentication, etc.)
+ * @returns {Object} verification result
  */
 function verifyPaymentInstrument(cardData, options) {
     var JPMCServiceHelper = require('*/cartridge/scripts/services/JPMCServiceHelper');
@@ -331,7 +333,7 @@ function verifyPaymentInstrument(cardData, options) {
             resolvedConfig: resolvedConfig
         });
 
-        var requestId = 'verify-' + UUID.createUUID();
+        var requestId = 'verify-' + UUID.createUUID().toString();
 
         var headers = {
             'merchant-id': resolvedConfig.merchantId,

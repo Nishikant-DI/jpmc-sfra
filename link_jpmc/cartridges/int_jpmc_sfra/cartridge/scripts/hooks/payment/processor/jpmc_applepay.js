@@ -9,8 +9,8 @@ var Status = require('dw/system/Status');
 
 /**
  * Maps Apple Pay token paymentData to the JPMC encryptedPaymentBundle structure.
- * @param {Object} paymentData
- * @returns {Object}
+ * @param {Object} paymentData - Apple Pay token payment data
+ * @returns {Object} JPMC encryptedPaymentBundle object
  * @throws {Error}
  */
 function buildEncryptedPaymentBundle(paymentData) {
@@ -22,7 +22,7 @@ function buildEncryptedPaymentBundle(paymentData) {
         throw new Error('Invalid Apple Pay payment header');
     }
 
-    var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
     var bundle = {
         encryptedPayload: paymentData.data,
@@ -47,14 +47,14 @@ function buildEncryptedPaymentBundle(paymentData) {
  * transaction, mirroring the CC and GPay patterns in jpmcTransactionHelpers
  * so BM extension capture/refund/void flows work for all payment methods.
  *
- * @param {dw.order.OrderPaymentInstrument} paymentInstrument
- * @param {Object} paymentResponse
- * @param {string} captureMethod
+ * @param {dw.order.OrderPaymentInstrument} paymentInstrument - order payment instrument to update
+ * @param {Object} paymentResponse - JPMC authorization response
+ * @param {string} captureMethod - capture method (NOW, DELAYED, MANUAL)
  */
 function persistAuthorizationData(paymentInstrument, paymentResponse, captureMethod) {
     var PaymentTransaction = require('dw/order/PaymentTransaction');
-    var txnHelpers = require('*/cartridge/scripts/helpers/jpmcTransactionHelpers');
-    var jpmcConst = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var txnHelpers = require('*/cartridge/scripts/helpers/JPMCTransactionHelpers');
+    var jpmcConst = require('*/cartridge/scripts/helpers/JPMCConstants');
 
     var isCaptureNow = (captureMethod === jpmcConst.CAPTURE_METHOD_NOW);
 
@@ -87,17 +87,17 @@ function persistAuthorizationData(paymentInstrument, paymentResponse, captureMet
  * Authorizes an Apple Pay order payment via the JPMC gateway.
  * Hook: dw.extensions.applepay.paymentAuthorized.authorizeOrderPayment
  *
- * @param {dw.order.Order} order
- * @param {Object} event
- * @returns {dw.system.Status|dw.extensions.applepay.ApplePayHookResult}
+ * @param {dw.order.Order} order - order to authorize
+ * @param {Object} event - Apple Pay authorization event with payment token
+ * @returns {dw.system.Status|dw.extensions.applepay.ApplePayHookResult} result
  */
 function authorizeOrderPayment(order, event) {
     var ApplePayHookResult = require('dw/extensions/applepay/ApplePayHookResult');
 
     /**
      * Logs the error and returns an ApplePayHookResult with REASON_FAILURE.
-     * @param {string} message
-     * @returns {dw.extensions.applepay.ApplePayHookResult}
+     * @param {string} message - error message to log
+     * @returns {dw.extensions.applepay.ApplePayHookResult} result
      */
     function errorResult(message) {
         Logger.error('Apple Pay auth failed - Order: {0} - {1}', order.getOrderNo(), message);
@@ -176,6 +176,18 @@ function authorizeOrderPayment(order, event) {
 
         Transaction.wrap(function () {
             order.custom.jpmcMerchantId = merchantId;
+            
+            // Store card network response if available
+            if (serviceResult.data && 
+                serviceResult.data.paymentMethodType && 
+                serviceResult.data.paymentMethodType.card && 
+                serviceResult.data.paymentMethodType.card.networkResponse) {
+                try {
+                    order.custom.jpmcCardNetworkResponse = JSON.stringify(serviceResult.data.paymentMethodType.card.networkResponse);
+                } catch (networkErr) {
+                    Logger.warn('Failed to store Apple Pay card network response: {0}', networkErr.message);
+                }
+            }
         });
 
         Logger.info('Apple Pay authorized - Order: {0}', order.getOrderNo());
@@ -189,9 +201,15 @@ function authorizeOrderPayment(order, event) {
 exports.authorizeOrderPayment = authorizeOrderPayment;
 
 exports.getRequest = function (basket, applePayRequest) {
-    session.custom.applepaysession = 'yes';   // eslint-disable-line
     var ApplePayHookResult = require('dw/extensions/applepay/ApplePayHookResult');
     try {
+        var Site = require('dw/system/Site');
+        // No Multi-MID support for Apple Pay, so we can return an error if locale doesn't match site default since that indicates a mismatch in configuration
+        if (request.getLocale() !== Site.getCurrent().getDefaultLocale()) {
+            session.privacy.applepaysession = 'no';   // eslint-disable-line no-param-reassign
+            return new ApplePayHookResult(new Status(Status.ERROR), null);
+        }
+
         var basketCurrencyCode = basket.getCurrencyCode();
         if (basketCurrencyCode) {
             applePayRequest.currencyCode = basketCurrencyCode;
@@ -200,8 +218,10 @@ exports.getRequest = function (basket, applePayRequest) {
         if (countryCode) {
             applePayRequest.countryCode = countryCode;
         }
+        session.privacy.applepaysession = 'yes';   // eslint-disable-line no-param-reassign
         return new ApplePayHookResult(new Status(Status.OK), null);
     } catch (e) {
+        session.privacy.applepaysession = 'no';   // eslint-disable-line no-param-reassign
         return new ApplePayHookResult(new Status(Status.ERROR), null);
     }
 };

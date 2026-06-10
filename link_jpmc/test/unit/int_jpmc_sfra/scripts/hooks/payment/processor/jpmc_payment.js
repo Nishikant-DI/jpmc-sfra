@@ -193,7 +193,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
                         })
                     })
                 },
-                '*/cartridge/scripts/helpers/jpmcConstants': jpmcConstantsModule,
+                '*/cartridge/scripts/helpers/JPMCConstants': jpmcConstantsModule,
                 '*/cartridge/scripts/helpers/JPMCConfig': mockJPMCConfig,
                 '*/cartridge/scripts/helpers/JPMCPaymentHelper': mockJPMCPaymentHelper,
                 '*/cartridge/scripts/util/collections': collectionsModule,
@@ -224,7 +224,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
                     Handle: sinon.stub().returns({ fieldErrors: {}, serverErrors: [], error: false }),
                     Authorize: sinon.stub().returns({ fieldErrors: {}, serverErrors: [], error: false })
                 },
-                '*/cartridge/scripts/helpers/jpmcTransactionHelpers': {
+                '*/cartridge/scripts/helpers/JPMCTransactionHelpers': {
                     authorize: sinon.stub().returns({ error: false, serverErrors: [], transactionId: 'TXN-CC-001' }),
                     authorizeGooglePay: sinon.stub().returns({ error: false })
                 },
@@ -249,13 +249,10 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
     
     describe('clearSensitivePaymentData()', function () {
         it('should null-out all three session.privacy CVV/encrypted fields', function () {
-            global.session.privacy.jpmcCvv = 'raw-cvv';
             global.session.privacy.jpmcEncryptedCvv = 'enc-cvv';
             global.session.privacy.jpmcEncryptedData = 'enc-data';
 
             jpmcPayment.clearSensitivePaymentData();
-
-            assert.isNull(global.session.privacy.jpmcCvv);
             assert.isNull(global.session.privacy.jpmcEncryptedCvv);
             assert.isNull(global.session.privacy.jpmcEncryptedData);
         });
@@ -303,7 +300,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
                     'dw/order/PaymentMgr': mockPaymentMgr,
                     'dw/web/Resource': mockResource,
                     'dw/system/HookMgr': mockHookMgr,
-                    '*/cartridge/scripts/helpers/jpmcConstants': jpmcConstantsModule,
+                    '*/cartridge/scripts/helpers/JPMCConstants': jpmcConstantsModule,
                     '*/cartridge/scripts/checkout/checkoutHelpers': mockCOHelpers,
                     '*/cartridge/scripts/util/array': { find: function () { return null; } },
                     '*/cartridge/scripts/hooks/payment/processor/jpmc_googlepay': {}
@@ -362,8 +359,6 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
         it('should store PIE-encrypted data (NOT raw PAN) on session.privacy', function () {
             jpmcPayment.Handle(mockBasket, paymentInfo, 'CREDIT_CARD', mockReq);
 
-      
-            assert.isNull(global.session.privacy.jpmcCvv, 'Raw CVV must NOT be in session for new cards');
             assert.equal(global.session.privacy.jpmcEncryptedCvv, 'PIE_ENCRYPTED_CVV');
             assert.isNotNull(global.session.privacy.jpmcEncryptedData);
         });
@@ -374,7 +369,6 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
 
             jpmcPayment.Handle(mockBasket, paymentInfo, 'CREDIT_CARD', mockReq);
 
-            assert.equal(global.session.privacy.jpmcCvv, '123', 'Raw CVV needed for stored-card re-auth');
             assert.isNull(global.session.privacy.jpmcEncryptedCvv);
             assert.isNull(global.session.privacy.jpmcEncryptedData);
         });
@@ -428,8 +422,6 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/jpmc_payment', function 
             var result = jpmcPayment.Handle(mockBasket, paymentInfo, 'CREDIT_CARD', mockReq);
 
             assert.isTrue(result.error);
-       
-            assert.isNull(global.session.privacy.jpmcCvv);
             assert.isNull(global.session.privacy.jpmcEncryptedCvv);
             assert.isNull(global.session.privacy.jpmcEncryptedData);
         });

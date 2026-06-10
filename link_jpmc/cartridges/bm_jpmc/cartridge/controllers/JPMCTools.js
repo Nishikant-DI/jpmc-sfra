@@ -13,16 +13,16 @@ var RESOURCE_BUNDLE = 'jpmcbm';
 
 /**
  * Validate a certificate alias against the allowed pattern
- * @param {string} alias
- * @returns {boolean}
+ * @param {string} alias - certificate alias to validate
+ * @returns {boolean} true if alias matches allowed pattern
  */
 function isValidAlias(alias) {
-    var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
     return !!(alias && typeof alias === 'string' && constants.ALIAS_PATTERN.test(alias));
 }
 
 /**
- * @param {Object} data
+ * @param {Object} data - JSON-serializable response data
  * @returns {void}
  */
 function sendJsonResponse(data) {
@@ -32,9 +32,9 @@ function sendJsonResponse(data) {
 
 /**
  * Build and send a standard JSON response
- * @param {boolean} success
- * @param {string|null} messageKey
- * @param {Object} additionalData
+ * @param {boolean} success - whether the operation succeeded
+ * @param {string|null} messageKey - resource bundle message key
+ * @param {Object} additionalData - extra data to include in response
  * @returns {void}
  */
 function sendStandardResponse(success, messageKey, additionalData) {
@@ -55,8 +55,8 @@ function sendStandardResponse(success, messageKey, additionalData) {
 
 /**
  * Retrieve site preference value safely
- * @param {string} preferenceKey
- * @returns {string}
+ * @param {string} preferenceKey - site preference attribute name to validate
+ * @returns {string} result
  */
 function getSitePreference(preferenceKey) {
     var site = Site.getCurrent();
@@ -65,7 +65,7 @@ function getSitePreference(preferenceKey) {
 }
 
 /**
- * @returns {Array}
+ * @returns {Array} result
  */
 function getLocaleEntriesForThumbprint() {
     var CustomObjectMgr = require('dw/object/CustomObjectMgr');
@@ -75,7 +75,7 @@ function getLocaleEntriesForThumbprint() {
     var seen = {};
     var localeIds = [];
 
-    seen['default'] = true;
+    seen.default = true;
     localeIds.push('default');
 
     var allowedLocales = site.getAllowedLocales();
@@ -201,7 +201,7 @@ function saveThumbprint() {
     var certAlias = request.httpParameterMap.certAlias.stringValue || '';
     var privateKeyAlias = request.httpParameterMap.privateKeyAlias.stringValue || '';
 
-    var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
+    var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
     if (!kid || !constants.THUMBPRINT_PATTERN.test(kid)) {
         response.setStatus(400);

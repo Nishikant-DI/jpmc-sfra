@@ -68,10 +68,6 @@
                 <option value="false" <isif condition="${!pdict.config.enabled}">selected</isif>>${Resource.msg('opt.no','jpmcbm', null)}</option>
             </select>
         </div>
-    </fieldset>
-
-    <fieldset>
-        <legend class="form-section-title">${Resource.msg('section.gateway','jpmcbm', null)}</legend>
 
         <div class="form-group">
             <label for="merchantIdInput" class="form-label">
@@ -79,6 +75,12 @@
                 <span class="required" aria-label="${Resource.msg('aria.required','jpmcbm', null)}">*</span>
             </label>
             <input type="text" id="merchantIdInput" name="merchantId" class="form-input" value="<isprint value="${pdict.config.merchantId}" encoding="htmlcontent"/>" required />
+        </div>
+
+        <div class="form-group">
+            <label for="merchantCategoryCodeInput" class="form-label">${Resource.msg('label.merchantcategorycode','jpmcbm', null)}</label>
+            <input type="text" id="merchantCategoryCodeInput" name="merchantCategoryCode" class="form-input" value="<isprint value="${pdict.config.merchantCategoryCode}" encoding="htmlcontent"/>" maxlength="4" pattern="[0-9]{4}" />
+            <p class="form-help">${Resource.msg('help.merchantcategorycode','jpmcbm', null)}</p>
         </div>
 
         <div class="form-group">
@@ -102,53 +104,18 @@
                 <option value="NETWORK_TOKEN" <isif condition="${pdict.config.tokenizationType === 'NETWORK_TOKEN'}">selected</isif>>${Resource.msg('opt.network','jpmcbm', null)}</option>
             </select>
         </div>
-    </fieldset>
-
-    <fieldset>
-        <legend class="form-section-title">${Resource.msg('section.oauth','jpmcbm', null)}</legend>
 
         <div class="form-group">
             <label for="clientIdInput" class="form-label">${Resource.msg('label.clientid','jpmcbm', null)}</label>
-            <input type="password" id="clientIdInput" name="clientId" class="form-input" value="<isprint value="${pdict.config.clientId}" encoding="htmlcontent"/>" autocomplete="off" />
+            <input type="text" id="clientIdInput" name="clientId" class="form-input" value="<isprint value="${pdict.config.clientId}" encoding="htmlcontent"/>" autocomplete="off" />
         </div>
 
         <div class="form-group">
-            <label for="resourceIdInput" class="form-label">${Resource.msg('label.resourceid','jpmcbm', null)}</label>
-            <input type="password" id="resourceIdInput" name="resourceId" class="form-input" value="<isprint value="${pdict.config.resourceId}" encoding="htmlcontent"/>" autocomplete="off" />
-        </div>
-
-        <div class="form-group">
-            <label for="audienceInput" class="form-label">${Resource.msg('label.audience','jpmcbm', null)}</label>
-            <input type="text" id="audienceInput" name="audience" class="form-input" value="<isprint value="${pdict.config.audience}" encoding="htmlcontent"/>" />
-        </div>
-
-        <div class="form-group">
-            <label for="tokenUriInput" class="form-label">${Resource.msg('label.tokenuri','jpmcbm', null)}</label>
-            <input type="url" id="tokenUriInput" name="tokenUri" class="form-input" value="<isprint value="${pdict.config.tokenUri}" encoding="htmlcontent"/>" />
-        </div>
-
-        <div class="form-group">
-            <label for="expiresInInput" class="form-label">${Resource.msg('label.expiresin','jpmcbm', null)}</label>
-            <input type="text" id="expiresInInput" name="expiresIn" class="form-input form-input-small" value="<isprint value="${pdict.config.expiresIn}" encoding="htmlcontent"/>" />
-        </div>
-    </fieldset>
-
-    <fieldset>
-        <legend class="form-section-title">${Resource.msg('section.certs','jpmcbm', null)}</legend>
-
-        <div class="form-group">
-            <label for="certAliasInput" class="form-label">${Resource.msg('label.certalias','jpmcbm', null)}</label>
-            <input type="text" id="certAliasInput" name="certAlias" class="form-input" value="<isprint value="${pdict.config.certAlias}" encoding="htmlcontent"/>" />
-        </div>
-
-        <div class="form-group">
-            <label for="privateKeyAliasInput" class="form-label">${Resource.msg('label.keyalias','jpmcbm', null)}</label>
-            <input type="text" id="privateKeyAliasInput" name="privateKeyAlias" class="form-input" value="<isprint value="${pdict.config.privateKeyAlias}" encoding="htmlcontent"/>" />
-        </div>
-
-        <div class="form-group">
-            <label for="kidInput" class="form-label">${Resource.msg('label.kid','jpmcbm', null)}</label>
-            <input type="password" id="kidInput" name="kid" class="form-input" value="<isprint value="${pdict.config.kid}" encoding="htmlcontent"/>" autocomplete="off" />
+            <label for="resourceIdSelect" class="form-label">${Resource.msg('label.resourceid','jpmcbm', null)}</label>
+            <select id="resourceIdSelect" name="resourceId">
+                <option value="JPMC:URI:RS-105239-85484-HelixAPIEntitlementsCAT-PROD" <isif condition="${pdict.config.resourceId === 'JPMC:URI:RS-105239-85484-HelixAPIEntitlementsCAT-PROD'}">selected</isif>>Test/CAT</option>
+                <option value="JPMC:URI:RS-105239-85485-HelixAPIEntitlements-PROD" <isif condition="${pdict.config.resourceId === 'JPMC:URI:RS-105239-85485-HelixAPIEntitlements-PROD'}">selected</isif>>Production</option>
+            </select>
         </div>
     </fieldset>
 
@@ -156,13 +123,25 @@
         <legend class="form-section-title">${Resource.msg('section.pie','jpmcbm', null)}</legend>
 
         <div class="form-group">
-            <label for="pieGetKeyUrlInput" class="form-label">${Resource.msg('label.piegkeyurl','jpmcbm', null)}</label>
-            <input type="url" id="pieGetKeyUrlInput" name="pieGetKeyUrl" class="form-input" value="<isprint value="${pdict.config.pieGetKeyUrl}" encoding="htmlcontent"/>" />
+            <label for="pieGetKeyUrlSelect" class="form-label">${Resource.msg('label.piegkeyurl','jpmcbm', null)}</label>
+            <select id="pieGetKeyUrlSelect" name="pieGetKeyUrl">
+                <option value="https://safetechpageencryptionvar.chasepaymentech.com/pie/v1" <isif condition="${pdict.config.pieGetKeyUrl === 'https://safetechpageencryptionvar.chasepaymentech.com/pie/v1'}">selected</isif>>Test/CAT</option>
+                <option value="https://safetechpageencryption.chasepaymentech.com/pie/v1" <isif condition="${pdict.config.pieGetKeyUrl === 'https://safetechpageencryption.chasepaymentech.com/pie/v1'}">selected</isif>>Production</option>
+            </select>
         </div>
 
         <div class="form-group">
-            <label for="pieEncryptionUrlInput" class="form-label">${Resource.msg('label.pieencurl','jpmcbm', null)}</label>
-            <input type="url" id="pieEncryptionUrlInput" name="pieEncryptionUrl" class="form-input" value="<isprint value="${pdict.config.pieEncryptionUrl}" encoding="htmlcontent"/>" />
+            <label for="pieEncryptionUrlSelect" class="form-label">${Resource.msg('label.pieencurl','jpmcbm', null)}</label>
+            <select id="pieEncryptionUrlSelect" name="pieEncryptionUrl">
+                <option value="https://safetechpageencryptionvar.chasepaymentech.com/pie/v1/encryption.js" <isif condition="${pdict.config.pieEncryptionUrl === 'https://safetechpageencryptionvar.chasepaymentech.com/pie/v1/encryption.js'}">selected</isif>>Test/CAT</option>
+                <option value="https://safetechpageencryption.chasepaymentech.com/pie/v1/encryption.js" <isif condition="${pdict.config.pieEncryptionUrl === 'https://safetechpageencryption.chasepaymentech.com/pie/v1/encryption.js'}">selected</isif>>Production</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="pieKeyInput" class="form-label">${Resource.msg('label.piekey','jpmcbm', null)}</label>
+            <input type="text" id="pieKeyInput" name="pieKey" class="form-input" value="<isprint value="${pdict.config.pieKey}" encoding="htmlcontent"/>" />
+            <p class="form-help">${Resource.msg('help.piekey','jpmcbm', null)}</p>
         </div>
     </fieldset>
 
@@ -272,14 +251,83 @@
     </fieldset>
 
     <fieldset>
-        <legend class="form-section-title">${Resource.msg('section.applepay','jpmcbm', null)}</legend>
+        <legend class="form-section-title">${Resource.msg('section.3ds','jpmcbm', null)}</legend>
+        <div class="form-group">
+            <label for="jpmc3DSEnabledSelect" class="form-label">${Resource.msg('label.3dsenabled','jpmcbm', null)}</label>
+            <select id="jpmc3DSEnabledSelect" name="jpmc3DSEnabled">
+                <option value="false" <isif condition="${!pdict.config.jpmc3DSEnabled}">selected</isif>>${Resource.msg('opt.no','jpmcbm', null)}</option>
+                <option value="true" <isif condition="${pdict.config.jpmc3DSEnabled}">selected</isif>>${Resource.msg('opt.yes','jpmcbm', null)}</option>
+            </select>
+            <p class="form-help">${Resource.msg('help.3dsenabled','jpmcbm', null)}</p>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend class="form-section-title">${Resource.msg('section.certs','jpmcbm', null)}</legend>
 
         <div class="form-group">
-            <label for="applePayMerchantIdInput" class="form-label">${Resource.msg('label.apayid','jpmcbm', null)}</label>
-            <input type="text" id="applePayMerchantIdInput" name="applePayMerchantId" class="form-input" value="<isprint value="${pdict.config.applePayMerchantId}" encoding="htmlcontent"/>" />
-            <p class="form-help info-note">
-                ${Resource.msg('help.apayid','jpmcbm', null)}
+            <label for="certAliasInput" class="form-label">${Resource.msg('label.certalias','jpmcbm', null)}</label>
+            <input type="text" id="certAliasInput" name="certAlias" class="form-input" value="<isprint value="${pdict.config.certAlias}" encoding="htmlcontent"/>" />
+        </div>
+
+        <div class="form-group">
+            <label for="privateKeyAliasInput" class="form-label">${Resource.msg('label.keyalias','jpmcbm', null)}</label>
+            <input type="text" id="privateKeyAliasInput" name="privateKeyAlias" class="form-input" value="<isprint value="${pdict.config.privateKeyAlias}" encoding="htmlcontent"/>" />
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend class="form-section-title">${Resource.msg('section.accountupdater','jpmcbm', null)}</legend>
+
+        <div class="form-group">
+            <label for="accountUpdaterModeSelect" class="form-label">${Resource.msg('label.aumode','jpmcbm', null)}</label>
+            <select id="accountUpdaterModeSelect" name="accountUpdaterMode">
+                <option value="NONE" <isif condition="${pdict.config.accountUpdaterMode === 'NONE'}">selected</isif>>${Resource.msg('opt.au.none','jpmcbm', null)}</option>
+                <option value="NOTIFICATIONS" <isif condition="${pdict.config.accountUpdaterMode === 'NOTIFICATIONS'}">selected</isif>>${Resource.msg('opt.au.notifications','jpmcbm', null)}</option>
+                <option value="REAL_TIME" <isif condition="${pdict.config.accountUpdaterMode === 'REAL_TIME'}">selected</isif>>${Resource.msg('opt.au.realtime','jpmcbm', null)}</option>
+                <option value="BOTH" <isif condition="${pdict.config.accountUpdaterMode === 'BOTH'}">selected</isif>>${Resource.msg('opt.au.both','jpmcbm', null)}</option>
+            </select>
+            <p class="form-help">${Resource.msg('help.aumode','jpmcbm', null)}</p>
+        </div>
+
+        <div class="form-group">
+            <label for="accountUpdaterWebhookUserInput" class="form-label">${Resource.msg('label.auwebhookuser','jpmcbm', null)}</label>
+            <input type="text" id="accountUpdaterWebhookUserInput" name="accountUpdaterWebhookUser" class="form-input" value="<isprint value="${pdict.config.accountUpdaterWebhookUser}" encoding="htmlcontent"/>" autocomplete="off" />
+            <p class="form-help">
+                ${Resource.msg('help.auwebhookuser','jpmcbm', null)}
             </p>
+        </div>
+
+        <div class="form-group">
+            <label for="accountUpdaterWebhookSecretInput" class="form-label">${Resource.msg('label.auwebhooksecret','jpmcbm', null)}</label>
+            <input type="password" id="accountUpdaterWebhookSecretInput" name="accountUpdaterWebhookSecret" class="form-input" value="<isprint value="${pdict.config.accountUpdaterWebhookSecret}" encoding="htmlcontent"/>" autocomplete="off" />
+            <p class="form-help">
+                ${Resource.msg('help.auwebhooksecret','jpmcbm', null)}
+            </p>
+        </div>
+    </fieldset>
+
+    <fieldset>
+        <legend class="form-section-title">${Resource.msg('section.pwa','jpmcbm', null)}</legend>
+
+        <div class="form-group">
+            <label for="JPMCApiHostInput" class="form-label">${Resource.msg('label.pwa.apihost','jpmcbm', null)}</label>
+            <input type="text" id="JPMCApiHostInput" name="JPMCApiHost" class="form-input" value="<isprint value="${pdict.config.JPMCApiHost}" encoding="htmlcontent"/>" />
+            <p class="form-help">${Resource.msg('help.pwa.apihost','jpmcbm', null)}</p>
+        </div>
+
+        <div class="form-group">
+            <label for="JPMCEnvironmentSelect" class="form-label">${Resource.msg('label.pwa.environment','jpmcbm', null)}</label>
+            <select id="JPMCEnvironmentSelect" name="JPMCEnvironment">
+                <option value="sandbox" <isif condition="${pdict.config.JPMCEnvironment === 'sandbox'}">selected</isif>>${Resource.msg('opt.pwa.sandbox','jpmcbm', null)}</option>
+                <option value="production" <isif condition="${pdict.config.JPMCEnvironment === 'production'}">selected</isif>>${Resource.msg('opt.pwa.production','jpmcbm', null)}</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="JPMCGooglePayAllowedShippingCountriesInput" class="form-label">${Resource.msg('label.pwa.gpayshippingcountries','jpmcbm', null)}</label>
+            <input type="text" id="JPMCGooglePayAllowedShippingCountriesInput" name="JPMCGooglePayAllowedShippingCountries" class="form-input" value="<isprint value="${pdict.config.JPMCGooglePayAllowedShippingCountries}" encoding="htmlcontent"/>" />
+            <p class="form-help">${Resource.msg('help.pwa.gpayshippingcountries','jpmcbm', null)}</p>
         </div>
     </fieldset>
 

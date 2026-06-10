@@ -29,11 +29,25 @@ This cartridge enables seamless integration of JPMorgan Chase payment services w
 - Secure tokenization
 - Fraud prevention tools
 
+## Supported Payment Types
+
+- Credit Cards (Visa, Mastercard, American Express, Discover etc.)
+- Google Pay (Web)
+- Apple Pay (Web — Safari)
+
 ## Technical Requirements
 
 - Salesforce Commerce Cloud B2C Commerce
+- SFRA version: 7.0.1
+- Compatibility mode: 21.2+
 - Node.js 14+ for development
 - SGMF Scripts for build processes
+
+## Supported Locales
+
+- en_US (English — United States)
+- en_CA (English - Cananda)
+- Locales supported by SFRA (Multi Merchant feature)
 
 ## Installation
 
@@ -63,6 +77,18 @@ Configure the payment settings in Business Manager:
 2. Configure JPMorgan Chase payment credentials
 3. Enable desired payment methods
 4. Configure the Services
+
+## Failover & Recovery
+
+When the JPMorgan Chase payment service is unavailable, the cartridge handles failures as follows:
+
+- **Service Framework Circuit Breaker**: All API calls use the SFCC Service Framework (`LocalServiceRegistry`), which provides automatic circuit-breaker protection. After repeated failures, the framework stops calling the service for a configurable cooldown period, preventing cascading timeouts.
+- **Authorization Failure**: If the payment authorization call fails or times out, the order is not placed. The customer sees a payment error message and can retry or choose a different payment method.
+- **3DS Authentication**: If the 3DS orchestration service is unreachable, the authentication step fails gracefully and the customer is returned to checkout with an error message.
+- **Capture/Refund/Void (BM Operations)**: If a post-authorization operation fails, the CSC agent sees an error banner in Business Manager. The operation can be retried once the service recovers.
+- **Account Updater Job**: If the Account Updater service is unavailable during a scheduled job run, failed notifications are queued in `AccountUpdater_Notification_Queue` and retried on the next job execution (up to 5 retries).
+- **Fraud Check (Kount)**: If the fraud check service is unreachable, the payment proceeds without a fraud score (configurable behavior via Site Preferences).
+- **Logging**: All service failures are logged with error-level severity to `customerror_*` log files for monitoring and alerting.
 
 ## Support
 

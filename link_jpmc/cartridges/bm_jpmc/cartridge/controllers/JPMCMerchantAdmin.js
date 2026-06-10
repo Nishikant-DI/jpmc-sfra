@@ -13,7 +13,7 @@ var RESOURCE_BUNDLE = 'jpmcbm';
 
 /**
  * Returns true when the JPMCEnableMultiMerchant site preference is enabled.
- * @returns {boolean}
+ * @returns {boolean} result
  */
 function isMultiMerchantEnabled() {
     var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
@@ -32,6 +32,10 @@ function renderDisabled() {
     });
 }
 
+/**
+ * getAllowedLocales - Returns array of allowed locales for the current site (excluding 'default')
+ * @returns {Array<string>} array of locale identifiers
+ */
 function getAllowedLocales() {
     var locales = [];
     var allowedLocales = Site.getCurrent().getAllowedLocales();
@@ -45,6 +49,10 @@ function getAllowedLocales() {
     return locales;
 }
 
+/**
+ * buildCsrfBlock - Creates CSRF token block for form protection
+ * @returns {Object} object containing tokenName and token
+ */
 function buildCsrfBlock() {
     return {
         tokenName: csrfProtection.getTokenName(),
@@ -52,6 +60,13 @@ function buildCsrfBlock() {
     };
 }
 
+/**
+ * Build the template dictionary used by the merchant edit page.
+ * @param {Object} config - Merchant configuration object.
+ * @param {boolean} isNew - Indicates whether this is a new configuration.
+ * @param {string|null} error - Optional error message to display.
+ * @returns {Object} Template dictionary for the edit view.
+ */
 function buildEditPdict(config, isNew, error) {
     var pdict = {
         config: config,
@@ -66,10 +81,20 @@ function buildEditPdict(config, isNew, error) {
     return pdict;
 }
 
+/**
+ * getCustomObject - Retrieves a JPMCMerchantConfig custom object by key
+ * @param {string} configKey - config key
+ * @returns {dw.object.CustomObject|null} custom object or null if not found
+ */
 function getCustomObject(configKey) {
     return CustomObjectMgr.getCustomObject(CO_TYPE, configKey);
 }
 
+/**
+ * renderListError - Renders the list template with an error message
+ * @param {string} error - error message to display
+ * @returns {void}
+ */
 function renderListError(error) {
     ISML.renderTemplate('merchantadmin/list', {
         error: error,
@@ -79,6 +104,12 @@ function renderListError(error) {
     });
 }
 
+/**
+ * JPMCMerchantAdmin-List : Displays list of locale-specific merchant configurations
+ * @name JPMCMerchantAdmin-List
+ * @function
+ * @memberof JPMCMerchantAdmin
+ */
 exports.List = function () {
     var multiMerchantEnabled = isMultiMerchantEnabled();
     var siteId = Site.getCurrent().getID();
@@ -120,6 +151,13 @@ exports.List = function () {
 };
 exports.List.public = true;
 
+/**
+ * JPMCMerchantAdmin-Edit : Displays edit form for existing merchant configuration
+ * @name JPMCMerchantAdmin-Edit
+ * @function
+ * @memberof JPMCMerchantAdmin
+ * @param {querystringparameter} configKey - Configuration key to edit
+ */
 exports.Edit = function () {
     if (!isMultiMerchantEnabled()) { renderDisabled(); return; }
 
@@ -142,6 +180,12 @@ exports.Edit = function () {
 };
 exports.Edit.public = true;
 
+/**
+ * JPMCMerchantAdmin-New : Displays form for creating new merchant configuration
+ * @name JPMCMerchantAdmin-New
+ * @function
+ * @memberof JPMCMerchantAdmin
+ */
 exports.New = function () {
     if (!isMultiMerchantEnabled()) { renderDisabled(); return; }
 
@@ -154,6 +198,13 @@ exports.New = function () {
 };
 exports.New.public = true;
 
+/**
+ * JPMCMerchantAdmin-GetLocaleConfig : Returns merchant configuration data for a specific locale (AJAX endpoint)
+ * @name JPMCMerchantAdmin-GetLocaleConfig
+ * @function
+ * @memberof JPMCMerchantAdmin
+ * @param {querystringparameter} locale - Locale identifier
+ */
 exports.GetLocaleConfig = function () {
     if (!isMultiMerchantEnabled()) {
         response.setStatus(403);
@@ -196,6 +247,12 @@ exports.GetLocaleConfig = function () {
 };
 exports.GetLocaleConfig.public = true;
 
+/**
+ * JPMCMerchantAdmin-Save : Saves merchant configuration (create or update)
+ * @name JPMCMerchantAdmin-Save
+ * @function
+ * @memberof JPMCMerchantAdmin
+ */
 exports.Save = function () {
     if (!isMultiMerchantEnabled()) { renderDisabled(); return; }
 
@@ -210,10 +267,12 @@ exports.Save = function () {
     var locale = params.locale.stringValue || '';
     var isNew = params.configKey.stringValue === '';
 
+    var formConfig;
+
     if (!locale) {
-        var config = MerchantConfigHelper.buildFromParams(params);
+        formConfig = MerchantConfigHelper.buildFromParams(params);
         ISML.renderTemplate('merchantadmin/edit', buildEditPdict(
-            config,
+            formConfig,
             isNew,
             Resource.msg('error.locale.required', RESOURCE_BUNDLE, null)
         ));
@@ -222,9 +281,9 @@ exports.Save = function () {
 
     var allowedLocales = getAllowedLocales();
     if (allowedLocales.indexOf(locale) === -1) {
-        var safeConfig = MerchantConfigHelper.buildFromParams(params);
+        formConfig = MerchantConfigHelper.buildFromParams(params);
         ISML.renderTemplate('merchantadmin/edit', buildEditPdict(
-            safeConfig,
+            formConfig,
             true,
             Resource.msg('error.locale.required', RESOURCE_BUNDLE, null)
         ));
@@ -235,10 +294,10 @@ exports.Save = function () {
     var merchantId = params.merchantId.stringValue || '';
 
     if (!merchantId) {
-        var valConfig = MerchantConfigHelper.buildFromParams(params);
-        valConfig.locale = locale;
+        formConfig = MerchantConfigHelper.buildFromParams(params);
+        formConfig.locale = locale;
         ISML.renderTemplate('merchantadmin/edit', buildEditPdict(
-            valConfig,
+            formConfig,
             isNew,
             Resource.msg('error.merchantid.required', RESOURCE_BUNDLE, null)
         ));
@@ -255,9 +314,9 @@ exports.Save = function () {
                 wasNew = true;
             }
 
-            var config = MerchantConfigHelper.buildFromParams(params);
-            config.configKey = configKey;
-            MerchantConfigHelper.assignToCustomObject(co, config);
+            var saveConfig = MerchantConfigHelper.buildFromParams(params);
+            saveConfig.configKey = configKey;
+            MerchantConfigHelper.assignToCustomObject(co, saveConfig);
         });
 
         var JPMCMerchantResolver = require('*/cartridge/scripts/helpers/JPMCMerchantResolver');
@@ -266,10 +325,10 @@ exports.Save = function () {
         exports.List();
     } catch (e) {
         Logger.error('Failed to save merchant config {0}: {1}', configKey, String(e));
-        var config = MerchantConfigHelper.buildFromParams(params);
-        config.locale = locale;
+        formConfig = MerchantConfigHelper.buildFromParams(params);
+        formConfig.locale = locale;
         ISML.renderTemplate('merchantadmin/edit', buildEditPdict(
-            config,
+            formConfig,
             wasNew,
             Resource.msg('error.save.failed', RESOURCE_BUNDLE, null)
         ));
@@ -277,6 +336,13 @@ exports.Save = function () {
 };
 exports.Save.public = true;
 
+/**
+ * JPMCMerchantAdmin-InvalidateCache : Clears merchant configuration cache for one or all configs
+ * @name JPMCMerchantAdmin-InvalidateCache
+ * @function
+ * @memberof JPMCMerchantAdmin
+ * @param {querystringparameter} configKey - Optional specific config key to invalidate
+ */
 exports.InvalidateCache = function () {
     if (!isMultiMerchantEnabled()) { renderDisabled(); return; }
 
@@ -292,7 +358,6 @@ exports.InvalidateCache = function () {
         if (configKey) {
             JPMCMerchantResolver.invalidateCache(configKey);
         } else {
-            var siteId = Site.getCurrent().getID();
             var cos = CustomObjectMgr.getAllCustomObjects(CO_TYPE);
             try {
                 while (cos.hasNext()) {
@@ -313,6 +378,13 @@ exports.InvalidateCache = function () {
 };
 exports.InvalidateCache.public = true;
 
+/**
+ * JPMCMerchantAdmin-Delete : Deletes merchant configuration and invalidates cache
+ * @name JPMCMerchantAdmin-Delete
+ * @function
+ * @memberof JPMCMerchantAdmin
+ * @param {querystringparameter} configKey - Configuration key to delete
+ */
 exports.Delete = function () {
     if (!isMultiMerchantEnabled()) { renderDisabled(); return; }
 

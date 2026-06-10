@@ -43,7 +43,7 @@ describe('bm_jpmc/scripts/helpers/CSCPaymentHelpers', function () {
             'dw/system/Logger': mockLogger,
             'dw/system/Site': mockSite,
             'dw/order/PaymentMgr': mockPaymentMgr,
-            '*/cartridge/scripts/helpers/jpmcConstants': mockJpmcConstants
+            '*/cartridge/scripts/helpers/JPMCConstants': mockJpmcConstants
         });
     });
 
@@ -112,7 +112,7 @@ describe('bm_jpmc/scripts/helpers/CSCPaymentHelpers', function () {
                 'dw/system/Logger': mockLogger,
                 'dw/system/Site': mockSite,
                 'dw/order/PaymentMgr': mockPaymentMgr,
-                '*/cartridge/scripts/helpers/jpmcConstants': mockJpmcConstants
+                '*/cartridge/scripts/helpers/JPMCConstants': mockJpmcConstants
             });
 
             assert.strictEqual(CSCPaymentHelpers2.DELAYED_CAPTURE_WINDOW_MINUTES, 180);

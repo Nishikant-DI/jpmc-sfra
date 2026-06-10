@@ -2,7 +2,7 @@
     <isif condition="${paymentOption.ID === 'CREDIT_CARD'}">
         <isinclude template="checkout/billing/paymentOptions/creditCardTab" />
     </isif>
-    <isif condition="${paymentOption.ID === 'DW_APPLE_PAY'}">
+    <isif condition="${paymentOption.ID === 'DW_APPLE_PAY' && session.privacy.applepaysession === 'yes'}">
         <isinclude template="checkout/billing/paymentOptions/applePayTab" />
     </isif>
     <isif condition="${paymentOption.ID === 'JPMC_GOOGLE_PAY'}">

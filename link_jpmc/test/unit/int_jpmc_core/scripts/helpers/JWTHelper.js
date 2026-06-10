@@ -25,10 +25,7 @@ describe('JWTHelper', function () {
             'dw/util/Bytes': BytesMock,
             'dw/crypto/Encoding': EncodingMock,
             'dw/crypto/Signature': SignatureMock,
-            'dw/crypto/KeyRef': KeyRefMock,
-            '*/cartridge/scripts/helpers/jpmcConstants': {
-                DEFAULT_JWT_EXPIRY_SECONDS: 28800
-            }
+            'dw/crypto/KeyRef': KeyRefMock
         });
     });
 
@@ -92,8 +89,7 @@ describe('JWTHelper', function () {
             var config = {
                 client_id: 'test-client-id',
                 audience: 'https://test.jpmc.com/token',
-                privateKeyAlias: 'test-key',
-                expiresIn: 3600
+                privateKeyAlias: 'test-key'
             };
 
             var beforeTime = Math.floor(Date.now() / 1000);
@@ -122,10 +118,10 @@ describe('JWTHelper', function () {
             assert.isNumber(payload.exp);
             assert.isAtLeast(payload.iat, beforeTime);
             assert.isAtMost(payload.iat, afterTime);
-            assert.equal(payload.exp, payload.iat + 3600);
+            assert.equal(payload.exp, payload.iat + 300);
         });
 
-        it('should parse expiration from hours format', function () {
+        it('should ignore expiresIn hours format and use fixed expiration', function () {
             var config = {
                 client_id: 'test-client-id',
                 audience: 'https://test.jpmc.com/token',
@@ -145,7 +141,7 @@ describe('JWTHelper', function () {
             payloadBase64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
             var payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString());
 
-            assert.equal(payload.exp - payload.iat, 8 * 60 * 60);
+            assert.equal(payload.exp - payload.iat, 300);
         });
 
         it('should use default expiration when not provided', function () {
@@ -167,8 +163,7 @@ describe('JWTHelper', function () {
             payloadBase64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
             var payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString());
 
-            // Default is 8 hours
-            assert.equal(payload.exp - payload.iat, 8 * 60 * 60);
+            assert.equal(payload.exp - payload.iat, 300);
         });
 
         it('should throw error when client_id is missing', function () {
@@ -210,7 +205,7 @@ describe('JWTHelper', function () {
             }, Error, 'Missing required JWT config');
         });
 
-        it('should handle numeric expiresIn', function () {
+        it('should ignore numeric expiresIn and use fixed expiration', function () {
             var config = {
                 client_id: 'test-client-id',
                 audience: 'https://test.jpmc.com/token',
@@ -230,10 +225,10 @@ describe('JWTHelper', function () {
             payloadBase64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
             var payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString());
 
-            assert.equal(payload.exp - payload.iat, 7200);
+            assert.equal(payload.exp - payload.iat, 300);
         });
 
-        it('should handle string expiresIn without "h" suffix', function () {
+        it('should ignore string expiresIn and use fixed expiration', function () {
             var config = {
                 client_id: 'test-client-id',
                 audience: 'https://test.jpmc.com/token',
@@ -253,7 +248,7 @@ describe('JWTHelper', function () {
             payloadBase64 = payloadBase64.replace(/-/g, '+').replace(/_/g, '/');
             var payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString());
 
-            assert.equal(payload.exp - payload.iat, 3600);
+            assert.equal(payload.exp - payload.iat, 300);
         });
 
         it('should use empty string for kid when not provided', function () {

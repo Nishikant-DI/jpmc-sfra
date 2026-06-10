@@ -7,7 +7,7 @@
 
 var Resource = require('dw/web/Resource');
 var Logger = require('dw/system/Logger').getLogger('JPMC', 'CSC-helper');
-var jpmcConstants = require('*/cartridge/scripts/helpers/jpmcConstants');
+var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
 var PAYMENT_STATUS = {
     AUTHORIZED: 'A',
@@ -45,16 +45,16 @@ var DELAYED_CAPTURE_WINDOW_MINUTES = (function () {
 }());
 
 /**
- * @param {string} authTimestamp
- * @returns {number}
+ * @param {string} authTimestamp - ISO timestamp of authorization
+ * @returns {number} minutes elapsed since authorization
  */
 function elapsedMinutesSince(authTimestamp) {
     return (new Date().getTime() - new Date(authTimestamp).getTime()) / 60000;
 }
 
 /**
- * @param {string|null} authTimestamp
- * @returns {boolean}
+ * @param {string|null} authTimestamp - ISO timestamp of authorization
+ * @returns {boolean} true if within delayed capture window
  */
 function isWithinDelayedCaptureWindow(authTimestamp) {
     if (!authTimestamp) return false;
@@ -67,8 +67,8 @@ function isWithinDelayedCaptureWindow(authTimestamp) {
 }
 
 /**
- * @param {string|null} authTimestamp
- * @returns {number}
+ * @param {string|null} authTimestamp - ISO timestamp of authorization
+ * @returns {number} minutes remaining in delayed capture window
  */
 function delayedWindowMinutesRemaining(authTimestamp) {
     if (!authTimestamp) return 0;
@@ -82,10 +82,10 @@ function delayedWindowMinutesRemaining(authTimestamp) {
 
 /**
  * Resolves capture/void eligibility for DELAYED capture method orders.
- * @param {string} method
- * @param {Object} paymentDetails
- * @param {string} expiredMsgKey
- * @returns {{allowed: boolean, reason: string|null}|null}
+ * @param {string} method - capture method
+ * @param {Object} paymentDetails - payment details
+ * @param {string} expiredMsgKey - resource key for expired message
+ * @returns {Object|null} eligibility result
  */
 function resolveDelayedEligibility(method, paymentDetails, expiredMsgKey) {
     if (method !== 'DELAYED') return null;
@@ -96,8 +96,8 @@ function resolveDelayedEligibility(method, paymentDetails, expiredMsgKey) {
 }
 
 /**
- * @param {Object} paymentDetails
- * @returns {{allowed: boolean, reason: string|null}}
+ * @param {Object} paymentDetails - payment details
+ * @returns {Object} capture eligibility
  */
 function canCapture(paymentDetails) {
     var status = paymentDetails.paymentStatus;
@@ -127,8 +127,8 @@ function canCapture(paymentDetails) {
 }
 
 /**
- * @param {Object} paymentDetails
- * @returns {{allowed: boolean, reason: string|null}}
+ * @param {Object} paymentDetails - payment details
+ * @returns {Object} void eligibility
  */
 function canVoid(paymentDetails) {
     var status = paymentDetails.paymentStatus;
@@ -157,8 +157,8 @@ function canVoid(paymentDetails) {
 }
 
 /**
- * @param {Object} paymentDetails
- * @returns {{allowed: boolean, reason: string|null, delayedAutoCapture: boolean}}
+ * @param {Object} paymentDetails - payment details
+ * @returns {Object} refund eligibility
  */
 function canRefund(paymentDetails) {
     var status = paymentDetails.paymentStatus;
@@ -194,10 +194,10 @@ function canRefund(paymentDetails) {
 }
 
 /**
- * @param {dw.order.PaymentTransaction} paymentTransaction
- * @param {string} attributeKey
- * @param {string} logLabel
- * @returns {Array}
+ * @param {dw.order.PaymentTransaction} paymentTransaction - payment transaction to parse
+ * @param {string} attributeKey - custom attribute key containing JSON history
+ * @param {string} logLabel - label for error logging
+ * @returns {Array} parsed history array
  */
 function parseHistory(paymentTransaction, attributeKey, logLabel) {
     if (!paymentTransaction || !paymentTransaction.custom || !paymentTransaction.custom[attributeKey]) {
@@ -212,32 +212,32 @@ function parseHistory(paymentTransaction, attributeKey, logLabel) {
 }
 
 /**
- * @param {dw.order.PaymentTransaction} paymentTransaction
- * @returns {Array}
+ * @param {dw.order.PaymentTransaction} paymentTransaction - payment transaction
+ * @returns {Array} capture history records
  */
 function getCaptureHistory(paymentTransaction) {
     return parseHistory(paymentTransaction, 'jpmcCaptureHistory', 'getCaptureHistory');
 }
 
 /**
- * @param {dw.order.PaymentTransaction} paymentTransaction
- * @returns {Array}
+ * @param {dw.order.PaymentTransaction} paymentTransaction - payment transaction
+ * @returns {Array} refund history records
  */
 function getRefundHistory(paymentTransaction) {
     return parseHistory(paymentTransaction, 'jpmcRefundHistory', 'getRefundHistory');
 }
 
 /**
- * @param {dw.order.PaymentTransaction} paymentTransaction
- * @returns {Array}
+ * @param {dw.order.PaymentTransaction} paymentTransaction - payment transaction
+ * @returns {Array} void history records
  */
 function getVoidHistory(paymentTransaction) {
     return parseHistory(paymentTransaction, 'jpmcVoidHistory', 'getVoidHistory');
 }
 
 /**
- * @param {string} cardNumber
- * @returns {string}
+ * @param {string} cardNumber - full or partial card number
+ * @returns {string} masked card number showing last 4 digits
  */
 function maskCardNumber(cardNumber) {
     if (!cardNumber || cardNumber.length < 4) return '****';
@@ -247,8 +247,8 @@ function maskCardNumber(cardNumber) {
 }
 
 /**
- * @param {string} paymentMethod
- * @returns {string}
+ * @param {string} paymentMethod - payment method ID
+ * @returns {string} display name for the payment method
  */
 function getPaymentMethodName(paymentMethod) {
     if (!paymentMethod) return jpmcConstants.PAYMENT_METHOD_DISPLAY_UNKNOWN;
@@ -257,13 +257,14 @@ function getPaymentMethodName(paymentMethod) {
         var method = PaymentMgr.getPaymentMethod(paymentMethod);
         if (method && method.name) return method.name;
     } catch (e) {
+        // intentionally empty
     }
     return paymentMethod;
 }
 
 /**
- * @param {string} paymentMethod
- * @returns {boolean}
+ * @param {string} paymentMethod - payment method ID to check
+ * @returns {boolean} true if JPMC processor handles this method
  */
 function isSupportedPaymentMethod(paymentMethod) {
     if (!paymentMethod) return false;

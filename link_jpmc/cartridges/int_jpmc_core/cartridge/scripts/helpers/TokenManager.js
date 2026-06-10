@@ -5,11 +5,11 @@
 
 'use strict';
 
-var constants = require('*/cartridge/scripts/helpers/jpmcConstants');
+var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
 
 /**
- * @param {number|string} expiresAt
- * @returns {boolean}
+ * @param {number|string} expiresAt - token expiration timestamp (ms or ISO string)
+ * @returns {boolean} true if token is expired or near expiry
  */
 function isTokenExpired(expiresAt) {
     if (!expiresAt) return true;
@@ -25,8 +25,8 @@ function isTokenExpired(expiresAt) {
 }
 
 /**
- * @param {string} cacheKey
- * @returns {Object|null}
+ * @param {string} cacheKey - cache identifier for the token
+ * @returns {Object|null} cached token or null if expired/missing
  */
 function getTokenFromCache(cacheKey) {
     try {
@@ -48,9 +48,9 @@ function getTokenFromCache(cacheKey) {
 }
 
 /**
- * @param {string} cacheKey
- * @param {Object} tokenData
- * @returns {boolean}
+ * @param {string} cacheKey - cache identifier for the token
+ * @param {Object} tokenData - token data to store (accessToken, expiresAt)
+ * @returns {boolean} true if stored successfully
  */
 function storeTokenInCache(cacheKey, tokenData) {
     try {
@@ -67,8 +67,8 @@ function storeTokenInCache(cacheKey, tokenData) {
 }
 
 /**
- * @param {string} [tokenKey]
- * @returns {Object|null}
+ * @param {string} [tokenKey] - custom object key (defaults to TOKEN_CACHE_KEY)
+ * @returns {Object|null} stored token or null if expired/missing
  */
 function getTokenFromCustomObject(tokenKey) {
     try {
@@ -99,10 +99,10 @@ function getTokenFromCustomObject(tokenKey) {
 }
 
 /**
- * @param {string} accessToken
- * @param {number} expiresIn
- * @param {string} [tokenKey]
- * @returns {boolean}
+ * @param {string} accessToken - OAuth access token to persist
+ * @param {number} expiresIn - token lifetime in seconds
+ * @param {string} [tokenKey] - custom object key (defaults to TOKEN_CACHE_KEY)
+ * @returns {boolean} true if stored successfully
  */
 function storeTokenInCustomObject(accessToken, expiresIn, tokenKey) {
     try {
@@ -130,10 +130,10 @@ function storeTokenInCustomObject(accessToken, expiresIn, tokenKey) {
 }
 
 /**
- * @param {string} jwt
- * @param {Object} config
- * @param {string} serviceId
- * @returns {Object}
+ * @param {string} jwt - signed JWT assertion
+ * @param {Object} config - token service configuration
+ * @param {string} serviceId - SFCC service identifier for token endpoint
+ * @returns {Object} token response or error
  */
 function requestToken(jwt, config, serviceId) {
     try {
@@ -161,6 +161,10 @@ function requestToken(jwt, config, serviceId) {
             },
             parseResponse: function(svc, client) {
                 return JSON.parse(client.text);
+            },
+            filterLogMessage: function (msg) {
+                var JPMCServiceHelper = require('*/cartridge/scripts/services/JPMCServiceHelper');
+                return JPMCServiceHelper.maskSensitiveData(msg);
             }
         });
         
@@ -182,16 +186,16 @@ function requestToken(jwt, config, serviceId) {
 }
 
 /**
- * @param {Object} config
- * @param {string} [serviceId]
- * @returns {Object}
+ * @param {Object} config - token service configuration (client_id, kid, etc.)
+ * @param {string} [serviceId] - SFCC service identifier (defaults to JPMCAccessToken)
+ * @returns {Object} cached or fresh access token
  */
 function getValidToken(config, serviceId) {
     if (!config || !config.client_id) {
         return { error: 'Invalid configuration', statusCode: 500 };
     }
     
-    serviceId = serviceId || 'JPMCAccessToken';
+    var resolvedServiceId = serviceId || 'JPMCAccessToken';
     var merchantScopedKey = config.merchantId
         ? constants.TOKEN_CACHE_KEY_PREFIX + config.merchantId
         : constants.TOKEN_CACHE_KEY;
@@ -220,7 +224,7 @@ function getValidToken(config, serviceId) {
         return { error: 'JWT generation failed', statusCode: 500 };
     }
     
-    var result = requestToken(jwt, config, serviceId);
+    var result = requestToken(jwt, config, resolvedServiceId);
     
     if (result.error) {
         return { error: result.error, statusCode: result.statusCode };

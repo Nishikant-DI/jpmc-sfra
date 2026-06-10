@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <metadata xmlns="http://www.demandware.com/xml/impex/metadata/2006-10-31">
-    <custom-type type-id="JPMCAccessToken">
+      <custom-type type-id="JPMCAccessToken">
         <display-name xml:lang="x-default">JPMC Access Token</display-name>
         <description xml:lang="x-default">Stores JPMC OAuth2 access tokens with expiration metadata. Keyed by siteID::localeID (e.g. RefArch::en_US) for locale-specific token management.</description>
         <staging-mode>no-staging</staging-mode>
@@ -70,6 +70,110 @@
             </attribute-group>
         </group-definitions>
     </custom-type>
+
+    <custom-type type-id="AccountUpdater_Notification_Queue">
+        <display-name xml:lang="x-default">Account Updater Notification Queue</display-name>
+        <description xml:lang="x-default">Durable queue for incoming Account Updater webhook notifications. Records are processed by the ProcessUpdateQueue_Job and deleted on success. Contains no card data — the unmasked tokens are fetched at processing time via the JPMC GET API.</description>
+        <staging-mode>no-staging</staging-mode>
+        <storage-scope>site</storage-scope>
+        <key-definition attribute-id="notificationID">
+            <type>string</type>
+            <min-length>1</min-length>
+        </key-definition>
+        <attribute-definitions>
+            <attribute-definition attribute-id="transactionId">
+                <display-name xml:lang="x-default">Transaction ID</display-name>
+                <description xml:lang="x-default">JPMC transactionId used for the GET /account-updates/{transactionId} call to retrieve unmasked card data.</description>
+                <type>string</type>
+                <mandatory-flag>true</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="merchantId">
+                <display-name xml:lang="x-default">Merchant ID</display-name>
+                <description xml:lang="x-default">Top-level merchantId from the webhook payload. Used to resolve merchant config for the GET API call.</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="reasonMessage">
+                <display-name xml:lang="x-default">Reason Message</display-name>
+                <description xml:lang="x-default">Provider reasonMessage that triggered the queue entry (e.g. NEW_ACCOUNT, NEW_EXPIRY, NEW_ACCOUNT_AND_EXPIRY).</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="merchantRecordIdentifier">
+                <display-name xml:lang="x-default">Merchant Record Identifier</display-name>
+                <description xml:lang="x-default">Composite identifier in the format {paymentInstrumentUUID}-CN-{customerNumber} used to locate the wallet PaymentInstrument.</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="status">
+                <display-name xml:lang="x-default">Processing Status</display-name>
+                <description xml:lang="x-default">Current processing state: NEW (awaiting), PROCESSING (locked), ERROR (failed)</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">New</display>
+                        <value>NEW</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Processing</display>
+                        <value>PROCESSING</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Error</display>
+                        <value>ERROR</value>
+                    </value-definition>
+                </value-definitions>
+                <default-value>NEW</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="retryCount">
+                <display-name xml:lang="x-default">Retry Count</display-name>
+                <description xml:lang="x-default">Number of failed processing attempts for this notification. Reserved for future retry logic.</description>
+                <type>int</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <default-value>0</default-value>
+            </attribute-definition>
+            <attribute-definition attribute-id="receivedTimestamp">
+                <display-name xml:lang="x-default">Received Timestamp</display-name>
+                <description xml:lang="x-default">Server timestamp when the webhook was received</description>
+                <type>datetime</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="lastError">
+                <display-name xml:lang="x-default">Last Error</display-name>
+                <description xml:lang="x-default">Error message from the last failed processing attempt. Does not contain PII.</description>
+                <type>text</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+        </attribute-definitions>
+        <group-definitions>
+            <attribute-group group-id="AccountUpdater_Queue">
+                <display-name xml:lang="x-default">Account Updater Queue</display-name>
+                <attribute attribute-id="notificationID"/>
+                <attribute attribute-id="transactionId"/>
+                <attribute attribute-id="merchantId"/>
+                <attribute attribute-id="reasonMessage"/>
+                <attribute attribute-id="merchantRecordIdentifier"/>
+                <attribute attribute-id="status"/>
+                <attribute attribute-id="retryCount"/>
+                <attribute attribute-id="receivedTimestamp"/>
+                <attribute attribute-id="lastError"/>
+                <attribute attribute-id="creationDate" system="true"/>
+                <attribute attribute-id="lastModified" system="true"/>
+            </attribute-group>
+        </group-definitions>
+    </custom-type>
+
+
+            
     <custom-type type-id="JPMCMerchantConfig">
         <display-name xml:lang="x-default">JPMC Merchant Configuration</display-name>
         <description xml:lang="x-default">Stores per-merchant JPMC payment configuration. Keyed by siteID::localeID (e.g. SiteA::en_CA) or siteID::default for site-wide config. Resolution order: locale-specific → site-default → site preferences fallback.</description>
@@ -97,6 +201,14 @@
                 <mandatory-flag>true</mandatory-flag>
                 <externally-managed-flag>true</externally-managed-flag>
             </attribute-definition>
+            <attribute-definition attribute-id="merchantCategoryCode">
+                <display-name xml:lang="x-default">Merchant Category Code</display-name>
+                <description xml:lang="x-default">Merchant Category Code (MCC) - 4-digit code identifying merchant business type. Must be exactly 4 digits. If not configured, defaults to MCC set at JPMC merchant profile level.</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <regex>^\d{4}$</regex>
+            </attribute-definition>
             <attribute-definition attribute-id="clientId">
                 <display-name xml:lang="x-default">Client ID</display-name>
                 <description xml:lang="x-default">OAuth2 Client ID from J.P.Morgan</description>
@@ -107,30 +219,19 @@
             <attribute-definition attribute-id="resourceId">
                 <display-name xml:lang="x-default">Resource ID</display-name>
                 <description xml:lang="x-default">OAuth2 Resource ID from J.P.Morgan</description>
-                <type>password</type>
+                <type>enum-of-string</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>true</externally-managed-flag>
-            </attribute-definition>
-            <attribute-definition attribute-id="audience">
-                <display-name xml:lang="x-default">Audience</display-name>
-                <description xml:lang="x-default">JWT audience URI from J.P.Morgan</description>
-                <type>password</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
-            </attribute-definition>
-            <attribute-definition attribute-id="tokenUri">
-                <display-name xml:lang="x-default">Token URI</display-name>
-                <description xml:lang="x-default">OAuth2 token endpoint URI. If blank, uses the JPMCAccessToken service URL.</description>
-                <type>password</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
-            </attribute-definition>
-            <attribute-definition attribute-id="expiresIn">
-                <display-name xml:lang="x-default">Token Expiration</display-name>
-                <description xml:lang="x-default">JWT token expiration time (e.g., 8h). Defaults to 5h if blank.</description>
-                <type>string</type>
-                <mandatory-flag>false</mandatory-flag>
-                <externally-managed-flag>true</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">Test/CAT</display>
+                        <value>JPMC:URI:RS-105239-85484-HelixAPIEntitlementsCAT-PROD</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Production</display>
+                        <value>JPMC:URI:RS-105239-85485-HelixAPIEntitlements-PROD</value>
+                    </value-definition>
+                </value-definitions>
             </attribute-definition>
             <attribute-definition attribute-id="certAlias">
                 <display-name xml:lang="x-default">Certificate Alias</display-name>
@@ -154,15 +255,42 @@
                 <externally-managed-flag>true</externally-managed-flag>
             </attribute-definition>
             <attribute-definition attribute-id="pieGetKeyUrl">
-                <display-name xml:lang="x-default">PIE Get Key URL</display-name>
-                <description xml:lang="x-default">URL for JPMC Page Integrated Encryption (PIE) getkey.js script. Each merchant has a unique PIE ID.</description>
-                <type>string</type>
+                <display-name xml:lang="x-default">PIE Base URL</display-name>
+                <description xml:lang="x-default">Base URL for JPMC Page Integrated Encryption (PIE). Combined with pieKey to build the full getkey.js URL: {pieGetKeyUrl}/{pieKey}/getkey.js</description>
+                <type>enum-of-string</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>true</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">Test/CAT</display>
+                        <value>https://safetechpageencryptionvar.chasepaymentech.com/pie/v1</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Production</display>
+                        <value>https://safetechpageencryption.chasepaymentech.com/pie/v1</value>
+                    </value-definition>
+                </value-definitions>
             </attribute-definition>
             <attribute-definition attribute-id="pieEncryptionUrl">
                 <display-name xml:lang="x-default">PIE Encryption URL</display-name>
-                <description xml:lang="x-default">URL for JPMC PIE encryption.js script</description>
+                <description xml:lang="x-default">URL for JPMC PIE encryption.js script.</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">Test/CAT</display>
+                        <value>https://safetechpageencryptionvar.chasepaymentech.com/pie/v1/encryption.js</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Production</display>
+                        <value>https://safetechpageencryption.chasepaymentech.com/pie/v1/encryption.js</value>
+                    </value-definition>
+                </value-definitions>
+            </attribute-definition>
+            <attribute-definition attribute-id="pieKey">
+                <display-name xml:lang="x-default">PIE Key</display-name>
+                <description xml:lang="x-default">Page Encryption (PE) Key ID from J.P.Morgan. Appended to pieGetKeyUrl to construct the full getkey.js URL.</description>
                 <type>string</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>true</externally-managed-flag>
@@ -234,15 +362,15 @@
                 </value-definitions>
             </attribute-definition>
             <attribute-definition attribute-id="kountClientId">
-                <display-name xml:lang="x-default">Kount Client ID</display-name>
-                <description xml:lang="x-default">Kount Web Client SDK Client ID for this merchant</description>
+                <display-name xml:lang="x-default">Safetech Fraud Client ID</display-name>
+                <description xml:lang="x-default">Safetech Fraud Web Client SDK Client ID for this merchant</description>
                 <type>string</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>true</externally-managed-flag>
             </attribute-definition>
             <attribute-definition attribute-id="kountEnvironment">
-                <display-name xml:lang="x-default">Kount Environment</display-name>
-                <description xml:lang="x-default">Kount environment: TEST for sandbox/development, PROD for production.</description>
+                <display-name xml:lang="x-default">Safetech Fraud Environment</display-name>
+                <description xml:lang="x-default">Safetech Fraud environment: TEST for sandbox/development, PROD for production.</description>
                 <type>enum-of-string</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>true</externally-managed-flag>
@@ -335,9 +463,87 @@
                 <externally-managed-flag>true</externally-managed-flag>
                 <default-value>false</default-value>
             </attribute-definition>
-            <attribute-definition attribute-id="applePayMerchantId">
-                <display-name xml:lang="x-default">Apple Pay Merchant Identifier</display-name>
-                <description xml:lang="x-default">Apple Pay merchant identifier for this locale (e.g. merchant.com.company.ca). When set, overrides the site-level BM Apple Pay configuration for merchant validation. Leave blank to use the default BM Apple Pay config.</description>
+
+            <attribute-definition attribute-id="jpmcAccountUpdaterWebhookUser">
+                <display-name xml:lang="x-default">Account Updater Webhook Username</display-name>
+                <description xml:lang="x-default">Username (client ID) used in the Authorization: Basic header for authenticating incoming webhook requests. Combined with the webhook secret as base64(username:secret).</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="jpmcAccountUpdaterWebhookSecret">
+                <display-name xml:lang="x-default">Account Updater Webhook Secret</display-name>
+                <description xml:lang="x-default">Password used in the Authorization: Basic header for authenticating incoming webhook requests. Combined with the webhook username as base64(username:secret).</description>
+                <type>password</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="jpmcAccountUpdaterMode">
+                <display-name xml:lang="x-default">Account Updater Mode</display-name>
+                <description xml:lang="x-default">Controls which Account Updater flows are active for this merchant configuration. NONE disables the feature. NOTIFICATIONS enables the asynchronous webhook flow only. REAL_TIME enables Real-Time Account Updater (RTAU) on stored-card authorization only. BOTH enables both flows. If blank, falls back to the site preference value. Default: NONE</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">None (Disabled)</display>
+                        <value>NONE</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Notifications (Async Webhook Only)</display>
+                        <value>NOTIFICATIONS</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Real-Time (RTAU on Authorization Only)</display>
+                        <value>REAL_TIME</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Both (Notifications + Real-Time)</display>
+                        <value>BOTH</value>
+                    </value-definition>
+                </value-definitions>
+            </attribute-definition>
+            <attribute-definition attribute-id="jpmcWebhookSubscriptionId">
+                <display-name xml:lang="x-default">Account Updater Webhook Subscription ID</display-name>
+                <description xml:lang="x-default">Identifier of the active Account Updater webhook subscription returned by JPMC. Populated automatically by the BM Webhook Manager when a subscription is created and cleared when deleted. Do not edit manually.</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="jpmc3DSEnabled">
+                <display-name xml:lang="x-default">Enable 3D Secure</display-name>
+                <description xml:lang="x-default">Enable 3D Secure authentication for card payments for this merchant/locale. When enabled, eligible card transactions will require cardholder authentication via 3DS flow. Falls back to site preference if not set.</description>
+                <type>boolean</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCApiHost">
+                <display-name xml:lang="x-default">JPMC API Host (PWA)</display-name>
+                <description xml:lang="x-default">JPMC Payment API base URL (without https://). Examples: api-ms-test.payments.jpmorgan.com (sandbox), api-ms.payments.jpmorgan.com (production). If not set, derived from JPMCEnvironment.</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCEnvironment">
+                <display-name xml:lang="x-default">JPMC Environment (PWA)</display-name>
+                <description xml:lang="x-default">JPMC environment: sandbox (CAT/TEST) or production. Used to determine API host if JPMCApiHost is not set.</description>
+                <type>enum-of-string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>true</externally-managed-flag>
+                <value-definitions>
+                    <value-definition>
+                        <display xml:lang="x-default">Sandbox (CAT/TEST)</display>
+                        <value>sandbox</value>
+                    </value-definition>
+                    <value-definition>
+                        <display xml:lang="x-default">Production</display>
+                        <value>production</value>
+                    </value-definition>
+                </value-definitions>
+            </attribute-definition>
+            <attribute-definition attribute-id="JPMCGooglePayAllowedShippingCountries">
+                <display-name xml:lang="x-default">Google Pay Allowed Shipping Countries (PWA)</display-name>
+                <description xml:lang="x-default">Comma-separated ISO 3166-1 alpha-2 country codes for allowed shipping destinations (e.g. US,CA,MX). Only addresses in these countries will be selectable in Google Pay. If empty defaults to site country code.</description>
                 <type>string</type>
                 <mandatory-flag>false</mandatory-flag>
                 <externally-managed-flag>true</externally-managed-flag>
@@ -349,18 +555,13 @@
                 <attribute attribute-id="configKey"/>
                 <attribute attribute-id="enabled"/>
                 <attribute attribute-id="merchantId"/>
+                <attribute attribute-id="merchantCategoryCode"/>
                 <attribute attribute-id="platformId"/>
             </attribute-group>
             <attribute-group group-id="JPMCMerchantOAuth">
                 <display-name xml:lang="x-default">OAuth &amp; JWT</display-name>
                 <attribute attribute-id="clientId"/>
                 <attribute attribute-id="resourceId"/>
-                <attribute attribute-id="audience"/>
-                <attribute attribute-id="tokenUri"/>
-                <attribute attribute-id="expiresIn"/>
-                <attribute attribute-id="certAlias"/>
-                <attribute attribute-id="privateKeyAlias"/>
-                <attribute attribute-id="kid"/>
             </attribute-group>
             <attribute-group group-id="JPMCMerchantPayment">
                 <display-name xml:lang="x-default">Payment Configuration</display-name>
@@ -368,6 +569,7 @@
                 <attribute attribute-id="tokenizationType"/>
                 <attribute attribute-id="pieGetKeyUrl"/>
                 <attribute attribute-id="pieEncryptionUrl"/>
+                <attribute attribute-id="pieKey"/>
             </attribute-group>
             <attribute-group group-id="JPMCMerchantGooglePay">
                 <display-name xml:lang="x-default">Google Pay</display-name>
@@ -381,10 +583,6 @@
                 <attribute attribute-id="JPMCGooglePayCartEnabled"/>
                 <attribute attribute-id="JPMCGooglePayPDPEnabled"/>
             </attribute-group>
-            <attribute-group group-id="JPMCMerchantApplePay">
-                <display-name xml:lang="x-default">Apple Pay</display-name>
-                <attribute attribute-id="applePayMerchantId"/>
-            </attribute-group>
             <attribute-group group-id="JPMCMerchantFraud">
                 <display-name xml:lang="x-default">Fraud Detection</display-name>
                 <attribute attribute-id="enableFraudCheck"/>
@@ -393,6 +591,28 @@
                 <attribute attribute-id="kountClientId"/>
                 <attribute attribute-id="kountEnvironment"/>
             </attribute-group>
+            <attribute-group group-id="JPMCMerchant3DS">
+                <display-name xml:lang="x-default">3D Secure</display-name>
+                <attribute attribute-id="jpmc3DSEnabled"/>
+            </attribute-group>
+            <attribute-group group-id="JPMCCertificateAndKeySFRA">
+                <display-name xml:lang="x-default">Certificate/ Keys (SFRA)</display-name>
+                <attribute attribute-id="certAlias"/>
+                <attribute attribute-id="privateKeyAlias"/>
+            </attribute-group>
+            <attribute-group group-id="JPMCMerchantAccountUpdaterSFRA">
+                <display-name xml:lang="x-default">Account Updater (SFRA)</display-name>
+                <attribute attribute-id="jpmcAccountUpdaterMode"/>
+                <attribute attribute-id="jpmcAccountUpdaterWebhookUser"/>
+                <attribute attribute-id="jpmcAccountUpdaterWebhookSecret"/>
+                <attribute attribute-id="jpmcWebhookSubscriptionId"/>
+            </attribute-group>
+            <attribute-group group-id="JPMCMerchantPWA">
+                <display-name xml:lang="x-default">PWA Configuration</display-name>
+                <attribute attribute-id="JPMCApiHost"/>
+                <attribute attribute-id="JPMCEnvironment"/>
+                <attribute attribute-id="JPMCGooglePayAllowedShippingCountries"/>
+            </attribute-group>
         </group-definitions>
     </custom-type>
-    </metadata>
+</metadata>
