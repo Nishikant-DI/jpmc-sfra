@@ -91,10 +91,13 @@ function createPayment(order, options) {
         if (serviceResult.success && serviceResult.data) {
             var paymentData = serviceResult.data;
             
-            // Log 3DS response for debugging
             if (paymentData.responseCode === 'PERFORM_AUTHENTICATION') {
-                Logger.info('JPMC 3DS: Received PERFORM_AUTHENTICATION response. authenticationOrchestrationUrl: {0}', 
-                    paymentData.paymentAuthenticationResult ? paymentData.paymentAuthenticationResult.authenticationOrchestrationUrl : 'MISSING');
+                var authResult = paymentData.paymentAuthenticationResult;
+                Logger.debug(
+                    'JPMC 3DS: Received PERFORM_AUTHENTICATION response. authenticationId: {0}, urlPresent: {1}',
+                    authResult ? (authResult.authenticationId || 'unknown') : 'unknown',
+                    !!(authResult && authResult.authenticationOrchestrationUrl)
+                );
             }
             
             if (paymentData.responseStatus === 'SUCCESS') {

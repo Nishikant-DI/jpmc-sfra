@@ -57,7 +57,7 @@ if (window.jpmc3DSEnabled === true) {
             
             // Collect and inject browser fingerprint data for 3DS
             var browserData = browserDataCollector.getBrowserDataAsObject();
-            
+
             // Merge browser data into request (handle both string and object formats)
             if (typeof options.data === 'string') {
                 // Convert URL-encoded string to object

@@ -63,7 +63,7 @@
 <body>
     <div class="container">
         <div class="spinner"></div>
-        <div class="status ${pdict.success ? 'success' : 'error'}">
+        <div class="status <isprint value="${pdict.success ? 'success' : 'error'}" encoding="htmldoublequote"/>">
             <isif condition="${pdict.success}">
                 ✓ Authentication Successful
             <iselse/>
@@ -90,10 +90,11 @@
         var authDataJson = JSON.stringify(authDataObject);
     </isscript>
     
-    <div id="jpmc-auth-data" data-auth="${authDataJson}"></div>
+    <div id="jpmc-auth-data" data-auth="<isprint value="${authDataJson}" encoding="htmldoublequote"/>"></div>
     <script>
         (function() {
             var dataEl = document.getElementById('jpmc-auth-data');
+            // getAttribute() decodes HTML entities automatically, so JSON.parse works correctly
             var authData = JSON.parse(dataEl.getAttribute('data-auth'));
 
             // Send postMessage to parent window (checkout page)

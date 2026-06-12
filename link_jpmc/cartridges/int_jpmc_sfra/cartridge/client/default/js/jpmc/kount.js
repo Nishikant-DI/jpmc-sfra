@@ -51,14 +51,26 @@ function getSessionId() {
 }
 
 /**
- * Generates a simple UUID
+ * Generates a UUID v4 using cryptographically secure random values when available
  * @returns {string} UUID
  */
 function generateUUID() {
+    if (window.crypto && window.crypto.getRandomValues) {
+        var bytes = new Uint8Array(16);
+        window.crypto.getRandomValues(bytes);
+        bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+        bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant RFC 4122
+        var hex = Array.from(bytes, function (b) {
+            return ('0' + b.toString(16)).slice(-2);
+        });
+        return hex.slice(0, 4).join('') + '-' + hex.slice(4, 6).join('') + '-' +
+               hex.slice(6, 8).join('') + '-' + hex.slice(8, 10).join('') + '-' +
+               hex.slice(10, 16).join('');
+    }
+    // Fallback for legacy browsers only
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
         var r = Math.trunc(Math.random() * 16);
-        var v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
+        return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
     });
 }
 

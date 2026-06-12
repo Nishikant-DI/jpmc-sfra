@@ -169,6 +169,15 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
         return next();
     }
 
+    // Nonce is stored in session.privacy (server-side, never sent to browser) and mirrored on the order.
+    // Handle3DSReturn compares the two to validate that the incoming postback is legitimate and not a forged request.
+    var UUIDUtils = require('dw/util/UUIDUtils');
+    var threeDSNonce = UUIDUtils.createUUID();
+    Transaction.wrap(function () {
+        order.custom.threeDSCallbackNonce = threeDSNonce;
+    });
+    req.session.privacyCache.set('threeDSCallbackNonce', threeDSNonce);
+
     var handlePaymentResult = COHelpers.handlePayments(order, order.orderNo);
 
     // ========== JPMC 3DS INTEGRATION ==========
@@ -271,13 +280,76 @@ server.post('Handle3DSReturn', server.middleware.https, function (req, res, next
     var Logger = require('dw/system/Logger');
     var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
     var THREE_DS = jpmcConstants.THREE_DS;
-    
-    var paymentRequestId = req.form.paymentRequestId || req.querystring.paymentRequestId;
-    var responseStatus = req.form.responseStatus || req.querystring.responseStatus;
 
-    // orderNo and orderToken are encoded in the authenticationReturnUrl by jpmcTransactionHelpers
-    var orderNo = req.querystring.orderNo;
+    var orderNo    = req.querystring.orderNo;
     var orderToken = req.querystring.orderToken;
+
+    if (!orderNo) {
+        Logger.error('JPMC 3DS: Missing orderNo in postback URL');
+        res.render('jpmc/3dsPostback', {
+            success: false,
+            responseStatus: 'ERROR',
+            authenticationStatus: 'U',
+            authenticationValue: '',
+            eci: '',
+            transactionId: '',
+            orderID: '',
+            orderToken: '',
+            continueUrl: ''
+        });
+        return next();
+    }
+
+    // Step 2: Look up order
+    var order = OrderMgr.getOrder(orderNo, orderToken);
+
+    if (!order) {
+        Logger.error('JPMC 3DS: Order not found for orderNo: {0}', orderNo);
+        res.render('jpmc/3dsPostback', {
+            success: false,
+            responseStatus: 'ERROR',
+            authenticationStatus: 'U',
+            authenticationValue: '',
+            eci: '',
+            transactionId: '',
+            orderID: '',
+            orderToken: '',
+            continueUrl: ''
+        });
+        return next();
+    }
+
+    // Step 3: Validate one-time nonce — session.privacy vs order.custom 
+    var sessionNonce  = req.session.privacyCache.get('threeDSCallbackNonce');
+    var expectedNonce = order.custom.threeDSCallbackNonce;
+    if (!sessionNonce || !expectedNonce || sessionNonce !== expectedNonce) {
+        Logger.error('JPMC 3DS: Nonce mismatch for order {0} — possible spoofed callback', orderNo);
+        Transaction.wrap(function () {
+            OrderMgr.failOrder(order, true);
+        });
+        res.render('jpmc/3dsPostback', {
+            success: false,
+            responseStatus: 'ERROR',
+            authenticationStatus: 'U',
+            authenticationValue: '',
+            eci: '',
+            transactionId: '',
+            orderID: '',
+            orderToken: '',
+            continueUrl: ''
+        });
+        return next();
+    }
+
+    // Step 4: Invalidate nonce immediately — one-time use only, prevents replay
+    Transaction.wrap(function () {
+        order.custom.threeDSCallbackNonce = null;
+    });
+    req.session.privacyCache.set('threeDSCallbackNonce', null);
+
+    // Step 5: Now safe to read POST body
+    var paymentRequestId = req.form.paymentRequestId || req.querystring.paymentRequestId;
+    var responseStatus   = req.form.responseStatus   || req.querystring.responseStatus;
 
     // Input validation: responseStatus must be one of the allowed values
     var allowedStatuses = [
@@ -294,42 +366,7 @@ server.post('Handle3DSReturn', server.middleware.https, function (req, res, next
     Logger.info('JPMC 3DS: Received postback - orderNo: {0}, paymentRequestId: {1}, responseStatus: {2}',
         orderNo, paymentRequestId, responseStatus);
 
-    if (!orderNo) {
-        Logger.error('JPMC 3DS: Missing orderNo in postback URL');
-        res.render('jpmc/3dsPostback', {
-            success: false,
-            responseStatus: 'ERROR',
-            authenticationStatus: 'U',
-            authenticationValue: '',
-            eci: '',
-            transactionId: paymentRequestId || '',
-            orderID: '',
-            orderToken: '',
-            continueUrl: ''
-        });
-        return next();
-    }
-
-    // Look up the order directly by order number (reliable; no custom-attribute dependency)
-    var order = OrderMgr.getOrder(orderNo, orderToken);
-
-    if (!order) {
-        Logger.error('JPMC 3DS: Order not found for orderNo: {0}', orderNo);
-        res.render('jpmc/3dsPostback', {
-            success: false,
-            responseStatus: 'ERROR',
-            authenticationStatus: 'U',
-            authenticationValue: '',
-            eci: '',
-            transactionId: paymentRequestId || '',
-            orderID: '',
-            orderToken: '',
-            continueUrl: ''
-        });
-        return next();
-    }
-    
-    // Step 5: Request additional payment details via GET /payments/{id}
+    // Step 6: Request additional payment details via GET /payments/{id}
     var JPMCPaymentHelper = require('*/cartridge/scripts/helpers/JPMCPaymentHelper');
     var paymentDetails = JPMCPaymentHelper.getPaymentDetails(order, paymentRequestId);
     
@@ -357,8 +394,8 @@ server.post('Handle3DSReturn', server.middleware.https, function (req, res, next
             }
             
             // Map CAVV (authentication value)
-            if (authResultData.authenticationValue) {
-                order.custom.threeDSAuthenticationValue = authResultData.authenticationValue;
+            if (authResultData.threeDSAuthenticationValue) {
+                order.custom.threeDSAuthenticationValue = authResultData.threeDSAuthenticationValue;
             }
             
             // Map ECI from threeDomainSecureCompletion
@@ -371,6 +408,31 @@ server.post('Handle3DSReturn', server.middleware.https, function (req, res, next
             order.orderNo, 
             threeDSData.threeDSTransactionStatus || 'unknown',
             threeDSData.electronicCommerceIndicator || 'unknown');
+
+        // Process RTAU with the confirmed post-3DS authorization response
+        require('*/cartridge/scripts/helpers/AccountUpdaterHelper').processRTAUForOrder(order, paymentDetails.data);
+
+        // PlaceOrder only handled payment authorisation; OrderMgr.placeOrder() has not been
+        // called yet — without this the order stays in CREATED state indefinitely.
+
+        var COHelpers   = require('*/cartridge/scripts/checkout/checkoutHelpers');
+        var placeOrderResult = COHelpers.placeOrder(order, {});
+        if (placeOrderResult.error) {
+            Transaction.wrap(function () { OrderMgr.failOrder(order, true); });
+            Logger.error('JPMC 3DS: OrderMgr.placeOrder failed for order {0}', order.orderNo);
+            res.render('jpmc/3dsPostback', {
+                success: false,
+                responseStatus: THREE_DS.RESPONSE_STATUS.ERROR,
+                authenticationStatus: 'U',
+                authenticationValue: '',
+                eci: '',
+                transactionId: paymentRequestId || '',
+                orderID: '',
+                orderToken: '',
+                continueUrl: ''
+            });
+            return next();
+        }
 
         // Render ISML inside iframe - the page's script will postMessage the parent
         res.render('jpmc/3dsPostback', {

@@ -298,7 +298,7 @@ function authorize(orderNumber, paymentInstrument, paymentProcessor) {
             isAmountFinal: true,
             IPAddress: ipAddress,
             resolvedConfig: resolvedConfig,
-            requestAccountUpdater: (isStoredCard && JPMCConfig.isAccountUpdaterRTAUEnabled()),
+            requestAccountUpdater: (isStoredCard && resolvedConfig.accountUpdaterMode === 'REAL_TIME'),
             paymentAuthenticationRequest: threeDSParams ? threeDSParams.paymentAuthenticationRequest : null,
             browserInfo: threeDSParams ? threeDSParams.browserInfo : null
         });
@@ -307,16 +307,9 @@ function authorize(orderNumber, paymentInstrument, paymentProcessor) {
             return { error: true, serverErrors: [Resource.msg('error.payment.authorization.failed', 'checkout', null)] };
         }
 
-        if (isStoredCard && JPMCConfig.isAccountUpdaterRTAUEnabled() && paymentResult.data) {
-            try {
-                var accountUpdaterHelper = require('*/cartridge/scripts/helpers/AccountUpdaterHelper');
-                var custPI = findCustomerPIByToken(order, creditCardToken);
-                if (custPI) {
-                    accountUpdaterHelper.handleRTAUResponse(custPI, paymentResult.data);
-                }
-            } catch (rtauErr) {
-                // Best-effort: do not break checkout
-            }
+        // For 3DS orders, RTAU is processed post-authentication in CheckoutServices-Handle3DSReturn.
+        if (isStoredCard && paymentResult.data && paymentResult.data.responseCode !== 'PERFORM_AUTHENTICATION') {
+            require('*/cartridge/scripts/helpers/AccountUpdaterHelper').processRTAUForOrder(order, paymentResult.data);
         }
         // Check if 3DS authentication is required
         // JPMC returns responseCode "PERFORM_AUTHENTICATION" with paymentAuthenticationResult
@@ -653,43 +646,3 @@ module.exports = {
     persistAuthorizationData: persistAuthorizationData
 };
 
-/**
- * Locates the customer-saved CustomerPaymentInstrument matching a given token,
- * for the customer associated with the order. Used by RTAU to apply updates
- * to the wallet PI (not just the order PI). Returns null if not found.
- *
- * @private
- * @param {dw.order.Order} order - order to search for customer payment instrument
- * @param {string} token - credit card token to match
- * @returns {dw.customer.CustomerPaymentInstrument|null} matching payment instrument or null
- */
-function findCustomerPIByToken(order, token) {
-    if (!order || !token) {
-        return null;
-    }
-    try {
-        var PaymentInstrument = require('dw/order/PaymentInstrument');
-        var customer = order.getCustomer();
-        if (!customer || !customer.getProfile()) {
-            return null;
-        }
-        var wallet = customer.getProfile().getWallet();
-        if (!wallet) {
-            return null;
-        }
-        var pis = wallet.getPaymentInstruments(PaymentInstrument.METHOD_CREDIT_CARD);
-        if (!pis) {
-            return null;
-        }
-        var it = pis.iterator();
-        while (it.hasNext()) {
-            var pi = it.next();
-            if (pi && pi.getCreditCardToken() === token) {
-                return pi;
-            }
-        }
-    } catch (e) {
-        // swallow — best-effort lookup
-    }
-    return null;
-}

@@ -92,14 +92,14 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                     version: '1.0.0'
                 }
             }),
-            getPreference: sinon.stub().returns('TEST_MERCHANT_ID'),
-            getAccessTokenConfig: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID' })
+            getPreference: sinon.stub().returns('test-merchant-xyz'),
+            getAccessTokenConfig: sinon.stub().returns({ merchantId: 'test-merchant-xyz' })
         };
 
         // Mock JPMCMerchantResolver
         mockJPMCMerchantResolver = {
-            resolve: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID', tokenizationType: 'DPAN', captureMethod: 'DELAYED', enableFraudCheckAtAuth: false }),
-            resolveForOrder: sinon.stub().returns({ merchantId: 'TEST_MERCHANT_ID', tokenizationType: 'DPAN', captureMethod: 'DELAYED', enableFraudCheckAtAuth: false }),
+            resolve: sinon.stub().returns({ merchantId: 'test-merchant-xyz', tokenizationType: 'DPAN', captureMethod: 'DELAYED', enableFraudCheckAtAuth: false }),
+            resolveForOrder: sinon.stub().returns({ merchantId: 'test-merchant-xyz', tokenizationType: 'DPAN', captureMethod: 'DELAYED', enableFraudCheckAtAuth: false }),
             toAccessTokenConfig: sinon.stub().returns({}),
             invalidateCache: sinon.stub()
         };
@@ -108,7 +108,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
         mockJPMCPaymentHelper = {
             createPayment: sinon.stub().returns({
                 success: true,
-                transactionId: 'TXN-123456'
+                transactionId: 'test-txn-bbb-222'
             })
         };
 
@@ -130,12 +130,12 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
 
         // Mock payment processor
         mockPaymentProcessor = {
-            ID: 'JPMC_CREDIT'
+            ID: 'test-processor-ddd'
         };
 
         // Create mock order
         mockOrder = new Order();
-        mockOrder.orderNo = 'TEST-ORDER-001';
+        mockOrder.orderNo = 'test-ord-aaa-111';
 
         // Create mock payment instrument
         mockPaymentInstrument = new PaymentInstrument();
@@ -146,7 +146,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
         mockPaymentInstrument.lineItemCtnr = mockOrder;
 
         // Register order in OrderMgr
-        mockOrderMgr._registerOrder('TEST-ORDER-001', mockOrder);
+        mockOrderMgr._registerOrder('test-ord-aaa-111', mockOrder);
 
         // Load module with mocks
         jpmcTransactionHelpers = proxyquire('../../../../../cartridges/int_jpmc_core/cartridge/scripts/helpers/JPMCTransactionHelpers', {
@@ -182,7 +182,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
 
     describe('authorize()', function () {
         it('should return error when order is not found', function () {
-            var result = jpmcTransactionHelpers.authorize('INVALID-ORDER', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-invalid-999', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(result.error);
             assert.isArray(result.serverErrors);
@@ -190,15 +190,15 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
         });
 
         it('should successfully authorize payment with stored card', function () {
-            mockPaymentInstrument.creditCardToken = 'TOKEN-123';
+            mockPaymentInstrument.creditCardToken = 'test-token-aaa-111';
             mockPaymentInstrument.getCreditCardToken = function () {
                 return this.creditCardToken;
             };
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
-            assert.equal(result.transactionId, 'TXN-123456');
+            assert.equal(result.transactionId, 'test-txn-bbb-222');
             assert.equal(result.captureMethod, 'DELAYED');
             assert.isTrue(mockJPMCPaymentHelper.createPayment.calledOnce);
 
@@ -214,10 +214,10 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             };
             global.session.forms.billing.creditCardFields.saveCard.checked = true;
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
-            assert.equal(result.transactionId, 'TXN-123456');
+            assert.equal(result.transactionId, 'test-txn-bbb-222');
 
             // Verify createPayment was called with correct accountOnFile
             var createPaymentArgs = mockJPMCPaymentHelper.createPayment.firstCall.args[1];
@@ -231,7 +231,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             };
             global.session.forms.billing.creditCardFields.saveCard.checked = false;
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
 
@@ -243,7 +243,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
         it('should use capture method from site preference', function () {
             mockJPMCConfig.getCaptureMethod.returns('NOW');
             mockJPMCMerchantResolver.resolve.returns({ 
-                merchantId: 'TEST_MERCHANT_ID', 
+                merchantId: 'test-merchant-xyz', 
                 tokenizationType: 'DPAN', 
                 captureMethod: 'NOW', 
                 enableFraudCheckAtAuth: false 
@@ -252,7 +252,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 return null;
             };
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
             assert.equal(result.captureMethod, 'NOW');
@@ -264,7 +264,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
         it('should set payment status to AC for NOW capture method', function () {
             mockJPMCConfig.getCaptureMethod.returns('NOW');
             mockJPMCMerchantResolver.resolve.returns({ 
-                merchantId: 'TEST_MERCHANT_ID', 
+                merchantId: 'test-merchant-xyz', 
                 tokenizationType: 'DPAN', 
                 captureMethod: 'NOW', 
                 enableFraudCheckAtAuth: false 
@@ -274,7 +274,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             };
             mockPaymentInstrument.paymentTransaction.custom = {};
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
             assert.isTrue(mockTransaction.wrap.called);
@@ -293,7 +293,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             };
             mockPaymentInstrument.paymentTransaction.custom = {};
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
 
@@ -314,7 +314,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 return null;
             };
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
             assert.isTrue(mockHookMgr.hasHook('app.safetech.fraud.detection'));
@@ -322,7 +322,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
 
         it('should decline payment when fraud detection returns fail status', function () {
             mockJPMCConfig.isFraudCheckEnabledAtAuth.returns(true);
-            mockJPMCMerchantResolver.resolve.returns({ merchantId: 'TEST_MERCHANT_ID', tokenizationType: 'DPAN', captureMethod: 'DELAYED', enableFraudCheckAtAuth: true });
+            mockJPMCMerchantResolver.resolve.returns({ merchantId: 'test-merchant-xyz', tokenizationType: 'DPAN', captureMethod: 'DELAYED', enableFraudCheckAtAuth: true });
             mockHookMgr._registerHook('app.safetech.fraud.detection');
             mockHookMgr._setHookResult('app.safetech.fraud.detection', 'fraudDetection', {
                 status: 'fail',
@@ -332,7 +332,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 return null;
             };
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(result.error);
             assert.isArray(result.serverErrors);
@@ -347,7 +347,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             };
             mockPaymentInstrument.paymentTransaction.custom = {};
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
             assert.equal(result.captureMethod, 'MANUAL');
@@ -360,7 +360,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
         it('should override capture method to MANUAL when fraud flagged from auth stage', function () {
             mockJPMCConfig.getCaptureMethod.returns('NOW');
             mockJPMCConfig.isFraudCheckEnabledAtAuth.returns(true);
-            mockJPMCMerchantResolver.resolve.returns({ merchantId: 'TEST_MERCHANT_ID', tokenizationType: 'DPAN', captureMethod: 'NOW', enableFraudCheckAtAuth: true });
+            mockJPMCMerchantResolver.resolve.returns({ merchantId: 'test-merchant-xyz', tokenizationType: 'DPAN', captureMethod: 'NOW', enableFraudCheckAtAuth: true });
             mockHookMgr._registerHook('app.safetech.fraud.detection');
             mockHookMgr._setHookResult('app.safetech.fraud.detection', 'fraudDetection', {
                 status: 'success',
@@ -370,7 +370,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 return null;
             };
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
             assert.equal(result.captureMethod, 'MANUAL');
@@ -385,7 +385,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             // Pre-add a fraud review note so `noteExists` becomes true → `if (!noteExists)` is false
             mockOrder.addNote('Fraud Review', 'Order marked for review');
 
-            jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             // Note should NOT be duplicated — still exactly 1 fraud note
             var notes = mockOrder.getNotes().toArray();
@@ -401,7 +401,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             };
             mockPaymentInstrument.paymentTransaction.custom = {};
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
             assert.isTrue(mockTransaction.wrap.called);
@@ -422,7 +422,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             };
             global.request.getHttpRemoteAddress.returns('203.0.113.42');
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
 
@@ -436,7 +436,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             };
             global.request.getHttpRemoteAddress.throws(new Error('Request not available'));
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
             // Should still succeed despite IP error
@@ -451,7 +451,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 error: 'Payment gateway error'
             });
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(result.error);
             assert.isArray(result.serverErrors);
@@ -464,11 +464,11 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             };
             mockPaymentInstrument.paymentTransaction.custom = {};
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
-            assert.equal(mockPaymentInstrument.custom.jpmcTransactionId, 'TXN-123456');
-            assert.equal(mockPaymentInstrument.paymentTransaction.custom.jpmcAuthorizationId, 'TXN-123456');
+            assert.equal(mockPaymentInstrument.custom.jpmcTransactionId, 'test-txn-bbb-222');
+            assert.equal(mockPaymentInstrument.paymentTransaction.custom.jpmcAuthorizationId, 'test-txn-bbb-222');
         });
 
         it('should store capture method and auth timestamp', function () {
@@ -478,7 +478,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             };
             mockPaymentInstrument.paymentTransaction.custom = {};
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
             assert.equal(mockPaymentInstrument.paymentTransaction.custom.jpmcCaptureMethod, 'DELAYED');
@@ -490,7 +490,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 throw new Error('Unexpected error');
             };
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(result.error);
             assert.isArray(result.serverErrors);
@@ -505,7 +505,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 return null;
             };
 
-            jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
             assert.isNull(global.session.privacy.jpmcEncryptedCvv);
             assert.isNull(global.session.privacy.jpmcEncryptedData);
         });
@@ -516,7 +516,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 return null;
             };
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
             // Should not throw error despite missing form
@@ -543,7 +543,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
         });
 
         it('should return error when order is not found', function () {
-            var result = jpmcTransactionHelpers.authorizeGooglePay('INVALID-ORDER', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorizeGooglePay('test-ord-invalid-999', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(result.error);
             assert.isArray(result.serverErrors);
@@ -553,7 +553,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             global.session.privacy.jpmcGooglePayToken = null;
             mockPaymentInstrument.custom.jpmcGooglePayToken = null;
 
-            var result = jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(result.error);
             assert.isArray(result.serverErrors);
@@ -563,7 +563,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             global.session.privacy.jpmcGooglePayToken = 'invalid-json';
             mockPaymentInstrument.custom.jpmcGooglePayToken = 'invalid-json';
 
-            var result = jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(result.error);
         });
@@ -573,7 +573,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             global.session.privacy.jpmcGooglePayToken = JSON.stringify(googlePayToken);
             mockPaymentInstrument.custom.jpmcGooglePayToken = JSON.stringify(googlePayToken);
 
-            var result = jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(result.error);
         });
@@ -583,7 +583,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             global.session.privacy.jpmcGooglePayToken = JSON.stringify(googlePayToken);
             mockPaymentInstrument.custom.jpmcGooglePayToken = JSON.stringify(googlePayToken);
 
-            var result = jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(result.error);
         });
@@ -593,7 +593,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             global.session.privacy.jpmcGooglePayToken = JSON.stringify(googlePayToken);
             mockPaymentInstrument.custom.jpmcGooglePayToken = JSON.stringify(googlePayToken);
 
-            var result = jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(result.error);
         });
@@ -617,7 +617,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 }
             });
 
-            var result = jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
         });
@@ -635,7 +635,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 }
             });
 
-            var result = jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isFalse(result.error);
             assert.equal(result.transactionId, 'GPAY-TXN-123');
@@ -652,7 +652,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 }
             });
 
-            jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(mockJPMCPayloadBuilder.buildGooglePayPaymentPayload.calledOnce);
             var buildArgs = mockJPMCPayloadBuilder.buildGooglePayPaymentPayload.firstCall.args[0];
@@ -673,14 +673,14 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 }
             });
 
-            jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(mockJPMCServiceHelper.callWithTokenGeneration.calledOnce);
             var serviceArgs = mockJPMCServiceHelper.callWithTokenGeneration.firstCall.args[0];
             assert.equal(serviceArgs.tokenServiceId, 'JPMCAccessToken');
             assert.equal(serviceArgs.serviceId, 'JPMCPaymentService');
             assert.equal(serviceArgs.method, 'POST');
-            assert.equal(serviceArgs.headers['merchant-id'], 'TEST_MERCHANT_ID');
+            assert.equal(serviceArgs.headers['merchant-id'], 'test-merchant-xyz');
             assert.isDefined(serviceArgs.headers['request-id']);
         });
 
@@ -690,7 +690,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 error: 'Service error'
             });
 
-            var result = jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(result.error);
         });
@@ -705,7 +705,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 }
             });
 
-            var result = jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(result.error);
         });
@@ -720,7 +720,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 }
             });
 
-            jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.equal(mockPaymentInstrument.custom.jpmcTransactionId, 'GPAY-TXN-123');
             assert.equal(mockPaymentInstrument.custom.jpmcWalletProvider, 'GOOGLE_PAY');
@@ -730,7 +730,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
         it('should set payment status to AC for NOW capture', function () {
             mockJPMCConfig.getCaptureMethod.returns('NOW');
             mockJPMCMerchantResolver.resolve.returns({ 
-                merchantId: 'TEST_MERCHANT_ID', 
+                merchantId: 'test-merchant-xyz', 
                 tokenizationType: 'DPAN', 
                 captureMethod: 'NOW', 
                 enableFraudCheckAtAuth: false 
@@ -744,7 +744,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 }
             });
 
-            jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.equal(mockPaymentInstrument.paymentTransaction.custom.jpmcPaymentStatus, 'AC');
             assert.equal(mockPaymentInstrument.paymentTransaction.custom.jpmcCapturedAmount, 100.00);
@@ -761,7 +761,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 }
             });
 
-            jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.equal(mockPaymentInstrument.paymentTransaction.custom.jpmcPaymentStatus, 'A');
             assert.equal(mockPaymentInstrument.paymentTransaction.custom.jpmcRemainingAuthAmount, 100.00);
@@ -777,7 +777,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 }
             });
 
-            jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             var notes = mockOrder.getNotes().toArray();
             var gpayNote = notes.find(function (note) {
@@ -798,7 +798,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 }
             });
 
-            jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isNull(global.session.privacy.jpmcGooglePayToken);
         });
@@ -809,7 +809,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 error: 'Service error'
             });
 
-            jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isNull(global.session.privacy.jpmcGooglePayToken);
         });
@@ -817,7 +817,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
         it('should handle exception and return error', function () {
             mockJPMCPayloadBuilder.buildGooglePayPaymentPayload.throws(new Error('Payload error'));
 
-            var result = jpmcTransactionHelpers.authorizeGooglePay('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorizeGooglePay('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
 
             assert.isTrue(result.error);
             assert.isArray(result.serverErrors);
@@ -990,9 +990,9 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
 
     describe('voidPayment()', function () {
         beforeEach(function () {
-            mockPaymentInstrument.paymentTransaction.transactionID = 'TXN-123456';
+            mockPaymentInstrument.paymentTransaction.transactionID = 'test-txn-bbb-222';
             mockPaymentInstrument.paymentTransaction.custom = {
-                jpmcAuthorizationId: 'TXN-123456'
+                jpmcAuthorizationId: 'test-txn-bbb-222'
             };
             mockPaymentInstrument.paymentTransaction.getTransactionID = function () {
                 return this.transactionID;
@@ -1068,7 +1068,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 data: {
                     responseStatus: 'SUCCESS',
                     transactionState: 'VOIDED',
-                    transactionId: 'TXN-123456',
+                    transactionId: 'test-txn-bbb-222',
                     approvalCode: 'APPR-001'
                 }
             });
@@ -1085,7 +1085,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 data: {
                     responseStatus: 'SUCCESS',
                     transactionState: 'VOIDED',
-                    transactionId: 'TXN-123456'
+                    transactionId: 'test-txn-bbb-222'
                 }
             });
 
@@ -1096,9 +1096,9 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
             assert.equal(serviceArgs.tokenServiceId, 'JPMCAccessToken');
             assert.equal(serviceArgs.serviceId, 'JPMCPaymentVoid');
             assert.equal(serviceArgs.method, 'PATCH');
-            assert.equal(serviceArgs.headers['merchant-id'], 'TEST_MERCHANT_ID');
+            assert.equal(serviceArgs.headers['merchant-id'], 'test-merchant-xyz');
             assert.isDefined(serviceArgs.headers['request-id']);
-            assert.equal(serviceArgs.placeHolderId, 'TXN-123456');
+            assert.equal(serviceArgs.placeHolderId, 'test-txn-bbb-222');
         });
 
         it('should build void payload', function () {
@@ -1107,7 +1107,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 data: {
                     responseStatus: 'SUCCESS',
                     transactionState: 'VOIDED',
-                    transactionId: 'TXN-123456'
+                    transactionId: 'test-txn-bbb-222'
                 }
             });
 
@@ -1122,7 +1122,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 data: {
                     responseStatus: 'SUCCESS',
                     transactionState: 'VOIDED',
-                    transactionId: 'TXN-123456'
+                    transactionId: 'test-txn-bbb-222'
                 }
             });
 
@@ -1138,7 +1138,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 data: {
                     responseStatus: 'SUCCESS',
                     transactionState: 'VOIDED',
-                    transactionId: 'TXN-123456',
+                    transactionId: 'test-txn-bbb-222',
                     approvalCode: 'APPR-001'
                 }
             });
@@ -1150,7 +1150,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 return note.subject === 'JPMC Authorization Voided';
             });
             assert.isDefined(voidNote);
-            assert.include(voidNote.text, 'TXN-123456');
+            assert.include(voidNote.text, 'test-txn-bbb-222');
             assert.include(voidNote.text, 'VOIDED');
             assert.include(voidNote.text, 'APPR-001');
         });
@@ -1231,56 +1231,28 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
         });
     });
 
-    // ==================== RTAU / findCustomerPIByToken path ====================
+    // ==================== RTAU / processRTAUForOrder path ====================
 
     describe('authorize() with RTAU enabled', function () {
-        it('should call handleRTAUResponse when RTAU is enabled and stored card used', function () {
-            mockJPMCConfig.isAccountUpdaterRTAUEnabled.returns(true);
-            // Must return data for the RTAU block to execute
+        it('should call processRTAUForOrder when RTAU is enabled and stored card used', function () {
+            mockJPMCMerchantResolver.resolve.returns({
+                merchantId: 'test-merchant-xyz', tokenizationType: 'DPAN',
+                captureMethod: 'DELAYED', enableFraudCheckAtAuth: false,
+                accountUpdaterMode: 'REAL_TIME'
+            });
             mockJPMCPaymentHelper.createPayment.returns({
                 success: true,
-                transactionId: 'TXN-123456',
-                data: { accountUpdater: { accountUpdaterResponse: 'MATCH_UPDATE' } }
+                transactionId: 'test-txn-bbb-222',
+                data: { responseCode: 'APPROVED', accountUpdater: { accountUpdaterResponse: 'MATCH_UPDATE' } }
             });
-            var rtauHandled = false;
+            var rtauCalled = false;
             var mockAccountUpdaterHelper = {
-                handleRTAUResponse: function () { rtauHandled = true; return { updated: false, action: null }; }
+                processRTAUForOrder: function () { rtauCalled = true; }
             };
 
             mockPaymentInstrument.creditCardToken = 'STORED-TOKEN';
             mockPaymentInstrument.getCreditCardToken = function () { return this.creditCardToken; };
             mockPaymentInstrument.paymentTransaction.custom = {};
-
-            // Attach a customer with a matching wallet PI to the order
-            var matchingPI = {
-                getCreditCardToken: function () { return 'STORED-TOKEN'; }
-            };
-            var iteratorFinished = false;
-            mockOrder.getCustomer = function () {
-                return {
-                    getProfile: function () {
-                        return {
-                            getWallet: function () {
-                                return {
-                                    getPaymentInstruments: function () {
-                                        return {
-                                            iterator: function () {
-                                                return {
-                                                    hasNext: function () {
-                                                        if (!iteratorFinished) { iteratorFinished = true; return true; }
-                                                        return false;
-                                                    },
-                                                    next: function () { return matchingPI; }
-                                                };
-                                            }
-                                        };
-                                    }
-                                };
-                            }
-                        };
-                    }
-                };
-            };
 
             jpmcTransactionHelpers = proxyquire('../../../../../cartridges/int_jpmc_core/cartridge/scripts/helpers/JPMCTransactionHelpers', {
                 'dw/system/Transaction': mockTransaction,
@@ -1306,24 +1278,36 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 'dw/order/PaymentInstrument': { METHOD_CREDIT_CARD: 'CREDIT_CARD' }
             });
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
             assert.isFalse(result.error);
-            assert.isTrue(rtauHandled);
+            assert.isTrue(rtauCalled);
         });
 
-        it('should not throw when RTAU is enabled but customer PI is not found', function () {
-            mockJPMCConfig.isAccountUpdaterRTAUEnabled.returns(true);
-
+        it('should not call processRTAUForOrder when responseCode is PERFORM_AUTHENTICATION', function () {
+            mockJPMCMerchantResolver.resolve.returns({
+                merchantId: 'test-merchant-xyz', tokenizationType: 'DPAN',
+                captureMethod: 'DELAYED', enableFraudCheckAtAuth: false,
+                accountUpdaterMode: 'REAL_TIME'
+            });
+            mockJPMCPaymentHelper.createPayment.returns({
+                success: true,
+                transactionId: 'test-txn-bbb-222',
+                data: {
+                    responseCode: 'PERFORM_AUTHENTICATION',
+                    paymentAuthenticationResult: {
+                        authenticationOrchestrationUrl: 'https://example.com/auth',
+                        paymentRequestId: 'REQ-001'
+                    }
+                }
+            });
+            var rtauCalled = false;
             var mockAccountUpdaterHelper = {
-                handleRTAUResponse: function () { return { updated: false, action: null }; }
+                processRTAUForOrder: function () { rtauCalled = true; }
             };
 
             mockPaymentInstrument.creditCardToken = 'STORED-TOKEN';
             mockPaymentInstrument.getCreditCardToken = function () { return this.creditCardToken; };
             mockPaymentInstrument.paymentTransaction.custom = {};
-
-            // Customer has no profile
-            mockOrder.getCustomer = function () { return { getProfile: function () { return null; } }; };
 
             jpmcTransactionHelpers = proxyquire('../../../../../cartridges/int_jpmc_core/cartridge/scripts/helpers/JPMCTransactionHelpers', {
                 'dw/system/Transaction': mockTransaction,
@@ -1349,8 +1333,9 @@ describe('int_jpmc_core/scripts/helpers/JPMCTransactionHelpers', function () {
                 'dw/order/PaymentInstrument': { METHOD_CREDIT_CARD: 'CREDIT_CARD' }
             });
 
-            var result = jpmcTransactionHelpers.authorize('TEST-ORDER-001', mockPaymentInstrument, mockPaymentProcessor);
+            var result = jpmcTransactionHelpers.authorize('test-ord-aaa-111', mockPaymentInstrument, mockPaymentProcessor);
             assert.isFalse(result.error);
+            assert.isFalse(rtauCalled);
         });
     });
 });

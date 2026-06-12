@@ -576,6 +576,14 @@
                 <externally-managed-flag>false</externally-managed-flag>
                 <field-length>10</field-length>
             </attribute-definition>
+            <attribute-definition attribute-id="threeDSCallbackNonce">
+                <display-name xml:lang="x-default">3DS Callback Nonce</display-name>
+                <description xml:lang="x-default">One-time UUID nonce for validating the JPMC 3DS postback callback. Prevents spoofed or replayed Handle3DSReturn requests. Cleared after first use.</description>
+                <type>string</type>
+                <mandatory-flag>false</mandatory-flag>
+                <externally-managed-flag>false</externally-managed-flag>
+                <field-length>36</field-length>
+            </attribute-definition>
             <attribute-definition attribute-id="jpmcCardNetworkResponse">
                 <display-name xml:lang="x-default">JPMC Card Network Response</display-name>
                 <description xml:lang="x-default">Complete card network response from JPMC authorization including AVS, CVV, and network transaction details (JSON format)</description>
@@ -608,6 +616,7 @@
                 <attribute attribute-id="threeDSAuthenticationValue"/>
                 <attribute attribute-id="threeDSEci"/>
                 <attribute attribute-id="threeDSFailureReason"/>
+                <attribute attribute-id="threeDSCallbackNonce"/>
             </attribute-group>
         </group-definitions>
     </type-extension>
