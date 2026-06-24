@@ -10,23 +10,42 @@
 var Logger = require('dw/system/Logger').getLogger('JPMC', 'payload');
 
 /**
- * Converts dollar amount to cents (integer format required by JPMC API)
- * 
- * @param {number} dollarAmount - amount in dollars to convert
- * @returns {number} amount in cents
+ * ISO 4217 zero-decimal currencies — amounts sent as-is (no * 100).
  * @private
  */
-function convertToCents(dollarAmount) {
-    return Math.round(dollarAmount * 100);
+var ZERO_DECIMAL_CURRENCIES = {
+    BIF: true, CLP: true, DJF: true, GNF: true, ISK: true,
+    JPY: true, KMF: true, KRW: true, MGA: true, PYG: true,
+    RWF: true, UGX: true, VND: true, VUV: true, XAF: true,
+    XOF: true, XPF: true
+};
+
+/**
+ * Converts an amount to the minor unit required by the API.
+ * For standard currencies (e.g. USD, GBP) multiplies by 100.
+ * For zero-decimal currencies (e.g. JPY, KRW) returns the value as-is.
+ *
+ * @param {number} amount - amount to convert
+ * @param {string} [currencyCode] - ISO 4217 currency code (e.g. 'USD', 'JPY')
+ * @returns {number} amount in the currency's minor unit
+ * @private
+ */
+function convertToCents(amount, currencyCode) {
+    if (currencyCode && ZERO_DECIMAL_CURRENCIES[currencyCode.toUpperCase()]) {
+        return Math.round(amount);
+    }
+    return Math.round(amount * 100);
 }
 
 /**
  * Builds merchant object with software details from configuration.
- * @param {boolean} [includeSoftwareId=false] - whether to include softwareId field (for Auth, Void, Capture, Refund)
  * @returns {Object} merchant object with merchantSoftware details
  */
-function buildMerchantObject(includeSoftwareId) {
+function buildMerchantObject() {
+    var System = require('dw/system/System');
+    var Site = require('dw/system/Site');
     var constants = require('*/cartridge/scripts/helpers/JPMCConstants');
+
     var softwareCompany = constants.DEFAULT_COMPANY_NAME;
     var softwareProduct = constants.DEFAULT_PRODUCT_NAME;
     var softwareVersion = constants.DEFAULT_VERSION;
@@ -37,11 +56,18 @@ function buildMerchantObject(includeSoftwareId) {
         version: softwareVersion
     };
 
-    if (includeSoftwareId) {
-        var System = require('dw/system/System');
-        var realmId = System.getPreferences().getCustom().jpmcRealmId;
-        merchantSoftware.softwareId = realmId || '';
+    var realmId = System.getPreferences().getCustom().jpmcRealmId;
+    var siteId = Site.getCurrent().getID();
+    var parts = [];
+    
+    if (realmId) {
+        parts.push('realm=' + realmId);
     }
+    if (siteId) {
+        parts.push('site=' + siteId);
+    }
+    
+    merchantSoftware.softwareId = parts.join('|');
 
     return {
         merchantSoftware: merchantSoftware
@@ -185,9 +211,9 @@ function buildCapturePayload(params) {
     }
 
     var payload = {
-        amount: convertToCents(params.amount),
+        amount: convertToCents(params.amount, params.order.getCurrencyCode()),
         currency: params.order.getCurrencyCode(),
-        merchant: buildMerchantObject(true)
+        merchant: buildMerchantObject()
     };
     if (params.multiCapture) {
         var seqNum = params.multiCapture.sequenceNumber || 1;
@@ -225,11 +251,11 @@ function buildRefundPayload(params) {
                 transactionReferenceId: params.transactionReferenceId
             }
         },
-        merchant: buildMerchantObject(true)
+        merchant: buildMerchantObject()
     };
 
     if (params.amount !== undefined && params.amount !== null && params.currency) {
-        payload.amount = convertToCents(params.amount);
+        payload.amount = convertToCents(params.amount, params.currency);
         payload.currency = params.currency;
     }
 
@@ -267,7 +293,7 @@ function buildFraudCheckPayload(params) {
     var pi = params.paymentInstrument;
     
     var payload = {
-        amount: convertToCents(basketOrOrder.getTotalGrossPrice().value),
+        amount: convertToCents(basketOrOrder.getTotalGrossPrice().value, basketOrOrder.getCurrencyCode()),
         currency: basketOrOrder.getCurrencyCode(),
         accountHolder: buildAccountHolderObject(basketOrOrder, params.deviceIPAddress, 'deviceIPAddress'),
         paymentMethodType: buildPaymentMethodTypeObject(pi, params),
@@ -300,7 +326,7 @@ function buildFraudCheckPayload(params) {
         }
         
         if (params.fraudScore.fencibleItemAmount !== undefined) {
-            payload.fraudScore.fencibleItemAmount = convertToCents(params.fraudScore.fencibleItemAmount);
+            payload.fraudScore.fencibleItemAmount = convertToCents(params.fraudScore.fencibleItemAmount, basketOrOrder.getCurrencyCode());
         }
         
         if (params.fraudScore.aNITelephoneNumber) {
@@ -777,13 +803,13 @@ function buildCreatePaymentPayload(params) {
     
     var payload = {
         captureMethod: params.captureMethod || 'NOW',
-        amount: convertToCents(totalAmount.getValue()),
+        amount: convertToCents(totalAmount.getValue(), basket.getCurrencyCode()),
         currency: basket.getCurrencyCode(),
         isAmountFinal: (params.isAmountFinal !== undefined) ? params.isAmountFinal : true,
         initiatorType: params.initiatorType || 'CARDHOLDER',
         accountOnFile: params.accountOnFile || 'NOT_STORED',
         merchantOrderNumber: basket.getOrderNo ? basket.getOrderNo() : ('BASKET-' + basket.getUUID()),
-        merchant: buildMerchantObject(true)
+        merchant: buildMerchantObject()
     };
     payload.accountHolder = buildAccountHolderObject(basket, params.IPAddress, 'IPAddress', params.resolvedConfig);
     if (params.merchantCategoryCode) {
@@ -944,13 +970,13 @@ function buildApplePayPaymentPayload(params) {
     var captureMethod = params.captureMethod || JPMCConfig.getCaptureMethod();
     var payload = {
         captureMethod: captureMethod,
-        amount: convertToCents(totalAmount.getValue()),
+        amount: convertToCents(totalAmount.getValue(), order.getCurrencyCode()),
         currency: order.getCurrencyCode(),
         isAmountFinal: params.isAmountFinal !== undefined ? params.isAmountFinal : true,
         initiatorType: 'CARDHOLDER',
         accountOnFile: 'NOT_STORED',
         merchantOrderNumber: order.getOrderNo(),
-        merchant: buildMerchantObject(true)
+        merchant: buildMerchantObject()
     };
     payload.paymentMethodType = {
         applepay: {
@@ -1028,13 +1054,13 @@ function buildGooglePayPaymentPayload(params) {
 
     var payload = {
         captureMethod: params.captureMethod || 'NOW',
-        amount: convertToCents(totalAmount.getValue()),
+        amount: convertToCents(totalAmount.getValue(), basket.getCurrencyCode()),
         currency: basket.getCurrencyCode(),
         isAmountFinal: (params.isAmountFinal !== undefined) ? params.isAmountFinal : true,
         initiatorType: params.initiatorType || 'CARDHOLDER',
         accountOnFile: params.accountOnFile || 'NOT_STORED',
         merchantOrderNumber: basket.getOrderNo ? basket.getOrderNo() : ('BASKET-' + basket.getUUID()),
-        merchant: buildMerchantObject(true),
+        merchant: buildMerchantObject(),
         paymentMethodType: {
             googlepay: {
                 encryptedPaymentBundle: encryptedPaymentBundle

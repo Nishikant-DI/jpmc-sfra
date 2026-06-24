@@ -26,15 +26,17 @@ export class NavigationPage extends BasePage {
     }
 
     async searchAndSelectProduct(productName: string) {
-        const searchInput = this.page.locator('input.search-field').first();
-        await searchInput.click();
-        await searchInput.fill(productName);
-        await this.page.waitForTimeout(this.waits.medium);
+        await this.withReloadRetry(async () => {
+            const searchInput = this.page.locator('input.search-field').first();
+            await searchInput.click();
+            await searchInput.fill(productName);
+            await this.page.waitForTimeout(this.waits.medium);
 
-        const suggestion = this.page.locator(`.suggestions .item a[aria-label="${productName}"]`).first();
-        await suggestion.waitFor({ state: 'visible', timeout: this.timeouts.action });
-        await suggestion.click();
-        await this.page.waitForLoadState('domcontentloaded');
+            const suggestion = this.page.locator(`.suggestions .item a[aria-label="${productName}"]`).first();
+            await suggestion.waitFor({ state: 'visible', timeout: this.timeouts.action });
+            await suggestion.click();
+            await this.page.waitForLoadState('domcontentloaded');
+        }, 3);
     }
 
     async hoverCartIcon() {
@@ -44,8 +46,36 @@ export class NavigationPage extends BasePage {
     }
 
     async clickCheckoutFromMiniCart() {
-        const checkoutBtn = this.page.locator('[class*="checkout-btn"], a:has-text("Checkout")').first();
-        await checkoutBtn.waitFor({ state: 'visible', timeout: this.timeouts.action });
-        await checkoutBtn.click();
+        await this.withReloadRetry(async () => {
+            await this.hoverCartIcon();
+            const checkoutBtn = this.page.locator('[class*="checkout-btn"], a:has-text("Checkout")').first();
+            await checkoutBtn.waitFor({ state: 'visible', timeout: this.timeouts.action });
+            await checkoutBtn.click();
+            // Confirm navigation actually reached the checkout page
+            await this.page.waitForURL(/Checkout-Begin|Checkout/i, { timeout: this.timeouts.navigation });
+        }, 3);
+    }
+
+    /**
+     * Runs an action that may intermittently fail due to network/timing issues
+     * (search suggestions not loading, checkout button not navigating). On
+     * failure it reloads the page and retries the same action up to `attempts`.
+     */
+    private async withReloadRetry(action: () => Promise<void>, attempts: number = 3): Promise<void> {
+        let lastError: unknown;
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+            try {
+                await action();
+                return;
+            } catch (error) {
+                lastError = error;
+                if (attempt < attempts) {
+                    await this.page.reload({ waitUntil: 'domcontentloaded' }).catch(() => {});
+                    await this.dismissConsentIfVisible();
+                    await this.page.waitForTimeout(this.waits.medium);
+                }
+            }
+        }
+        throw lastError;
     }
 }

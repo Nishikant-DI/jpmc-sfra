@@ -178,6 +178,10 @@ server.replace('PlaceOrder', server.middleware.https, function (req, res, next) 
     });
     req.session.privacyCache.set('threeDSCallbackNonce', threeDSNonce);
 
+    // Store orderToken in session to avoid exposing it in URL logs
+    // Retrieved in Handle3DSReturn for OrderMgr.getOrder(orderNo, orderToken) call
+    req.session.privacyCache.set('threeDSOrderToken', order.orderToken);
+
     var handlePaymentResult = COHelpers.handlePayments(order, order.orderNo);
 
     // ========== JPMC 3DS INTEGRATION ==========
@@ -280,12 +284,18 @@ server.post('Handle3DSReturn', server.middleware.https, function (req, res, next
     var Logger = require('dw/system/Logger');
     var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
     var THREE_DS = jpmcConstants.THREE_DS;
+    var jpmcPayment = require('*/cartridge/scripts/hooks/payment/processor/jpmc_payment');
 
-    var orderNo    = req.querystring.orderNo;
-    var orderToken = req.querystring.orderToken;
+    var orderNo = req.querystring.orderNo;
+    // Read orderToken from session instead of URL to avoid log exposure
+    var orderToken = req.session.privacyCache.get('threeDSOrderToken');
 
-    if (!orderNo) {
-        Logger.error('JPMC 3DS: Missing orderNo in postback URL');
+    if (!orderNo || !orderToken) {
+        Logger.error('JPMC 3DS: Missing orderNo or orderToken in postback URL');
+
+        // Clear encrypted payment data on error
+        jpmcPayment.clearSensitivePaymentData();
+
         res.render('jpmc/3dsPostback', {
             success: false,
             responseStatus: 'ERROR',
@@ -305,6 +315,11 @@ server.post('Handle3DSReturn', server.middleware.https, function (req, res, next
 
     if (!order) {
         Logger.error('JPMC 3DS: Order not found for orderNo: {0}', orderNo);
+
+        // Clear encrypted payment data on error
+        jpmcPayment.clearSensitivePaymentData();
+        req.session.privacyCache.set('threeDSOrderToken', null);
+
         res.render('jpmc/3dsPostback', {
             success: false,
             responseStatus: 'ERROR',
@@ -327,6 +342,10 @@ server.post('Handle3DSReturn', server.middleware.https, function (req, res, next
         Transaction.wrap(function () {
             OrderMgr.failOrder(order, true);
         });
+
+        // Clear encrypted payment data on security failure
+        jpmcPayment.clearSensitivePaymentData();
+
         res.render('jpmc/3dsPostback', {
             success: false,
             responseStatus: 'ERROR',
@@ -346,6 +365,7 @@ server.post('Handle3DSReturn', server.middleware.https, function (req, res, next
         order.custom.threeDSCallbackNonce = null;
     });
     req.session.privacyCache.set('threeDSCallbackNonce', null);
+    req.session.privacyCache.set('threeDSOrderToken', null);
 
     // Step 5: Now safe to read POST body
     var paymentRequestId = req.form.paymentRequestId || req.querystring.paymentRequestId;
@@ -420,6 +440,10 @@ server.post('Handle3DSReturn', server.middleware.https, function (req, res, next
         if (placeOrderResult.error) {
             Transaction.wrap(function () { OrderMgr.failOrder(order, true); });
             Logger.error('JPMC 3DS: OrderMgr.placeOrder failed for order {0}', order.orderNo);
+
+            // Clear encrypted payment data on failure
+            jpmcPayment.clearSensitivePaymentData();
+
             res.render('jpmc/3dsPostback', {
                 success: false,
                 responseStatus: THREE_DS.RESPONSE_STATUS.ERROR,
@@ -446,6 +470,9 @@ server.post('Handle3DSReturn', server.middleware.https, function (req, res, next
             orderToken: order.orderToken,
             continueUrl: URLUtils.url('Order-Confirm').toString()
         });
+
+        // Clear encrypted payment data after successful 3DS completion
+        jpmcPayment.clearSensitivePaymentData();
     } else {
         // Authentication failed or denied - still capture 3DS metadata for audit trail
         authResultData = (paymentDetails.data && paymentDetails.data.paymentAuthenticationResult) || {};
@@ -473,12 +500,15 @@ server.post('Handle3DSReturn', server.middleware.https, function (req, res, next
             if (threeDSData.electronicCommerceIndicator) {
                 order.custom.threeDSEci = threeDSData.electronicCommerceIndicator;
             }
-            
+
             OrderMgr.failOrder(order, true);
         });
 
+        // Clear encrypted payment data on authentication failure
+        jpmcPayment.clearSensitivePaymentData();
+
         Logger.error('JPMC 3DS: Authentication failed for order {0} - status: {1}, reason: {2}',
-            order.orderNo, 
+            order.orderNo,
             responseStatus,
             threeDSData.threeDSTransactionStatusReasonText || 'unknown');
 
@@ -519,7 +549,8 @@ server.post('Fail3DSOrder', server.middleware.https, csrfProtection.validateAjax
     var Resource = require('dw/web/Resource');
     var jpmcConstants = require('*/cartridge/scripts/helpers/JPMCConstants');
     var THREE_DS = jpmcConstants.THREE_DS;
-    
+    var jpmcPayment = require('*/cartridge/scripts/hooks/payment/processor/jpmc_payment');
+
     var orderNo = req.form.orderNo || req.querystring.orderNo;
     var orderToken = req.form.orderToken || req.querystring.orderToken;
     var reasonInput = req.form.reason || THREE_DS.FAILURE_REASON.TIMEOUT;
@@ -599,7 +630,10 @@ server.post('Fail3DSOrder', server.middleware.https, csrfProtection.validateAjax
         }
         
         Logger.info('JPMC 3DS: Successfully failed order {0} due to {1}', orderNo, reason);
-        
+
+        // Clear encrypted payment data after order failure
+        jpmcPayment.clearSensitivePaymentData();
+
         res.json({
             error: false,
             message: 'Order cancelled successfully',

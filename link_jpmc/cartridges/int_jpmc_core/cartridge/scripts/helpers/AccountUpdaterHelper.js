@@ -21,7 +21,7 @@ var RTAU_UPDATE_CODES = {
  * Returns the new Safetech token from the RTAU response, or null if absent.
  * @param {Object} responseData - JPMC payment response
  * @param {Object} au - accountUpdater related response block
- * @returns {string|null}
+ * @returns {string|null} - new Safetech token or null if not present
  */
 function extractRtauNewToken(responseData, au) {
     if (au && au.accountNumber) {
@@ -50,7 +50,7 @@ function extractRtauNewToken(responseData, au) {
  * @param {dw.customer.CustomerPaymentInstrument} paymentInstrument - wallet PI to replace
  * @param {Object} responseData - JPMC payment response
  * @param {dw.customer.Wallet} wallet - customer wallet
- * @returns {{ updated: boolean, action: string|null }}
+ * @returns {Object} summary - { updated: boolean, action: string|null }
  */
 function handleRTAUResponse(paymentInstrument, responseData, wallet) {
     var summary = { updated: false, action: null };

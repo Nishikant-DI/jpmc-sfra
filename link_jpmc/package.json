@@ -35,11 +35,10 @@
     "mini-css-extract-plugin": "^2.7.6",
     "mocha": "^10.0.0",
     "nyc": "^15.1.0",
-    "proxyquire": "^1.7.4",
+    "proxyquire": "^2.0.0",
     "request": "^2.88.2",
     "request-promise": "^4.2.6",
     "@tridnguyen/config": "^2.3.1",
-    "chai-subset": "^1.6.0",
     "sass": "^1.69.5",
     "sass-loader": "^13.3.2",
     "sgmf-scripts": "^3.0.0",
@@ -53,5 +52,13 @@
   "dependencies": {
     "@kount/kount-web-client-sdk": "^2.2.3",
     "cleave.js": "^1.6.0"
+  },
+  "overrides": {
+    "lodash": "^4.17.21",
+    "form-data": "^2.5.1",
+    "tough-cookie": "^4.1.4",
+    "qs": "^6.11.0",
+    "postcss": "^8.5.10",
+    "inquirer": "^8.0.0"
   }
 }

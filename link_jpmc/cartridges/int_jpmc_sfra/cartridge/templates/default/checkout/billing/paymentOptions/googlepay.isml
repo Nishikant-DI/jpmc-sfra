@@ -6,6 +6,7 @@
         />
 
         <div class="googlepay-button-container">
+            <input type="hidden" name="${dw.web.CSRFProtection.getTokenName()}" value="${dw.web.CSRFProtection.generateToken()}"/>
             <div id="googlepay-button-wrapper" class="text-center"
                  data-config-url="${URLUtils.https('JPMCGooglePay-GetConfig')}"
                  data-store-url="${URLUtils.https('JPMCGooglePay-StoreToken')}"

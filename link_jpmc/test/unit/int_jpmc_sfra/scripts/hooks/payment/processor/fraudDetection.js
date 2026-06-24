@@ -207,7 +207,7 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/fraudDetection', functio
             assert.equal(result.fraudRuleAction, 'R');
         });
 
-        it('should return success for unknown action', function () {
+        it('should return flag for REVIEW action', function () {
             mockJPMCPaymentHelper.performFraudCheck.returns({
                 success: true,
                 riskDecision: {
@@ -219,8 +219,8 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/fraudDetection', functio
 
             var result = fraudDetection(mockBasket, mockPaymentInstrument);
 
-            assert.equal(result.status, 'success');
-            assert.equal(result.action, 'UNKNOWN');
+            assert.equal(result.status, 'flag');
+            assert.equal(result.action, 'REVIEW');
             assert.equal(result.fraudRuleAction, 'X');
         });
 
@@ -555,17 +555,6 @@ describe('int_jpmc_sfra/scripts/hooks/payment/processor/fraudDetection', functio
             var result = fraudDetection(mockBasket, mockPaymentInstrument, { orderNo: 'ORD-REVIEW' });
             assert.equal(result.status, 'flag');
             assert.equal(result.action, 'MANAGER_REVIEW');
-        });
-
-        it('should log UNKNOWN action with order number (line 122 if branch)', function () {
-            mockJPMCPaymentHelper.performFraudCheck.returns({
-                success: true,
-                riskDecision: { fraudRiskScore: 30, fraudRuleAction: 'Z' },
-                riskElement: 'LOW'
-            });
-            var result = fraudDetection(mockBasket, mockPaymentInstrument, { orderNo: 'ORD-UNKNOWN' });
-            assert.equal(result.status, 'success');
-            assert.equal(result.action, 'UNKNOWN');
         });
 
         it('should log FAIL_OPEN without order number', function () {

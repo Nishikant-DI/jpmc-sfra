@@ -3,8 +3,8 @@ import { TestData } from '../test-data/testData';
 import { logStep } from '../utils/helpers';
 
 test.describe('Guest Checkout - Negative Path', () => {
-    const { urls, shippingDetails, paymentCards, products } = TestData;
-    const card = paymentCards.visaCard;
+    const { urls, users, shippingDetails, paymentCards, products } = TestData;
+    const card = paymentCards.invalidCard;
     const product = products.modernSportCoat;
 
     test('Guest order placement shows error on failed payment', async ({
@@ -33,7 +33,7 @@ test.describe('Guest Checkout - Negative Path', () => {
         await navigationPage.clickCheckoutFromMiniCart();
         await checkoutPage.verifyUrlContains('Checkout-Begin', 20000);
 
-        const guestEmail = 'alt.v7-5vxz0400@yopmail.com';
+        const guestEmail = users.guestEmail();
         logStep(`Enter guest email: ${guestEmail}`);
         await checkoutPage.enterGuestEmail(guestEmail);
         await checkoutPage.clickContinueAsGuest();
@@ -58,32 +58,8 @@ test.describe('Guest Checkout - Negative Path', () => {
         logStep('Fill payment form');
         await checkoutPage.fillCheckoutPaymentForm(card.cardNumber, card.expirationMonth, card.expirationYear, card.cvv);
 
-        logStep('Submit payment');
-        await checkoutPage.clickNextPlaceOrder();
-
-        logStep('Verify payment summary');
-        await checkoutPage.verifyPaymentSummary(card.cardType, card.lastFourDigits, card.expiryDisplay);
-
-        logStep('Click Place Order');
-        await checkoutPage.clickPlaceOrder();
-
-        logStep('Verify error message after order placement');
-
-        const errorMessageDiv = page.locator('.error-message').first();
-        const errorMessageText = page.locator('.error-message-text').first();
-
-        // Wait for the SFRA error message div to become visible after failed Place Order
-        await errorMessageDiv.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
-
-        const hasErrorElement = await errorMessageDiv.isVisible().catch(() => false);
-        const errorText = await errorMessageText.textContent().catch(() => '') ?? '';
-        const hasErrorText = errorText.trim().length > 0;
-
-        // Fallback: check body text for error keywords
-        const bodyText = await page.locator('body').innerText();
-        const errorPatterns = [/error/i, /failed/i, /invalid/i, /declined/i, /unsuccessful/i, /something went wrong/i, /unable to process/i, /could not be processed/i];
-        const textHasError = errorPatterns.some((pattern) => pattern.test(bodyText));
-
-        expect(hasErrorElement || hasErrorText || textHasError).toBeTruthy();
+        logStep('Submit payment with invalid card and verify inline error on same page');
+        const errorText = await checkoutPage.submitPaymentExpectingError();
+        expect(errorText.length).toBeGreaterThan(0);
     });
 });

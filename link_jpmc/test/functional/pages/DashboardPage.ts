@@ -15,6 +15,9 @@ export class DashboardPage extends BasePage {
     }
 
     async clickAddNewPayment() {
-        await this.click(this.addNewPaymentLink);
+        await Promise.all([
+            this.page.waitForURL(/PaymentInstruments-AddPayment/i, { timeout: this.timeouts.navigation }),
+            this.click(this.addNewPaymentLink)
+        ]);
     }
 }

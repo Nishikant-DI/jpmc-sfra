@@ -30,6 +30,7 @@ baseCheckoutHelpers.savePaymentInstrumentToWallet = function savePaymentInstrume
             PaymentInstrument.METHOD_CREDIT_CARD
         );
 
+        storedPaymentInstrument.setCreditCardHolder(currentBasket.getBillingAddress().fullName);
         storedPaymentInstrument.setCreditCardNumber(paymentInfo.cardNumber.value);
         storedPaymentInstrument.setCreditCardType(paymentInfo.cardType.value);
         storedPaymentInstrument.setCreditCardExpirationMonth(paymentInfo.expirationMonth.value);

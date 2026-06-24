@@ -89,7 +89,6 @@ function buildEditConfig(co, isMasked) {
     config.googlePayAllowedAuthMethods = String(co.custom.googlePayAllowedAuthMethods || '');
     config.JPMCGooglePayCartEnabled = co.custom.JPMCGooglePayCartEnabled === true;
     config.JPMCGooglePayPDPEnabled = co.custom.JPMCGooglePayPDPEnabled === true;
-    config.applePayMerchantId = String(co.custom.applePayMerchantId || '');
     config.kountClientId = String(co.custom.kountClientId || '');
     config.kountEnvironment = safeEnumString(co.custom.kountEnvironment, 'TEST');
     config.accountUpdaterMode = safeEnumString(co.custom.jpmcAccountUpdaterMode, 'NONE');
@@ -132,7 +131,6 @@ function buildFromParams(params) {
         googlePayAllowedAuthMethods: String(params.googlePayAllowedAuthMethods.stringValue || ''),
         JPMCGooglePayCartEnabled: params.JPMCGooglePayCartEnabled.stringValue === 'true',
         JPMCGooglePayPDPEnabled: params.JPMCGooglePayPDPEnabled.stringValue === 'true',
-        applePayMerchantId: String(params.applePayMerchantId.stringValue || ''),
         kountClientId: String(params.kountClientId.stringValue || ''),
         kountEnvironment: String(params.kountEnvironment.stringValue || 'TEST'),
         accountUpdaterMode: String(params.accountUpdaterMode.stringValue || 'NONE'),
@@ -184,7 +182,6 @@ function assignToCustomObject(co, config) {
     co.custom.googlePayAllowedAuthMethods = config.googlePayAllowedAuthMethods;
     co.custom.JPMCGooglePayCartEnabled = config.JPMCGooglePayCartEnabled;
     co.custom.JPMCGooglePayPDPEnabled = config.JPMCGooglePayPDPEnabled;
-    co.custom.applePayMerchantId = config.applePayMerchantId;
     co.custom.kountClientId = config.kountClientId;
     co.custom.kountEnvironment = config.kountEnvironment;
     co.custom.jpmcAccountUpdaterMode = config.accountUpdaterMode;

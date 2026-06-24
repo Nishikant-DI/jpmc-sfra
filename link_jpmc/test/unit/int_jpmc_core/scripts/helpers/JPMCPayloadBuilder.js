@@ -889,6 +889,7 @@ describe('int_jpmc_core/scripts/helpers/JPMCPayloadBuilder', function () {
             var JPMCPayloadBuilderWithMax = proxyquire('../../../../../cartridges/int_jpmc_core/cartridge/scripts/helpers/JPMCPayloadBuilder', {
                 'dw/system/Logger': mockLogger,
                 'dw/system/Site': mockSite,
+                'dw/system/System': require('../../../../../test/mocks/dw/system/System'),
                 '*/cartridge/scripts/helpers/JPMCConfig': mockJPMCConfig,
                 '*/cartridge/scripts/helpers/JPMCConstants': {
                     FALLBACK_IP_ADDRESS: '0.0.0.0',

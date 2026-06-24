@@ -30,6 +30,9 @@ test.describe('Login Tests', () => {
         await page.waitForTimeout(envConfig.waits.medium);
         await takeScreenshot(page, 'login-failed');
 
+        logStep('Verify login error message is displayed');
+        await loginPage.verifyLoginError();
+
         const currentUrl = page.url();
         expect(currentUrl).toContain('Login');
     });

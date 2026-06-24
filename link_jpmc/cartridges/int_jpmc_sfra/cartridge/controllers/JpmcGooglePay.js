@@ -4,7 +4,6 @@ var server = require('server');
 var csrfProtection = require('*/cartridge/scripts/middleware/csrf');
 var consentTracking = require('*/cartridge/scripts/middleware/consentTracking');
 
-
 /**
  * clearBasketState
  * @param {dw.order.Basket} basket - basket to clear
@@ -88,7 +87,9 @@ server.get('GetConfig',
         }
 
         var basketEmpty = !currencyCode || totalPrice === '0.00';
-        if (basketEmpty && !resolvedConfig.JPMCGooglePayPDPEnabled) {
+        var isPDPEnabled = resolvedConfig.JPMCGooglePayPDPEnabled === true;
+        
+        if (basketEmpty && !isPDPEnabled) {
             res.json({ error: true, enabled: false });
             return next();
         }
@@ -106,14 +107,12 @@ server.get('GetConfig',
         }
 
         var isGuest = !(req.currentCustomer && req.currentCustomer.profile);
-
-        res.json({
-            error: basketEmpty,
+        var responseData = {
+            error: basketEmpty && !isPDPEnabled,
             enabled: true,
             environment: gpayConfig.environment,
             gateway: gpayConfig.gateway,
             gatewayMerchantId: gpayConfig.gatewayMerchantId,
-            googlePayMerchantId: gpayConfig.googlePayMerchantId,
             merchantName: gpayConfig.merchantName,
             allowedCardNetworks: gpayConfig.allowedCardNetworks,
             allowedAuthMethods: gpayConfig.allowedAuthMethods,
@@ -124,9 +123,15 @@ server.get('GetConfig',
             shippingCost: shippingCost,
             totalTax: totalTax,
             cartEnabled: resolvedConfig.JPMCGooglePayCartEnabled === true,
-            pdpEnabled: resolvedConfig.JPMCGooglePayPDPEnabled === true,
+            pdpEnabled: isPDPEnabled,
             isGuest: isGuest
-        });
+        };
+
+        if (gpayConfig.environment === 'PRODUCTION' && gpayConfig.googlePayMerchantId) {
+            responseData.googlePayMerchantId = gpayConfig.googlePayMerchantId;
+        }
+
+        res.json(responseData);
 
         return next();
     }
@@ -203,7 +208,7 @@ server.post('SelectShippingDetails',
 
         var body;
         try {
-            body = JSON.parse(req.body);
+            body = JSON.parse(req.form.body);
         } catch (e) {
             res.json({ error: true });
             return next();
@@ -218,6 +223,9 @@ server.post('SelectShippingDetails',
         var shipment = currentBasket.defaultShipment;
         var shippingOptions = [];
         var firstMethodId = null;
+        var selectedShippingMethodId = null;
+        var currentMethodId = shipment.shippingMethodID;
+        var ShippingHelper = require('*/cartridge/scripts/checkout/shippingHelpers');
 
         Transaction.wrap(function () {
             var shippingAddress = shipment.shippingAddress;
@@ -228,13 +236,20 @@ server.post('SelectShippingDetails',
             shippingAddress.setStateCode(address.administrativeArea || '');
             shippingAddress.setCity(address.locality || '');
             shippingAddress.setPostalCode(address.postalCode || '');
-            var applicableMethods = ShippingMgr.getShipmentShippingModel(shipment).getApplicableShippingMethods();
-            var methodIterator = applicableMethods.iterator();
+            var shipmentModel = ShippingMgr.getShipmentShippingModel(shipment);
+            var applicableMethods = shipmentModel.getApplicableShippingMethods();
+            var methodsToUse = (applicableMethods && applicableMethods.size() > 0)
+                ? applicableMethods
+                : shipmentModel.getShippingMethods();
+            var methodIterator = methodsToUse.iterator();
 
             while (methodIterator.hasNext()) {
                 var method = methodIterator.next();
                 if (!firstMethodId) {
                     firstMethodId = method.getID();
+                }
+                if (method.getID() === currentMethodId) {
+                    selectedShippingMethodId = currentMethodId;
                 }
                 shippingOptions.push({
                     id: method.getID(),
@@ -243,12 +258,16 @@ server.post('SelectShippingDetails',
                 });
             }
 
-            var ShippingHelper = require('*/cartridge/scripts/checkout/shippingHelpers');
-            if (firstMethodId) {
-                ShippingHelper.selectShippingMethod(shipment, firstMethodId);
+            var methodToApply = selectedShippingMethodId || firstMethodId;
+            if (methodToApply) {
+                ShippingHelper.selectShippingMethod(shipment, methodToApply);
                 basketCalculationHelpers.calculateTotals(currentBasket);
             }
         });
+
+        if (!selectedShippingMethodId) {
+            selectedShippingMethodId = firstMethodId;
+        }
 
         var totalGrossPrice = currentBasket.getTotalGrossPrice();
         var totalTax = currentBasket.getTotalTax();
@@ -266,11 +285,14 @@ server.post('SelectShippingDetails',
             { label: 'Shipping', type: 'SHIPPING_OPTION', price: shippingCostValue },
             { label: 'Tax', type: 'TAX', price: totalTaxValue }
         ];
+        var hasError = !shippingOptions || shippingOptions.length === 0;
 
         res.json({
-            error: false,
+            error: hasError,
             shippingOptions: shippingOptions,
+            selectedShippingMethodId: selectedShippingMethodId,
             totalPrice: totalPriceValue,
+            subtotal: subtotalValue,
             totalTax: totalTaxValue,
             shippingCost: shippingCostValue,
             currencyCode: currencyCodeValue,
@@ -306,9 +328,8 @@ server.post('SelectShippingMethod',
 
         var body;
         try {
-            body = JSON.parse(req.body);
+            body = JSON.parse(req.form.body);
         } catch (e) {
-
             res.json({ error: true });
             return next();
         }
@@ -320,9 +341,26 @@ server.post('SelectShippingMethod',
         }
 
         var shipment = currentBasket.defaultShipment;
+        var ShippingHelper = require('*/cartridge/scripts/checkout/shippingHelpers');
+        var ShippingMgr = require('dw/order/ShippingMgr');
+
+        // Security: validate that the requested method is actually applicable
+        var shipmentModel = ShippingMgr.getShipmentShippingModel(shipment);
+        var applicableMethods = shipmentModel.getApplicableShippingMethods();
+        var isApplicable = false;
+        var checkIterator = applicableMethods.iterator();
+        while (checkIterator.hasNext()) {
+            if (checkIterator.next().getID() === shippingMethodId) {
+                isApplicable = true;
+                break;
+            }
+        }
+        if (!isApplicable) {
+            res.json({ error: true });
+            return next();
+        }
 
         Transaction.wrap(function () {
-            var ShippingHelper = require('*/cartridge/scripts/checkout/shippingHelpers');
             ShippingHelper.selectShippingMethod(shipment, shippingMethodId);
             basketCalculationHelpers.calculateTotals(currentBasket);
         });
@@ -388,7 +426,7 @@ server.post('SubmitOrder',
 
         var body;
         try {
-            body = JSON.parse(req.body);
+            body = JSON.parse(req.form.body);
         } catch (e) {
             res.json({ error: true, errorMessage: Resource.msg('error.technical', 'checkout', null) });
             return next();
@@ -408,8 +446,6 @@ server.post('SubmitOrder',
             return next();
         }
 
-        session.privacy.jpmcGooglePayToken = token;
-
         var email = '';
         if (req.currentCustomer.profile && req.currentCustomer.profile.email) {
             email = req.currentCustomer.profile.email;
@@ -417,7 +453,6 @@ server.post('SubmitOrder',
             email = paymentData.email;
         }
         if (!email) {
-            session.privacy.jpmcGooglePayToken = null;
             res.json({ error: true, errorMessage: Resource.msg('error.technical', 'checkout', null) });
             return next();
         }
@@ -524,6 +559,7 @@ server.post('SubmitOrder',
                 return next();
             }
 
+            session.privacy.jpmcGooglePayToken = token;
             res.json({ error: false });
 
         } catch (e) {
@@ -537,7 +573,7 @@ server.post('SubmitOrder',
 );
 
 /**
- * JPMCGooglePay-PrepareBasket : Saves basket state and clears all items for Google Pay flow (PDP/Cart express checkout)
+ * JPMCGooglePay-PrepareBasket : Saves basket state and clears all items for Google Pay flow (PDP express checkout)
  * @name JPMCGooglePay-PrepareBasket
  * @function
  * @memberof JPMCGooglePay
@@ -553,11 +589,9 @@ server.post('PrepareBasket',
         var Transaction = require('dw/system/Transaction');
 
         try {
-            var currentBasket = BasketMgr.getCurrentBasket();
+            var currentBasket = BasketMgr.getCurrentOrNewBasket();
             if (!currentBasket) {
-                res.json({
-                    error: true
-                });
+                res.json({ error: true });
                 return next();
             }
 
@@ -643,28 +677,56 @@ server.post('RestoreBasket',
             Transaction.wrap(function () {
                 var basket = BasketMgr.getCurrentOrNewBasket();
 
+                var plisToRemove = [];
                 var existingPlis = basket.getProductLineItems().iterator();
                 while (existingPlis.hasNext()) {
-                    basket.removeProductLineItem(existingPlis.next());
+                    plisToRemove.push(existingPlis.next());
+                }
+                for (var r = 0; r < plisToRemove.length; r++) {
+                    basket.removeProductLineItem(plisToRemove[r]);
                 }
                 basket.removeAllPaymentInstruments();
 
+                var couponsToRemove = [];
+                var existingCoupons = basket.getCouponLineItems().iterator();
+                while (existingCoupons.hasNext()) {
+                    couponsToRemove.push(existingCoupons.next());
+                }
+                for (var c = 0; c < couponsToRemove.length; c++) {
+                    basket.removeCouponLineItem(couponsToRemove[c]);
+                }
+
                 var defaultShipment = basket.getDefaultShipment();
-                var productIds = Object.keys(snapshot);
+                var products = snapshot.products || snapshot;
+                var productIds = Object.keys(products);
                 for (var i = 0; i < productIds.length; i++) {
                     var productId = productIds[i];
-                    var qty = snapshot[productId];
+                    var qty = products[productId];
                     if (productId && qty > 0) {
                         var newPli = basket.createProductLineItem(productId, defaultShipment);
                         newPli.setQuantityValue(qty);
                     }
                 }
+
+                var coupons = snapshot.coupons || [];
+                for (var d = 0; d < coupons.length; d++) {
+                    try {
+                        basket.createCouponLineItem(coupons[d], true);
+                    } catch (couponErr) { /* coupon may no longer be valid */ }
+                }
             });
 
-            session.privacy.allProductLineItems = null;
-            res.json({ error: false });
-        } catch (e) {
+            var quantityTotal = 0;
+            var products2 = snapshot.products || snapshot;
+            var snapshotKeys = Object.keys(products2);
+            for (var j = 0; j < snapshotKeys.length; j++) {
+                var snapshotQty = products2[snapshotKeys[j]];
+                if (snapshotQty > 0) { quantityTotal += snapshotQty; }
+            }
 
+            session.privacy.allProductLineItems = null;
+            res.json({ error: false, quantityTotal: quantityTotal });
+        } catch (e) {
             res.json({ error: true });
         }
 

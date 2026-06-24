@@ -66,7 +66,10 @@ export class PaymentPage extends BasePage {
 
     async clickSave() {
         await Promise.all([
-            this.page.waitForURL(/PaymentInstruments-List/i, { timeout: this.timeouts.navigation }),
+            this.page.waitForURL(/wallet|PaymentInstruments-List/i, {
+                timeout: this.timeouts.navigation,
+                waitUntil: 'commit',
+            }),
             this.saveButton.click(),
         ]);
     }

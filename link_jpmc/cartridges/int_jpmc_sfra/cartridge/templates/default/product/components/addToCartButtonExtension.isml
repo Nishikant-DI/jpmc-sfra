@@ -9,6 +9,7 @@
 </isscript>
 <isif condition="${showGPayOnPDP && gpayPdpConfig.enabled}">
     <div class="mt-2 pdp-googlepay-container">
+        <input type="hidden" name="${dw.web.CSRFProtection.getTokenName()}" value="${dw.web.CSRFProtection.generateToken()}"/>
         <div id="googlepay-button-wrapper"
              class="text-center"
              data-config-url="${URLUtils.https('JPMCGooglePay-GetConfig')}"

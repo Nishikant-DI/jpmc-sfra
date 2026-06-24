@@ -24,7 +24,7 @@
         </div>
     </div>
 
-    <isif condition="${hasApplePay}">
+    <isif condition="${hasApplePay && pdict.miniCart !== true}">
         <div class="row no-gutters payment-buttons-row mt-2">
             <div class="col">
                 <isapplepay class="apple-pay-cart btn btn-block"></isapplepay>
@@ -35,6 +35,7 @@
     <isif condition="${hasGPay && pdict.miniCart !== true}">
         <div class="row no-gutters payment-buttons-row mt-2">
             <div class="col cart-googlepay-col">
+                <input type="hidden" name="${dw.web.CSRFProtection.getTokenName()}" value="${dw.web.CSRFProtection.generateToken()}"/>
                 <div id="googlepay-button-wrapper"
                      data-config-url="${URLUtils.https('JPMCGooglePay-GetConfig')}"
                      data-store-url="${URLUtils.https('JPMCGooglePay-StoreToken')}"

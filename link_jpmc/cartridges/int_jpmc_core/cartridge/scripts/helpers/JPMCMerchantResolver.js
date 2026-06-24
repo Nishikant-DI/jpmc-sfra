@@ -122,7 +122,6 @@ function extractCOData(co) {
         JPMCGooglePayPDPEnabled: co.custom.JPMCGooglePayPDPEnabled,
         kountClientId: co.custom.kountClientId || null,
         kountEnvironment: getEnumValue(co.custom.kountEnvironment, null),
-        applePayMerchantId: co.custom.applePayMerchantId || null,
         accountUpdaterMode: getEnumValue(co.custom.jpmcAccountUpdaterMode, null)
     };
 }
@@ -179,7 +178,6 @@ function mergeConfigWithSPFallback(coData, fallbackConfig) {
         JPMCGooglePayPDPEnabled: getBoolWithFallback(c.JPMCGooglePayPDPEnabled, fb.JPMCGooglePayPDPEnabled, false),
         kountClientId: getFieldWithFallback(c.kountClientId, fb.kountClientId, null, false),
         kountEnvironment: getFieldWithFallback(c.kountEnvironment, fb.kountEnvironment, 'TEST', true),
-        applePayMerchantId: getFieldWithFallback(c.applePayMerchantId, fb.applePayMerchantId, null, false),
         
         accountUpdaterMode: getFieldWithFallback(c.accountUpdaterMode, fb.accountUpdaterMode, 'NONE', false)
     };

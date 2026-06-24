@@ -13,6 +13,7 @@ function OrderAddress() {
     this.postalCode = '10001';
     this.countryCode = { value: 'US', getValue: function() { return this.value; } };
     this.phone = '555-123-4567';
+    this.fullName = 'John Doe';
 }
 
 OrderAddress.prototype.getFirstName = function () {

@@ -66,6 +66,19 @@ const amexCard: TestCard = {
     expiryDisplay: '6/2029',
 };
 
+const invalidCard: TestCard = {
+    cardOwner: 'User Invalid',
+    cardNumber: '4444441111111110',
+    expirationMonth: '3',
+    expirationYear: '2031',
+    cvv: '737',
+    displayMonth: '03',
+    displayYear: '2031',
+    lastFourDigits: '************1110',
+    cardType: 'Credit Visa',
+    expiryDisplay: '3/2031',
+};
+
 export const TestData = {
     urls: {
         loginPage: envConfig.loginUrl,
@@ -100,6 +113,7 @@ export const TestData = {
         visaCard2: visaCardForDeletion,
         mastercardCard,
         amexCard,
+        invalidCard,
     },
     checkout: {
         defaultCard: visaCard,

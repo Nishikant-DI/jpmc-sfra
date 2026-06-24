@@ -371,10 +371,23 @@ describe('JPMCServiceHelper - callWithTokenGeneration end-to-end (callService pa
 
         helper.callWithTokenGeneration({
             tokenServiceId: 't', serviceId: 's', method: 'GET',
+            urlSuffix: '/sub/path'
+        });
+
+        assert.include(reg.getLastService().url, '/sub/path');
+    });
+
+    it('rejects urlSuffix containing query parameter characters', function () {
+        var rsp = okResult({ ok: true, statusCode: 200, responseText: '{}' });
+        var reg = makeRegistry({ callResult: rsp });
+        var helper = load(reg.registry);
+
+        helper.callWithTokenGeneration({
+            tokenServiceId: 't', serviceId: 's', method: 'GET',
             urlSuffix: '/sub/path?x=1'
         });
 
-        assert.include(reg.getLastService().url, '/sub/path?x=1');
+        assert.notInclude(reg.getLastService().url, '/sub/path?x=1');
     });
 
     it('rejects urlSuffix containing path traversal', function () {
@@ -401,6 +414,19 @@ describe('JPMCServiceHelper - callWithTokenGeneration end-to-end (callService pa
         });
 
         assert.notInclude(reg.getLastService().url, 'bad suffix');
+    });
+
+    it('rejects urlSuffix containing & characters', function () {
+        var rsp = okResult({ ok: true, statusCode: 200, responseText: '{}' });
+        var reg = makeRegistry({ callResult: rsp });
+        var helper = load(reg.registry);
+
+        helper.callWithTokenGeneration({
+            tokenServiceId: 't', serviceId: 's', method: 'GET',
+            urlSuffix: '/path&injected=value'
+        });
+
+        assert.notInclude(reg.getLastService().url, 'injected=value');
     });
 
     it('passes through additional custom headers', function () {
@@ -474,5 +500,55 @@ describe('JPMCServiceHelper - callWithTokenGeneration end-to-end (callService pa
             tokenServiceId: 't', serviceId: 's', method: 'GET'
         });
         assert.equal(res.error, 'odd');
+    });
+
+    describe('callWithTokenGeneration() — edge case scenarios', function () {
+        it('should handle missing urlSuffix parameter', function () {
+            var helper = load(makeRegistry({
+                callImpl: function (config) { return { success: true }; }
+            }).registry);
+
+            var res = helper.callWithTokenGeneration({
+                tokenServiceId: 't', serviceId: 's', method: 'GET'
+            });
+            // Should still work without urlSuffix
+            assert.isObject(res);
+        });
+
+        it('should handle empty requestData', function () {
+            var helper = load(makeRegistry({
+                callImpl: function (config) { return { success: true }; }
+            }).registry);
+
+            var res = helper.callWithTokenGeneration({
+                tokenServiceId: 't', serviceId: 's', method: 'POST', requestData: null
+            });
+            assert.isObject(res);
+        });
+
+        it('should handle form-encoded content type', function () {
+            var helper = load(makeRegistry({
+                callImpl: function (config) { return { success: true }; }
+            }).registry);
+
+            var res = helper.callWithTokenGeneration({
+                tokenServiceId: 't', serviceId: 's', method: 'POST',
+                contentType: 'application/x-www-form-urlencoded',
+                requestData: { key: 'value' }
+            });
+            assert.isObject(res);
+        });
+
+        it('should handle service timeout gracefully', function () {
+            var helper = load(makeRegistry({
+                callImpl: function () { throw new Error('Service timeout'); }
+            }).registry);
+
+            var res = helper.callWithTokenGeneration({
+                tokenServiceId: 't', serviceId: 's', method: 'GET'
+            });
+            assert.isFalse(res.success);
+            assert.equal(res.error, 'Service timeout');
+        });
     });
 });

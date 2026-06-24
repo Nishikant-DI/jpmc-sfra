@@ -149,9 +149,10 @@ function hideOrchestrationIframe() {
  * @param {function} onSuccess - Success callback
  * @param {function} onError - Error callback
  * @param {function} onDenied - Denied/cancelled callback
+ * @param {Object} expectedData - Expected data for validation (orderID, transactionId)
  * @returns {Object} Object with cleanup method
  */
-function setupPostbackListener(onSuccess, onError, onDenied) {
+function setupPostbackListener(onSuccess, onError, onDenied, expectedData) {
     var hasResponded = false;
     var timeoutId = null;
     
@@ -163,17 +164,12 @@ function setupPostbackListener(onSuccess, onError, onDenied) {
         // Use exact origin match or suffix check with dot separator
         var isSameOrigin = event.origin === window.location.origin;
         var isJpmcOrigin = false;
-        
-        // Validate JPMC origin with strict suffix check
-        if (event.origin.endsWith(THREE_DS_CONFIG.JPMC_DOMAIN_SUFFIX)) {
-            isJpmcOrigin = true;
-        } else {
-            // Check against exact allowed origins
-            for (var i = 0; i < THREE_DS_CONFIG.JPMC_ORIGINS.length; i++) {
-                if (event.origin === THREE_DS_CONFIG.JPMC_ORIGINS[i]) {
-                    isJpmcOrigin = true;
-                    break;
-                }
+
+        // Check against exact allowed origins only
+        for (var i = 0; i < THREE_DS_CONFIG.JPMC_ORIGINS.length; i++) {
+            if (event.origin === THREE_DS_CONFIG.JPMC_ORIGINS[i]) {
+                isJpmcOrigin = true;
+                break;
             }
         }
 
@@ -186,6 +182,18 @@ function setupPostbackListener(onSuccess, onError, onDenied) {
             return;
         }
 
+        // Schema validation: Verify orderID and transactionId match expected values
+        // Prevents malicious same-origin messages from injecting fake success responses
+        if (expectedData) {
+            if (expectedData.orderID && data.orderID !== expectedData.orderID) {
+                console.warn('JPMC 3DS: postMessage orderID mismatch - expected:', expectedData.orderID, 'received:', data.orderID);
+                return;
+            }
+            if (expectedData.transactionId && data.transactionId !== expectedData.transactionId) {
+                console.warn('JPMC 3DS: postMessage transactionId mismatch - expected:', expectedData.transactionId, 'received:', data.transactionId);
+                return;
+            }
+        }
 
         // Mark as responded and cleanup
         hasResponded = true;
@@ -250,6 +258,8 @@ function setupPostbackListener(onSuccess, onError, onDenied) {
  * Initiate 3DS authentication orchestration flow
  * @param {Object} config - orchestration configuration
  * @param {string} config.orchestrationUrl - JPMC signed orchestration URL
+ * @param {string} config.orderID - Expected order ID for validation
+ * @param {string} config.transactionId - Expected transaction ID for validation
  * @param {function} config.onSuccess - Success callback
  * @param {function} config.onError - Error callback
  * @param {function} config.onDenied - Denied/cancelled callback
@@ -263,11 +273,15 @@ function initiateOrchestration(config) {
         return;
     }
 
-    // Setup postback listener with timeout handling
+    // Setup postback listener with timeout handling and schema validation
     var listenerCleanup = setupPostbackListener(
         config.onSuccess,
         config.onError,
-        config.onDenied
+        config.onDenied,
+        {
+            orderID: config.orderID,
+            transactionId: config.transactionId
+        }
     );
     
     // Store cleanup reference for potential manual cancellation

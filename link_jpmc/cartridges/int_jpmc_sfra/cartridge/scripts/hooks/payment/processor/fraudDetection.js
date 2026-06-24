@@ -114,15 +114,19 @@ function fraudDetection(basketOrOrder, paymentInstrument, options) {
                                 result.action, result.fraudRuleAction, result.fraudScore);
                         }
                         break;
-                    
+
                     default:
-                        result.status = 'success';
-                        result.action = 'UNKNOWN';
+                        // Unknown action codes should flag for review, not auto-approve
+                        result.status = 'flag';
+                        result.action = 'REVIEW';
+                        result.errorCode = 'FRAUD_REVIEW';
+                        result.captureMethod = 'MANUAL';
+                        result.errorMessage = 'Transaction flagged for review - unknown action code';
                         if (orderNo) {
-                            Logger.warn('Fraud unknown action - Order: {0}, FraudRuleAction: {1}, Score: {2}',
+                            Logger.warn('Fraud unknown action code flagged for review - Order: {0}, FraudRuleAction: {1}, Score: {2}',
                                 orderNo, result.fraudRuleAction, result.fraudScore);
                         } else {
-                            Logger.warn('Fraud unknown action - FraudRuleAction: {0}, Score: {1}',
+                            Logger.warn('Fraud unknown action code flagged for review - FraudRuleAction: {0}, Score: {1}',
                                 result.fraudRuleAction, result.fraudScore);
                         }
                         break;

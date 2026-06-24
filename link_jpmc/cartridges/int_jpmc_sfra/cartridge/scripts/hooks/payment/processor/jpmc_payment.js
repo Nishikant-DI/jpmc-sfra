@@ -405,11 +405,11 @@ function Handle(basket, paymentInformation, paymentMethodID, req) {
                 && verifyResult.data.paymentMethodType
                 && verifyResult.data.paymentMethodType.card
                 && verifyResult.data.paymentMethodType.card.cardTypeName;
-            var cardType = verifyResult.data // eslint-disable-line no-redeclaregetRequest (lines 192-205)
+            var cardTypeVal = verifyResult.data
                 && verifyResult.data.paymentMethodType
                 && verifyResult.data.paymentMethodType.card
                 && verifyResult.data.paymentMethodType.card.cardType;
-            var cardTypeValue = cardTypeName || cardType || jpmcConstants.PAYMENT_METHOD_DISPLAY_UNKNOWN;
+            var cardTypeValue = cardTypeName || cardTypeVal || jpmcConstants.PAYMENT_METHOD_DISPLAY_UNKNOWN;
         
             Transaction.wrap(function () {
                 paymentInstrument.custom.jpmcCardTypeName = cardTypeValue;
@@ -463,6 +463,11 @@ function Authorize(orderNumber, paymentInstrument, paymentProcessor) {
 
         if (authResult.error) {
             return { fieldErrors: fieldErrors, serverErrors: authResult.serverErrors || [], error: true };
+        }
+
+        // Clear encrypted data if no 3DS required (direct auth success)
+        if (!authResult.requires3DS) {
+            clearSensitivePaymentData();
         }
 
         // Pass through 3DS data if present

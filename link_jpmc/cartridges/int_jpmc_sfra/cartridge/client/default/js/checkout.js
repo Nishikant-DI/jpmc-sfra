@@ -96,7 +96,9 @@ if (window.jpmc3DSEnabled === true) {
                     // Display 3DS authentication iframe
                     threeDSOrchestration.initiateOrchestration({
                         orchestrationUrl: data.authenticationOrchestrationUrl,
-                        
+                        orderID: data.orderID,
+                        transactionId: data.transactionId,
+
                         onSuccess: function (authResult) {
                             threeDSHandled = false;
                             threeDSOrchestration.hideOrchestrationIframe();
@@ -204,7 +206,7 @@ if (window.jpmc3DSEnabled === true) {
 $(document).ready(function () {
     processInclude(require('base/checkout/checkout'));
     processInclude(require('./checkout/billing'));
-    processInclude(require('./jpmc/googlePay'));
+    require('./jpmc/googlePay').init('checkout');
     
     // Enable Apple Pay button if supported
     if (window.dw

@@ -272,15 +272,6 @@ describe('JPMCMerchantResolver', function () {
         it('kountClientId — falls back to SP value', function () {
             assert.strictEqual(r.mergeConfigWithSPFallback(makeCO({}), { kountClientId: 'sp-kount' }).kountClientId, 'sp-kount');
         });
-        it('applePayMerchantId — uses CO value', function () {
-            assert.strictEqual(r.mergeConfigWithSPFallback(makeCO({ applePayMerchantId: 'co-apple-mid' }), null).applePayMerchantId, 'co-apple-mid');
-        });
-        it('applePayMerchantId — falls back to SP value', function () {
-            assert.strictEqual(r.mergeConfigWithSPFallback(makeCO({}), { applePayMerchantId: 'sp-apple-mid' }).applePayMerchantId, 'sp-apple-mid');
-        });
-        it('applePayMerchantId — null when both empty', function () {
-            assert.strictEqual(r.mergeConfigWithSPFallback(makeCO({}), null).applePayMerchantId, null);
-        });
     });
 
     // -------------------------------------------------------------------------
@@ -404,12 +395,6 @@ describe('JPMCMerchantResolver', function () {
         });
         it('googlePayAllowedAuthMethods — CO over fallback', function () {
             assert.strictEqual(r.mergeConfigWithSPFallback(makeCO({ googlePayAllowedAuthMethods: 'CRYPTOGRAM_3DS' }), null).googlePayAllowedAuthMethods, 'CRYPTOGRAM_3DS');
-        });
-        it('applePayMerchantId — CO over fallback', function () {
-            assert.strictEqual(r.mergeConfigWithSPFallback(makeCO({ applePayMerchantId: 'co-apple' }), { applePayMerchantId: 'sp-apple' }).applePayMerchantId, 'co-apple');
-        });
-        it('applePayMerchantId — fallback to SP', function () {
-            assert.strictEqual(r.mergeConfigWithSPFallback(makeCO({}), { applePayMerchantId: 'sp-apple' }).applePayMerchantId, 'sp-apple');
         });
     });
 
@@ -910,6 +895,138 @@ describe('JPMCMerchantResolver', function () {
             var r = loadResolver(makeSitePrefs(), makeMockCacheMgr(makeMockCache()), null);
             var result = r.toAccessTokenConfig(undefined);
             assert.strictEqual(result.client_id, 'sp-client');
+        });
+    });
+
+    describe('resolveByMerchantId() — error handling', function () {
+        it('should fallback to resolve() when merchantId is empty/falsy', function () {
+            var r = loadResolver(makeSitePrefs({ JPMCEnableMultiMerchant: true }), makeMockCacheMgr(makeMockCache()), null);
+            var result = r.resolveByMerchantId(null);
+            assert.strictEqual(result.source, 'SitePreferences');
+        });
+
+        it('should fallback to resolve() when merchantId is empty string', function () {
+            var r = loadResolver(makeSitePrefs({ JPMCEnableMultiMerchant: true }), makeMockCacheMgr(makeMockCache()), null);
+            var result = r.resolveByMerchantId('');
+            assert.strictEqual(result.source, 'SitePreferences');
+        });
+
+        it('should fallback to resolve() when multi-merchant is disabled', function () {
+            var r = loadResolver(makeSitePrefs({ JPMCEnableMultiMerchant: false }), makeMockCacheMgr(makeMockCache()), null);
+            var result = r.resolveByMerchantId('mid-123');
+            assert.strictEqual(result.source, 'SitePreferences');
+        });
+
+        it('should handle CustomObjectMgr.queryCustomObjects() throwing exception', function () {
+            var warnMsgs = [];
+            var logger = Object.assign(makeMockLogger(), { warn: function (msg) { warnMsgs.push(msg); } });
+            var throwingCO = {
+                queryCustomObjects: function () { throw new Error('Query failed'); }
+            };
+            var r = loadResolver(makeSitePrefs({ JPMCEnableMultiMerchant: true }), makeMockCacheMgr(makeMockCache()), throwingCO, logger);
+            var result = r.resolveByMerchantId('mid-failed');
+            assert.strictEqual(result.source, 'SitePreferences', 'Should fallback to SP when query throws');
+            assert.ok(warnMsgs.length > 0, 'Should log warning on query failure');
+        });
+
+        it('should handle queryResult.close() throwing exception', function () {
+            var warnMsgs = [];
+            var logger = Object.assign(makeMockLogger(), { warn: function (msg) { warnMsgs.push(msg); } });
+            var resultIterator = {
+                hasNext: function () { return false; },
+                next: function () { return null; },
+                close: function () { throw new Error('Close failed'); }
+            };
+            var throwingCO = {
+                queryCustomObjects: function () { return resultIterator; }
+            };
+            var r = loadResolver(makeSitePrefs({ JPMCEnableMultiMerchant: true }), makeMockCacheMgr(makeMockCache()), throwingCO, logger);
+            var result = r.resolveByMerchantId('mid-closed');
+            // Should still fallback to SP even though close threw
+            assert.strictEqual(result.source, 'SitePreferences');
+        });
+
+        it('should return result from cache when merchantId CO found', function () {
+            var coObj = makeCO({ configKey: 'RefArch::mid-123', merchantId: 'mid-123', clientId: 'cached-cid', resourceId: 'cached-rid' });
+            var mockCO = { queryCustomObjects: function () {
+                return {
+                    hasNext: function () { return true; },
+                    next: function () { return coObj; },
+                    close: function () {}
+                };
+            }};
+            var r = loadResolver(makeSitePrefs({ JPMCEnableMultiMerchant: true }), makeMockCacheMgr(makeMockCache()), mockCO);
+            var result = r.resolveByMerchantId('mid-123');
+            assert.strictEqual(result.clientId, 'cached-cid');
+        });
+
+        it('should skip disabled CO and fallback to SP', function () {
+            var disabledCo = makeCO({ configKey: 'RefArch::mid-disabled', merchantId: 'mid-disabled', enabled: false });
+            var mockCO = { queryCustomObjects: function () {
+                return {
+                    hasNext: function () { return true; },
+                    next: function () { return disabledCo; },
+                    close: function () {}
+                };
+            }};
+            var r = loadResolver(makeSitePrefs({ JPMCEnableMultiMerchant: true }), makeMockCacheMgr(makeMockCache()), mockCO);
+            var result = r.resolveByMerchantId('mid-disabled');
+            assert.strictEqual(result.source, 'SitePreferences');
+        });
+
+        it('should return SP when no CO found for merchantId', function () {
+            var emptyIterator = {
+                hasNext: function () { return false; },
+                next: function () { return null; },
+                close: function () {}
+            };
+            var mockCO = { queryCustomObjects: function () { return emptyIterator; }};
+            var r = loadResolver(makeSitePrefs({ JPMCEnableMultiMerchant: true }), makeMockCacheMgr(makeMockCache()), mockCO);
+            var result = r.resolveByMerchantId('mid-notfound');
+            assert.strictEqual(result.source, 'SitePreferences');
+        });
+    });
+
+    describe('invalidateCache() — error handling', function () {
+        it('should return true when invalidation succeeds', function () {
+            var cache = makeMockCache({ invalidate: function () {} });
+            var r = loadResolver(makeSitePrefs(), makeMockCacheMgr(cache), null);
+            var result = r.invalidateCache('RefArch::en_CA');
+            assert.strictEqual(result, true);
+        });
+
+        it('should handle null configKey gracefully', function () {
+            var cache = makeMockCache();
+            var r = loadResolver(makeSitePrefs(), makeMockCacheMgr(cache), null);
+            var result = r.invalidateCache(null);
+            assert.strictEqual(result, false);
+        });
+
+        it('should handle empty configKey', function () {
+            var cache = makeMockCache();
+            var r = loadResolver(makeSitePrefs(), makeMockCacheMgr(cache), null);
+            var result = r.invalidateCache('');
+            assert.strictEqual(result, false);
+        });
+
+        it('should handle cache.invalidate() throwing exception', function () {
+            var errorMsgs = [];
+            var logger = Object.assign(makeMockLogger(), { error: function (msg) { errorMsgs.push(msg); } });
+            var throwingCache = { invalidate: function () { throw new Error('Invalidate failed'); } };
+            var r = loadResolver(makeSitePrefs(), makeMockCacheMgr(throwingCache), null, logger);
+            var result = r.invalidateCache('RefArch::en_CA');
+            assert.strictEqual(result, false, 'Should return false when invalidate throws');
+            assert.ok(errorMsgs.length > 0, 'Should log error on invalidate failure');
+        });
+
+        it('should invalidate both locale and merchantId cache keys', function () {
+            var invalidatedKeys = [];
+            var cache = makeMockCache({
+                invalidate: function (key) { invalidatedKeys.push(key); }
+            });
+            var r = loadResolver(makeSitePrefs(), makeMockCacheMgr(cache), null);
+            r.invalidateCache('RefArch::en_CA', 'mid-123');
+            assert.ok(invalidatedKeys.length >= 2, 'Should invalidate both locale and merchantId cache keys');
         });
     });
 });

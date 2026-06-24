@@ -71,7 +71,7 @@ function validateUrlSuffix(urlSuffix) {
     if (!urlSuffix) {
         return null;
     }
-    if (!/^[a-zA-Z0-9\-_/.?=&]+$/.test(urlSuffix)) {
+    if (!/^[a-zA-Z0-9\-_/.]+$/.test(urlSuffix)) {
         return null;
     }
     if (urlSuffix.indexOf('..') > -1) {

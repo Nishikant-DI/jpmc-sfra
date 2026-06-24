@@ -226,6 +226,108 @@ exports.getRequest = function (basket, applePayRequest) {
     }
 };
 
+/**
+ * Validates shipping address when customer selects shipping contact in Apple Pay sheet
+ * Restricts shipping to the country matching the current locale and filters shipping methods
+ * 
+ * @param {dw.order.Basket} basket - the basket being checked out
+ * @param {Object} event - ApplePayShippingContactSelectedEvent object
+ * @param {Object} response - JS object containing Apple Pay event callback parameters
+ * @returns {dw.extensions.applepay.ApplePayHookResult} result
+ */
+exports.shippingContactSelected = function (basket, event, response) {
+    var ApplePayHookResult = require('dw/extensions/applepay/ApplePayHookResult');
+    
+    try {
+        // Get the shipping address country from the event
+        var shippingContact = event.shippingContact;
+        if (!shippingContact || !shippingContact.countryCode) {
+            // If no country code provided, let it proceed (will be caught later)
+            return new ApplePayHookResult(new Status(Status.OK), null);
+        }
+        
+        var selectedCountry = shippingContact.countryCode.toUpperCase();
+        
+        // Get the expected country from the current locale (e.g., en_US -> US, en_CA -> CA)
+        var currentLocaleCountry = request.locale.slice(-2).toUpperCase();
+        
+        // Validate that the selected shipping country matches the locale country
+        if (selectedCountry !== currentLocaleCountry) {
+            Logger.warn('Apple Pay shipping address rejected - Selected country {0} does not match locale country {1}', 
+                selectedCountry, currentLocaleCountry);
+            
+            // Return error status with proper reason detail for Apple Pay
+            var error = new Status(Status.ERROR);
+            error.addDetail(
+                ApplePayHookResult.STATUS_REASON_DETAIL_KEY,
+                ApplePayHookResult.REASON_SHIPPING_ADDRESS
+            );
+            
+            return new ApplePayHookResult(error, null);
+        }
+
+        // Filter shipping methods to only show methods applicable to the current locale country
+        if (response && response.shippingMethods && response.shippingMethods.length > 0) {
+            var filteredMethods = [];
+            
+            for (var i = 0; i < response.shippingMethods.length; i++) {
+                var method = response.shippingMethods[i];
+                
+                // Get the shipping method from SFCC to check its applicable countries
+                var ShippingMgr = require('dw/order/ShippingMgr');
+                var shippingMethod = ShippingMgr.getShippingMethod(method.identifier);
+                
+                if (shippingMethod) {
+                    var applicableCountries = shippingMethod.getApplicableShippingCountries();
+                    
+                    // If no countries configured, include the method (assume it's valid)
+                    if (!applicableCountries || applicableCountries.length === 0) {
+                        filteredMethods.push(method);
+                    } else {
+                        // Check if current locale country is in the applicable countries
+                        var isApplicable = false;
+                        var iterator = applicableCountries.iterator();
+                        
+                        while (iterator.hasNext()) {
+                            var country = iterator.next();
+                            if (country.toUpperCase() === currentLocaleCountry) {
+                                isApplicable = true;
+                                break;
+                            }
+                        }
+                        
+                        if (isApplicable) {
+                            filteredMethods.push(method);
+                        }
+                    }
+                } else {
+                    // If shipping method not found, include it to avoid breaking the flow
+                    filteredMethods.push(method);
+                }
+            }
+            
+            // Update response with filtered shipping methods
+            response.shippingMethods = filteredMethods;
+            
+            Logger.debug('Apple Pay shipping methods filtered - Locale: {0}, Original count: {1}, Filtered count: {2}',
+                currentLocaleCountry, response.shippingMethods.length, filteredMethods.length);
+        }
+
+        // Country matches locale, proceed normally
+        return new ApplePayHookResult(new Status(Status.OK), null);
+        
+    } catch (e) {
+        Logger.error('Apple Pay shippingContactSelected failed: {0}', e instanceof Error ? e.message : String(e));
+        
+        var expError = new Status(Status.ERROR);
+        expError.addDetail(
+            ApplePayHookResult.STATUS_REASON_DETAIL_KEY,
+            ApplePayHookResult.REASON_FAILURE
+        );
+        
+        return new ApplePayHookResult(expError, null);
+    }
+};
 
 exports.cancel = function () {
     var ApplePayHookResult = require('dw/extensions/applepay/ApplePayHookResult');

@@ -56,6 +56,9 @@ describe('int_jpmc_sfra/scripts/checkout/checkoutHelpers', function () {
     
         var Order = require('../../../../../test/mocks/dw/order/Order');
         mockBasket = new Order();
+        
+        var OrderAddress = require('../../../../../test/mocks/dw/order/OrderAddress');
+        mockBasket.billingAddress = new OrderAddress();
 
        
         billingData = {

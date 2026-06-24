@@ -1,4 +1,4 @@
-import { Page } from '@playwright/test';
+import { Page, expect } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 export class ProductDetailPage extends BasePage {
@@ -15,12 +15,31 @@ export class ProductDetailPage extends BasePage {
 
     async selectSize(size: string) {
         const sizeDropdown = this.page.locator('select[id*="Size"], select[id*="size"]').first();
-        if (await sizeDropdown.isVisible()) {
-            await sizeDropdown.selectOption(size);
-        } else {
-            const sizeBtn = this.page.locator(`[data-attr-value="${size}"], button:has-text("${size}"), .size-btn:has-text("${size}")`).first();
-            await sizeBtn.click();
+        if (await sizeDropdown.isVisible().catch(() => false)) {
+
+            const options = await sizeDropdown.locator('option[data-attr-value]').evaluateAll(
+                (opts) => (opts as HTMLOptionElement[]).map((o) => ({ size: (o.textContent || '').trim(), value: o.value })),
+            );
+            // Try the requested size first, then fall back to any other size if it is out of stock.
+            const ordered = [
+                ...options.filter((o) => o.size === size),
+                ...options.filter((o) => o.size !== size),
+            ];
+            for (const option of ordered) {
+                await sizeDropdown.selectOption(option.value);
+                // Selecting a size triggers an AJAX variation update; wait for the resulting
+                // orderable state before proceeding to Add to Cart.
+                try {
+                    await expect(this.addToCartButton).toBeEnabled({ timeout: this.timeouts.action });
+                    return;
+                } catch {
+                    // Variant out of stock for this size — try the next available size.
+                }
+            }
+            throw new Error('Unable to select an in-stock size for this product');
         }
+        const sizeBtn = this.page.locator(`[data-attr-value="${size}"], button:has-text("${size}"), .size-btn:has-text("${size}")`).first();
+        await sizeBtn.click();
     }
 
     async clickAddToCart() {

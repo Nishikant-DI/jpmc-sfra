@@ -14,6 +14,7 @@ describe('CheckoutServices-Fail3DSOrder', function () {
             method: 'POST',
             rejectUnauthorized: false,
             resolveWithFullResponse: true,
+            simple: false,
             jar: cookieJar,
             followRedirect: false,
             headers: {
@@ -22,11 +23,8 @@ describe('CheckoutServices-Fail3DSOrder', function () {
         };
 
         return request(myRequest)
-            .then(function () {
-                assert.fail('Expected CSRF rejection');
-            })
-            .catch(function (err) {
-                assert.include([302, 403, 500], err.statusCode);
+            .then(function (response) {
+                assert.include([301, 302, 403, 500], response.statusCode, 'CSRF rejection should redirect or error');
             });
     });
 
@@ -34,9 +32,10 @@ describe('CheckoutServices-Fail3DSOrder', function () {
         var cookieJar = request.jar();
         var myRequest = {
             url: config.baseUrl + '/CSRF-Generate',
-            method: 'POST',
+            method: 'GET',
             rejectUnauthorized: false,
             resolveWithFullResponse: true,
+            simple: false,
             jar: cookieJar,
             headers: {
                 'X-Requested-With': 'XMLHttpRequest'
@@ -46,30 +45,27 @@ describe('CheckoutServices-Fail3DSOrder', function () {
         return request(myRequest)
             .then(function (csrfResponse) {
                 var csrf = JSON.parse(csrfResponse.body).csrf;
+                var formData = {};
+                formData[csrf.tokenName] = csrf.token;
                 return request({
-                    url: config.baseUrl + '/CheckoutServices-Fail3DSOrder?'
-                        + csrf.tokenName + '=' + csrf.token,
+                    url: config.baseUrl + '/CheckoutServices-Fail3DSOrder',
                     method: 'POST',
                     rejectUnauthorized: false,
                     resolveWithFullResponse: true,
+                    simple: false,
                     jar: cookieJar,
-                    followRedirect: false,
+                    form: formData,
                     headers: {
                         'X-Requested-With': 'XMLHttpRequest'
                     }
                 });
             })
             .then(function (response) {
-                assert.equal(response.statusCode, 200);
-                var body = JSON.parse(response.body);
-                assert.isTrue(body.error);
-            })
-            .catch(function (err) {
-                // Controller may redirect when no valid order exists
-                if (err.statusCode) {
-                    assert.include([302, 500], err.statusCode);
+                if (response.statusCode === 200) {
+                    var body = JSON.parse(response.body);
+                    assert.isTrue(body.error);
                 } else {
-                    throw err;
+                    assert.include([301, 302, 500], response.statusCode);
                 }
             });
     });

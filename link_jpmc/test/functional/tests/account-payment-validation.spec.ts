@@ -11,6 +11,21 @@ test.describe('Payment Management Tests', () => {
         await dashboardPage.verifyDashboard();
     }
 
+    /**
+     * Navigates to the Add New Payment form. If the session was lost and the
+     * shopper is bounced to the login page, transparently re-logs in and
+     * retries the pending navigation.
+     */
+    async function goToAddPayment(loginPage: LoginPage, dashboardPage: DashboardPage) {
+        await loginPage.withSessionRecovery(async () => {
+            if (await loginPage.isOnLoginPage()) {
+                await loginPage.reloginIfNeeded();
+                await dashboardPage.verifyDashboard();
+            }
+            await dashboardPage.clickAddNewPayment();
+        });
+    }
+
     test('Login and Add Payment Method', async ({ loginPage, dashboardPage, paymentPage, walletPage }) => {
         const card = paymentCards.visaCard;
 
@@ -18,7 +33,7 @@ test.describe('Payment Management Tests', () => {
         await loginAndVerifyDashboard(loginPage, dashboardPage);
 
         logStep('Navigate to Add New Payment form');
-        await dashboardPage.clickAddNewPayment();
+        await goToAddPayment(loginPage, dashboardPage);
 
         logStep('Verify payment form structure');
         await paymentPage.verifyPaymentPage();
@@ -41,7 +56,7 @@ test.describe('Payment Management Tests', () => {
     test('Verify Payment Form Labels', async ({ loginPage, dashboardPage, paymentPage }) => {
         logStep('Login and navigate to payment form');
         await loginAndVerifyDashboard(loginPage, dashboardPage);
-        await dashboardPage.clickAddNewPayment();
+        await goToAddPayment(loginPage, dashboardPage);
 
         logStep('Verify all form labels are present');
         await paymentPage.verifyPaymentPage();
@@ -58,7 +73,7 @@ test.describe('Payment Management Tests', () => {
             const card = cards[i];
 
             logStep(`Adding ${card.cardType} card`);
-            await dashboardPage.clickAddNewPayment();
+            await goToAddPayment(loginPage, dashboardPage);
             await paymentPage.verifyPaymentPage();
             await paymentPage.addPayment(
                 card.cardOwner,
@@ -85,7 +100,7 @@ test.describe('Payment Management Tests', () => {
         await loginAndVerifyDashboard(loginPage, dashboardPage);
 
         logStep('Add a new payment card');
-        await dashboardPage.clickAddNewPayment();
+        await goToAddPayment(loginPage, dashboardPage);
         await paymentPage.verifyPaymentPage();
         await paymentPage.verifyAllLabels();
         await paymentPage.addPayment(

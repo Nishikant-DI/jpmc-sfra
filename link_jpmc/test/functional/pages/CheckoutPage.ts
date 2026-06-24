@@ -224,6 +224,38 @@ export class CheckoutPage extends BasePage {
         expect(hasExpectedValue || pageText.toLowerCase().includes('payment')).toBeTruthy();
     }
 
+    /**
+     * Submits the payment step expecting it to FAIL (e.g. invalid card). The
+     * SFRA error message is rendered on the same payment page. Validates that
+     * an error is shown and returns the error text.
+     */
+    async submitPaymentExpectingError(): Promise<string> {
+        await this.nextPlaceOrderButton.waitFor({ state: 'visible', timeout: this.timeouts.action });
+        await this.nextPlaceOrderButton.click();
+
+        const errorAlert = this.page.locator(
+            '.error-message, .alert-danger, .invalid-feedback, .invalid-payment, .payment-error'
+        ).first();
+        await errorAlert.waitFor({ state: 'visible', timeout: this.timeouts.navigation }).catch(() => {});
+
+        const hasErrorElement = await errorAlert.isVisible().catch(() => false);
+        const errorText = hasErrorElement ? (await errorAlert.innerText().catch(() => '')) : '';
+
+        const bodyText = await this.page.locator('body').innerText();
+        const errorPatterns = [/error/i, /invalid/i, /declined/i, /unable/i, /could not/i, /not be processed/i, /try again/i];
+        const bodyHasError = errorPatterns.some((pattern) => pattern.test(bodyText));
+
+        expect(
+            hasErrorElement || bodyHasError,
+            'Expected an inline payment error message to be displayed after submitting an invalid card'
+        ).toBeTruthy();
+
+        // Ensure we are still on the checkout/payment page (order was NOT placed)
+        expect(this.page.url()).toContain('Checkout');
+
+        return (errorText || bodyText).trim();
+    }
+
     async clickPlaceOrder() {
         await this.placeOrderButton.waitFor({ state: 'visible', timeout: this.timeouts.navigation });
         const responsePromise = this.page.waitForResponse(

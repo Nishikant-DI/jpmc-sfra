@@ -79,14 +79,12 @@ function build3DSAuthenticationParameters(order, resolvedConfig) {
     var Site = require('dw/system/Site');
     
     // Build authenticationReturnUrl (where JPMC redirects after 3DS challenge).
-    // Include orderNo and orderToken so Handle3DSReturn can locate the order
-    // directly without relying on a custom-attribute search.
+    // orderNo included for debugging; orderToken stored in session to avoid log exposure
     var authReturnUrl;
     try {
         authReturnUrl = URLUtils.https(
             'CheckoutServices-Handle3DSReturn',
-            'orderNo', order.orderNo,
-            'orderToken', order.orderToken
+            'orderNo', order.orderNo
         ).toString();
     } catch (urlErr) {
         var siteUrl = Site.getCurrent().getHttpsHostName();
