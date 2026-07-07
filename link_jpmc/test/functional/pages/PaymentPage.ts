@@ -66,6 +66,9 @@ export class PaymentPage extends BasePage {
 
     async clickSave() {
         await Promise.all([
+            // SFRA redirects to the wallet list page, whose clean URL is `/wallet`
+            // (controller route PaymentInstruments-List). Match either, and resolve on
+            // `commit` so we don't hang on the slow `load` event fired by storefront trackers.
             this.page.waitForURL(/wallet|PaymentInstruments-List/i, {
                 timeout: this.timeouts.navigation,
                 waitUntil: 'commit',

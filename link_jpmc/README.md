@@ -51,10 +51,40 @@ This cartridge enables seamless integration of JPMorgan Chase payment services w
 
 ## Installation
 
+### Development Setup
+
 1. Clone the repository
-2. Install dependencies: `npm install`
-3. Build the cartridge: `npm run build`
-4. Upload to SFCC: `npm run uploadCartridge`
+2. Install dependencies (development):
+   ```bash
+   npm install
+   ```
+3. Build the cartridge:
+   ```bash
+   npm run build
+   ```
+4. Upload to SFCC:
+   ```bash
+   npm run uploadCartridge
+   ```
+
+### Production/CI Setup (Recommended)
+
+For production builds and CI/CD pipelines, use `npm ci` instead of `npm install`:
+
+```bash
+npm ci
+npm run build
+npm run uploadCartridge
+```
+
+**Why `npm ci`?**
+- Installs exact versions from `package-lock.json` (not semver ranges)
+- Ensures reproducible builds across environments
+- Prevents unexpected dependency updates that could introduce vulnerabilities
+- Faster and more reliable in CI environments
+- Required for security compliance
+
+**Important:** Always commit `package-lock.json` to version control.
 
 ## Development Scripts
 
@@ -88,6 +118,32 @@ When the JPMorgan Chase payment service is unavailable, the cartridge handles fa
 - **Capture/Refund/Void (BM Operations)**: If a post-authorization operation fails, the CSC agent sees an error banner in Business Manager. The operation can be retried once the service recovers.
 - **Fraud Check (Kount)**: If the fraud check service is unreachable, the payment proceeds without a fraud score (configurable behavior via Site Preferences).
 - **Logging**: All service failures are logged with error-level severity to `customerror_*` log files for monitoring and alerting.
+
+## Security
+
+This cartridge follows industry best practices for payment security and undergoes regular security audits.
+
+### Security Features
+
+- **PCI DSS Compliance**: No PAN storage, tokenization, TLS 1.2+ encryption
+- **3DS 2.0**: Server-side validation with nonce protection
+- **CSRF Protection**: All state-changing endpoints require CSRF tokens
+- **Input Validation**: Comprehensive validation on all user inputs
+- **Secure Logging**: No sensitive data in application logs
+
+### Security Monitoring
+
+- **Automated Scanning**: Weekly Dependabot security updates
+- **CI/CD Gates**: npm audit checks on all pull requests
+- **Vulnerability Threshold**: No high/critical production vulnerabilities allowed
+
+### Reporting Security Issues
+
+**Do not** create public GitHub issues for security vulnerabilities.
+
+Report security issues to: **security@jpmc.com**
+
+See [SECURITY.md](../SECURITY.md) for complete security policy and response timeline.
 
 ## Support
 

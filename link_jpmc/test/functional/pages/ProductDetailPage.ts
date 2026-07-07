@@ -16,7 +16,9 @@ export class ProductDetailPage extends BasePage {
     async selectSize(size: string) {
         const sizeDropdown = this.page.locator('select[id*="Size"], select[id*="size"]').first();
         if (await sizeDropdown.isVisible().catch(() => false)) {
-
+            // SFRA size <option>s carry the variation URL as their value and the real size in
+            // `data-attr-value`; the "Select Size" placeholder has no data-attr-value and must be
+            // skipped (selecting it leaves the product unconfigured and Add to Cart disabled).
             const options = await sizeDropdown.locator('option[data-attr-value]').evaluateAll(
                 (opts) => (opts as HTMLOptionElement[]).map((o) => ({ size: (o.textContent || '').trim(), value: o.value })),
             );
