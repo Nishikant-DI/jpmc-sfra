@@ -1,0 +1,72 @@
+{
+  "name": "int_jpmc",
+  "version": "26.1.0",
+  "description": "JPMC SFRA Payment Integration",
+  "scripts": {
+    "compile:js": "sgmf-scripts --compile js",
+    "compile:scss": "sgmf-scripts --compile css",
+    "build": "npm run compile:js && npm run compile:scss",
+    "lint": "sgmf-scripts --lint js",
+    "watch": "sgmf-scripts --watch",
+    "upload": "sgmf-scripts --upload",
+    "uploadCartridge": "sgmf-scripts --uploadCartridge int_jpmc_sfra && sgmf-scripts --uploadCartridge bm_jpmc",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "sgmf-scripts --test test/unit/**/*.js",
+    "test:integration": "mocha --timeout 10000 --require test/integration/setup.js 'test/integration/int_jpmc_*/**/*.js'",
+    "cover": "sgmf-scripts --cover 'test/unit'",
+    "test:watch": "sgmf-scripts --test test/unit/**/*.js --watch",
+    "test:functional:setup": "cd test/functional && npm install && npx playwright install --with-deps chromium",
+    "test:functional": "cd test/functional && npx playwright test",
+    "test:functional:headed": "cd test/functional && npx playwright test --headed",
+    "test:functional:ui": "cd test/functional && npx playwright test --ui",
+    "test:functional:report": "cd test/functional && npx playwright show-report"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.29.6",
+    "@babel/preset-env": "^7.29.6",
+    "@tridnguyen/config": "^2.3.1",
+    "axios": "^1.7.9",
+    "babel-loader": "^9.0.0",
+    "bootstrap": "^4.6.2",
+    "chai": "^4.0.0",
+    "css-loader": "^6.8.1",
+    "eslint": "^8.57.1",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "mini-css-extract-plugin": "^2.7.6",
+    "mocha": "10.0.0",
+    "nyc": "^15.1.0",
+    "proxyquire": "^2.0.0",
+    "sass": "^1.69.5",
+    "sass-loader": "^13.3.2",
+    "sgmf-scripts": "3.0.0",
+    "shelljs": "^0.8.5",
+    "sinon": "^17.0.1"
+  },
+  "paths": {
+    "base": "../storefront-reference-architecture-master/cartridges/app_storefront_base/"
+  },
+  "packageName": "int_jpmc_sfra",
+  "dependencies": {
+    "@kount/kount-web-client-sdk": "^2.2.3",
+    "cleave.js": "^1.6.0"
+  },
+  "overrides": {
+    "serialize-javascript": "^7.0.5",
+    "lodash": "^4.18.0",
+    "form-data": "^2.5.1",
+    "tough-cookie": "^4.1.4",
+    "qs": "^6.11.0",
+    "postcss": "^8.5.10",
+    "inquirer": "^8.0.0",
+    "fast-uri": "^3.1.2",
+    "node-notifier": "^10.0.0",
+    "merge": "^2.1.1",
+    "uuid": "^11.1.1",
+    "yargs-parser": "^21.1.1",
+    "jszip": "^3.10.1",
+    "brace-expansion": "^2.0.1",
+    "js-yaml": "^4.2.0"
+  }
+}
