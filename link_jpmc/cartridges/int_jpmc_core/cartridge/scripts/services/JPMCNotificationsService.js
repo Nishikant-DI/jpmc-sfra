@@ -70,7 +70,7 @@ function receive(options) {
     var urlParameters = {
         periodStart: periodStart,
         periodEnd: periodEnd,
-        pageSize: '1000' // Request maximum page size (JPMC caps at 1000)
+        pageSize: '100' // Request maximum page size (JPMC caps at 100)
     };
 
     if (typeof opts.pageToken === 'string' && opts.pageToken !== '') {
