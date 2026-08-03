@@ -1,17 +1,25 @@
 # JPMorgan Chase Payment Cartridge for Salesforce Commerce Cloud
 
-The JPMorgan Chase Payment Cartridge integrates JPMorgan Payments Modern API with Salesforce Commerce Cloud (SFCC) to provide a comprehensive payment solution for e-commerce merchants.
+The JPMorgan Chase Payment Cartridge integrates the JPMorgan Payments Modern API with Salesforce Commerce Cloud (SFCC) to provide a comprehensive payment solution for e-commerce merchants.
 
 ## Overview
 
 This cartridge enables seamless integration of JPMorgan Chase payment services with SFCC, offering secure and reliable payment processing capabilities for online merchants.
 
+It supports both:
+- **Direct API implementation** (merchant-controlled payment flow)
+- **Drop-In implementation** (prebuilt payment components for faster integration)
+
 ## Features
+
+### Integration Modes
+- **Direct API**: Full control over checkout/payment orchestration
+- **Drop-In**: Faster implementation with hosted/prebuilt payment UI components
 
 ### Payment Methods
 - **Credit Card Payments**: Full credit card processing with enhanced security
-- **Google Pay**: Digital wallet integration for Web
-- **Apple Pay**: Digital wallet integration for Web (safari)
+- **Google Pay**: Digital wallet integration for web
+- **Apple Pay**: Digital wallet integration for web (Safari)
 
 ### Credit Card Features
 - **Page Encryption**: Client-side encryption for enhanced security
@@ -24,14 +32,14 @@ This cartridge enables seamless integration of JPMorgan Chase payment services w
 - **Void**: Transaction void operations
 
 ### Security & Compliance
-- PCI DSS compliant payment processing
+- PCI DSS-compliant payment processing
 - End-to-end encryption
 - Secure tokenization
 - Fraud prevention tools
 
 ## Supported Payment Types
 
-- Credit Cards (Visa, Mastercard, American Express, Discover etc.)
+- Credit Cards (Visa, Mastercard, American Express, Discover, etc.)
 - Google Pay (Web)
 - Apple Pay (Web — Safari)
 
@@ -41,13 +49,13 @@ This cartridge enables seamless integration of JPMorgan Chase payment services w
 - SFRA version: 7.0.1
 - Compatibility mode: 21.2+
 - Node.js 14+ for development
-- SGMF Scripts for build processes
+- SGMF scripts for build processes
 
 ## Supported Locales
 
 - en_US (English — United States)
-- en_CA (English - Cananda)
-- Locales supported by SFRA (Multi Merchant feature)
+- en_CA (English — Canada)
+- Locales supported by SFRA (Multi-Merchant feature)
 
 ## Installation
 
@@ -98,15 +106,17 @@ npm run uploadCartridge
 
 - `int_jpmc_core` - Core payment functionality and API integration
 - `int_jpmc_sfra` - SFRA-specific templates and controllers
-- `bm_jpmc` - SFRA-specific templates + controllers + Integartions from BM users(Admin and CSC)
+- `bm_jpmc` - Business Manager components, templates, controllers, and integrations for Admin/CSC users
 
 ## Configuration
 
 Configure the payment settings in Business Manager:
-1. Navigate to Merchant Tools > Site Preferences > Custom Preferences
+
+1. Navigate to **Merchant Tools > Site Preferences > Custom Preferences**
 2. Configure JPMorgan Chase payment credentials
 3. Enable desired payment methods
-4. Configure the Services
+4. Select/enable the required integration mode (**Direct API** or **Drop-In**) where applicable
+5. Configure service profiles and credentials
 
 ## Failover & Recovery
 
@@ -116,7 +126,7 @@ When the JPMorgan Chase payment service is unavailable, the cartridge handles fa
 - **Authorization Failure**: If the payment authorization call fails or times out, the order is not placed. The customer sees a payment error message and can retry or choose a different payment method.
 - **3DS Authentication**: If the 3DS orchestration service is unreachable, the authentication step fails gracefully and the customer is returned to checkout with an error message.
 - **Capture/Refund/Void (BM Operations)**: If a post-authorization operation fails, the CSC agent sees an error banner in Business Manager. The operation can be retried once the service recovers.
-- **Fraud Check (Kount)**: If the fraud check service is unreachable, the payment proceeds without a fraud score (configurable behavior via Site Preferences).
+- **Fraud Check (Kount)**: If the fraud check service is unreachable, payment proceeds without a fraud score (configurable behavior via Site Preferences).
 - **Logging**: All service failures are logged with error-level severity to `customerror_*` log files for monitoring and alerting.
 
 ## Security
@@ -134,19 +144,18 @@ This cartridge follows industry best practices for payment security and undergoe
 ### Security Monitoring
 
 - **Automated Scanning**: Weekly Dependabot security updates
-- **CI/CD Gates**: npm audit checks on all pull requests
+- **CI/CD Gates**: `npm audit` checks on all pull requests
 - **Vulnerability Threshold**: No high/critical production vulnerabilities allowed
 
 ### Reporting Security Issues
 
 **Do not** create public GitHub issues for security vulnerabilities.
 
-
 ## Support
 
 This cartridge is fully supported by JPMorgan Chase Payments.
 
-For technical support and documentation, please contact your JPMorgan Chase representative.
+For technical support and documentation, contact your JPMorgan Chase representative.
 
 ## License
 
